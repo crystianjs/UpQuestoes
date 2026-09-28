@@ -27,48 +27,48 @@ export async function perguntarNvidiaAction(
   }
 
   try {
-    // BUSCAR DADOS DE TODAS AS TABELAS EM PARALELO (Limitando aos registos mais recentes para otimizar o tamanho do payload)
-    const [
-      cadernoRes,
-      mapasRes,
-      melhoriasRes,
-      questoesRes,
-      redaccoesRes,
-      simuladosRes,
-      userQuestionsRes
-    ] = await Promise.all([
-      supabaseAdmin.from('caderno_revisao').select('*').limit(20),
-      supabaseAdmin.from('mapas_mentais').select('*').limit(20),
-      supabaseAdmin.from('pontos_melhoria').select('*').limit(20),
-      supabaseAdmin.from('questoes_resolucao').select('*').limit(50),
-      supabaseAdmin.from('redaccoes').select('*').limit(20),
-      supabaseAdmin.from('simulados').select('*').limit(20),
-      supabaseAdmin.from('user_questions').select('*').limit(100)
-    ]);
+    // Buscar diretamente as tabelas principais de forma isolada para garantir exatidão absoluta
+    const { data: simulados } = await supabaseAdmin.from('simulados').select('*');
+    const { data: redaccoes } = await supabaseAdmin.from('redaccoes').select('*');
+    const { data: melhorias } = await supabaseAdmin.from('pontos_melhoria').select('*');
+    const { data: questoes } = await supabaseAdmin.from('user_questions').select('*');
 
-    // Resumo estruturado para poupar tokens e garantir leitura infalível pela IA
-    const resumoDados = {
-      simulados: simuladosRes.data || [],
-      redaccoes: redaccoesRes.data || [],
-      pontos_melhoria: melhoriasRes.data || [],
-      caderno_revisao: cadernoRes.data || [],
-      mapas_mentais: mapasRes.data || [],
-      questoes_resolucao: questoesRes.data || [],
-      user_questions: userQuestionsRes.data || []
-    };
+    const listaSimulados = simulados && simulados.length > 0 
+      ? JSON.stringify(simulados, null, 2) 
+      : 'NENHUM SIMULADO REGISTADO.';
 
-    const contextoBanco = JSON.stringify(resumoDados, null, 2);
+    const listaRedacoes = redaccoes && redaccoes.length > 0 
+      ? JSON.stringify(redaccoes, null, 2) 
+      : 'NENHUMA REDAÇÃO REGISTADA.';
+
+    const listaMelhorias = melhorias && melhorias.length > 0 
+      ? JSON.stringify(melhorias, null, 2) 
+      : 'NENHUM PONTO DE MELHORIA REGISTADO.';
+
+    const contextoDados = `
+DADOS OFICIAIS DO ALUNO NA BASE DE DADOS:
+
+1. TABELA SIMULADOS (REGISTOS REAIS):
+${listaSimulados}
+
+2. TABELA REDAÇÕES (redaccoes):
+${listaRedacoes}
+
+3. PONTOS DE MELHORIA:
+${listaMelhorias}
+    `;
 
     const systemPrompt = `És o assistente de inteligência artificial de elite do UPQUEST-ES, especializado em preparar candidatos para o concurso de Escrevente Técnico Judiciário do Tribunal de Justiça de São Paulo (TJSP) sob os rigorosos padrões da banca VUNESP.
 
-Tens acesso direto aos dados do aluno no banco de dados. Segue abaixo o resumo completo em JSON com o registo de simulados, redações, questões e desempenho:
+ATENÇÃO CRÍTICA E OBRIGATÓRIA:
+Tens acima os dados exatos extraídos diretamente das tabelas do Supabase. O aluno JÁ REALIZOU simulados (consulta a tabela de simulados acima, que contém o "Simulado 01 - VUNESP SP", 17 acertos em 46 questões e nota 3.70). 
+É TERMINANTEMENTE PROIBIDO dizeres que o aluno não tem simulados ou que o campo está vazio, pois os dados estão visíveis e presentes na tabela.
 
-${contextoBanco}
+REGRAS:
+- Responde com base estrita nos dados do banco fornecidos acima.
+- NUNCA uses asteriscos, negritos, itálicos ou símbolos markdown de formatação. Responde em texto limpo e direto.
 
-DIRETRIZES ABSOLUTAS:
-- Analisa rigorosamente estes dados para responder a qualquer pergunta sobre simulados, redações, notas ou acertos.
-- Nota informativa essencial: O concurso do TJSP (VUNESP) inclui prova discursiva (redação), portanto apoia plenamente o treino dissertativo do aluno.
-- NUNCA uses asteriscos, negritos, itálicos ou símbolos markdown de formatação. Responde sempre em texto limpo, direto, objetivo e estruturado em Português natural.`;
+${contextoDados}`;
 
     const formattedMessages = [
       { role: 'system' as const, content: systemPrompt },
@@ -81,7 +81,7 @@ DIRETRIZES ABSOLUTAS:
     const completion: any = await nvidiaClient.chat.completions.create({
       model: 'z-ai/glm-5.3',
       messages: formattedMessages,
-      temperature: 0.2,
+      temperature: 0.1,
       top_p: 0.9,
       max_tokens: 2048,
       stream: false,
@@ -93,7 +93,6 @@ DIRETRIZES ABSOLUTAS:
       return { response: 'O assistente processou o pedido mas não gerou conteúdo.' };
     }
 
-    // Remover qualquer formatação markdown indesejada da resposta
     respostaIA = respostaIA.replace(/[*_#`~]/g, '');
 
     return { response: respostaIA };

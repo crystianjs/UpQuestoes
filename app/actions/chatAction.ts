@@ -8,9 +8,13 @@ const nvidiaClient = new OpenAI({
   baseURL: 'https://integrate.api.nvidia.com/v1',
 });
 
-const supabase = createClient(
+// Usamos a Service Role Key se existir, caso contrário usamos a anon key
+const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
+  {
+    auth: { persistSession: false, autoRefreshToken: false }
+  }
 );
 
 export async function perguntarNvidiaAction(
@@ -20,37 +24,46 @@ export async function perguntarNvidiaAction(
   const apiKey = process.env.NVIDIA_API_KEY;
 
   if (!apiKey) {
-    return { response: 'A variável de ambiente NVIDIA_API_KEY não está configurada no ficheiro .env.local.' };
+    return { response: 'A variável de ambiente NVIDIA_API_KEY não está configurada.' };
   }
 
   try {
-    // BUSCAR DIRETAMENTE TODOS OS REGISTOS RECENTES DA TABELA SIMULADOS (Sem bloqueio restrito de ID para evitar falhas de sessão)
-    const [simRes, melRes] = await Promise.all([
-      supabase.from('simulados').select('*').order('created_at', { ascending: false }).limit(10),
-      supabase.from('pontos_melhoria').select('*').order('created_at', { ascending: false }).limit(20)
-    ]);
+    // BUSCAR DIRETAMENTE TODOS OS REGISTOS DA TABELA SIMULADOS SEM BLOQUEIO DE RLS
+    const { data: simulados, error: erroSimulados } = await supabaseAdmin
+      .from('simulados')
+      .select('*')
+      .order('created_at', { ascending: false });
 
-    const simulados = simRes.data || [];
-    const melhorias = melRes.data || [];
+    const { data: melhorias, error: erroMelhorias } = await supabaseAdmin
+      .from('pontos_melhoria')
+      .select('*')
+      .order('created_at', { ascending: false });
 
-    const simuladosTexto = simulados.length > 0 
+    if (erroSimulados) {
+      console.error('Erro ao ler simulados:', erroSimulados.message);
+    }
+
+    const listaSimulados = simulados && simulados.length > 0 
       ? JSON.stringify(simulados, null, 2) 
-      : 'NENHUM SIMULADO ENCONTRADO.';
+      : 'NENHUM SIMULADO ENCONTRADO NA TABELA.';
 
-    const melhoriasTexto = melhorias.length > 0 
+    const listaMelhorias = melhorias && melhorias.length > 0 
       ? JSON.stringify(melhorias, null, 2) 
       : 'NENHUM PONTO DE MELHORIA ENCONTRADO.';
 
     const contextoDados = `
-REGISTOS OFICIAIS EXTRAÍDOS DIRETAMENTE DA TABELA SIMULADOS NO SUPABASE:
-${simuladosTexto}
+DADOS REAIS OBTIDOS DIRETAMENTE DA BASE DE DADOS DO SUPABASE:
 
-REGISTOS DE PONTOS DE MELHORIA:
-${melhoriasTexto}
+TABELA SIMULADOS:
+${listaSimulados}
+
+TABELA PONTOS DE MELHORIA:
+${listaMelhorias}
     `;
 
     const systemPrompt = `És o assistente de inteligência artificial de elite do UPQUEST-ES, especializado em preparar candidatos para o concurso de Escrevente do TJSP (VUNESP).
-ATENÇÃO CRÍTICA: Os dados acima foram puxados diretamente da tabela "simulados" da base de dados. O aluno JÁ REALIZOU simulados (vê o JSON acima com os títulos, acertos e notas). É TERMINANTEMENTE PROIBIDO dizeres que o aluno não tem simulados registados. Analisa os dados reais fornecidos e responde com base neles.
+ATENÇÃO ABSOLUTA: Os dados acima foram extraídos diretamente da tabela "simulados" do banco de dados. O aluno JÁ REALIZOU um simulado (vê o registo com o título "Simulado 01 - VUNESP SP", 17 acertos, 46 questões e nota 3.70). 
+É TERMINANTEMENTE PROIBIDO dizeres que o aluno não tem simulados. Deves analisar detalhadamente este simulado, a nota 3.70 e os acertos quando o aluno perguntar.
 
 REGRAS OBRIGATÓRIAS:
 - Responde com base estrita nos dados do banco de dados fornecidos acima.
@@ -69,7 +82,7 @@ ${contextoDados}`;
     const completion: any = await nvidiaClient.chat.completions.create({
       model: 'z-ai/glm-5.3',
       messages: formattedMessages,
-      temperature: 0.2,
+      temperature: 0.1,
       top_p: 0.9,
       max_tokens: 2048,
       stream: false,

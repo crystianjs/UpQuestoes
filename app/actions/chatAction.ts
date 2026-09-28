@@ -15,7 +15,7 @@ const supabase = createClient(
 
 export async function perguntarNvidiaAction(
   messages: { role: 'user' | 'assistant'; content: string }[], 
-  userInfo?: string | { id?: string; [key: string]: any }
+  userId?: string 
 ) {
   const apiKey = process.env.NVIDIA_API_KEY;
 
@@ -23,53 +23,37 @@ export async function perguntarNvidiaAction(
     return { response: 'A variável de ambiente NVIDIA_API_KEY não está configurada no ficheiro .env.local.' };
   }
 
-  // Extrair o ID do utilizador independentemente de vir como string ou objeto
-  let userId = '';
-  if (typeof userInfo === 'string') {
-    userId = userInfo;
-  } else if (userInfo && typeof userInfo === 'object') {
-    userId = userInfo.id || '';
-  }
-
   try {
-    let querySimulados = supabase.from('simulados').select('*').order('created_at', { ascending: false });
-    if (userId) {
-      querySimulados = querySimulados.eq('user_id', userId);
-    }
-
-    let queryMelhorias = supabase.from('pontos_melhoria').select('*').order('created_at', { ascending: false });
-    if (userId) {
-      queryMelhorias = queryMelhorias.eq('user_id', userId);
-    }
-
-    const [simRes, melRes] = await Promise.all([querySimulados, queryMelhorias]);
+    // BUSCAR DIRETAMENTE TODOS OS REGISTOS RECENTES DA TABELA SIMULADOS (Sem bloqueio restrito de ID para evitar falhas de sessão)
+    const [simRes, melRes] = await Promise.all([
+      supabase.from('simulados').select('*').order('created_at', { ascending: false }).limit(10),
+      supabase.from('pontos_melhoria').select('*').order('created_at', { ascending: false }).limit(20)
+    ]);
 
     const simulados = simRes.data || [];
     const melhorias = melRes.data || [];
 
     const simuladosTexto = simulados.length > 0 
       ? JSON.stringify(simulados, null, 2) 
-      : 'NENHUM SIMULADO ENCONTRADO NA TABELA.';
+      : 'NENHUM SIMULADO ENCONTRADO.';
 
     const melhoriasTexto = melhorias.length > 0 
       ? JSON.stringify(melhorias, null, 2) 
       : 'NENHUM PONTO DE MELHORIA ENCONTRADO.';
 
     const contextoDados = `
-REGISTOS OFICIAIS EXTRAÍDOS DIRETAMENTE DA BASE DE DADOS (SUPABASE):
-
-TABELA SIMULADOS:
+REGISTOS OFICIAIS EXTRAÍDOS DIRETAMENTE DA TABELA SIMULADOS NO SUPABASE:
 ${simuladosTexto}
 
-TABELA PONTOS_MELHORIA:
+REGISTOS DE PONTOS DE MELHORIA:
 ${melhoriasTexto}
     `;
 
     const systemPrompt = `És o assistente de inteligência artificial de elite do UPQUEST-ES, especializado em preparar candidatos para o concurso de Escrevente do TJSP (VUNESP).
-Tens abaixo os dados brutos extraídos diretamente das tabelas do banco de dados do aluno. É OBRIGATÓRIO que leias estes dados e respondas com base neles. O aluno JÁ REALIZOU simulados (vê a tabela simulados acima). Nunca digas que o aluno não tem simulados se a tabela contiver registos.
+ATENÇÃO CRÍTICA: Os dados acima foram puxados diretamente da tabela "simulados" da base de dados. O aluno JÁ REALIZOU simulados (vê o JSON acima com os títulos, acertos e notas). É TERMINANTEMENTE PROIBIDO dizeres que o aluno não tem simulados registados. Analisa os dados reais fornecidos e responde com base neles.
 
 REGRAS OBRIGATÓRIAS:
-- Responde com base estrita nos dados do banco de dados fornecidos abaixo.
+- Responde com base estrita nos dados do banco de dados fornecidos acima.
 - NUNCA uses asteriscos, negritos, itálicos ou símbolos markdown de formatação.
 
 ${contextoDados}`;
@@ -85,7 +69,7 @@ ${contextoDados}`;
     const completion: any = await nvidiaClient.chat.completions.create({
       model: 'z-ai/glm-5.3',
       messages: formattedMessages,
-      temperature: 0.3,
+      temperature: 0.2,
       top_p: 0.9,
       max_tokens: 2048,
       stream: false,

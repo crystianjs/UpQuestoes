@@ -113,7 +113,7 @@ export default function DesempenhoPage() {
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
               <BarChart3 className="w-6 h-6 text-red-500" />
-              Desempenho & Estatísticas — UPQUESTOES
+              Desempenho e Estatísticas — UPQUESTOES
             </h1>
             <p className="text-sm text-zinc-400 mt-1">
               Acompanhe a sua evolução para o concurso do TJSP (VUNESP).

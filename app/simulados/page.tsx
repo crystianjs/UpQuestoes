@@ -30,17 +30,17 @@ export default function SimuladosPage() {
   const [melhorias, setMelhorias] = useState<PontoMelhoria[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // Modais
-  const [modalSimuladoOpen, setModalSimuladoOpen] = useState(false);
-  const [modalMelhoriaOpen, setModalMelhoriaOpen] = useState(false);
+  // Modal único
+  const [modalOpen, setModalOpen] = useState(false);
   const [copiado, setCopiado] = useState(false);
 
-  // Estados do formulário de novo simulado
+  // Estados do formulário de simulado
   const [titulo, setTitulo] = useState('');
   const [acertos, setAcertos] = useState('');
   const [total, setTotal] = useState('100');
 
-  // Estados do formulário de Pontos de Melhoria (Manual / JSON)
+  // Estados dos Pontos de Melhoria (dentro do modal)
+  const [incluirMelhorias, setIncluirMelhorias] = useState(false);
   const [modoJson, setModoJson] = useState(false);
   const [novaMateria, setNovaMateria] = useState('');
   const [errosInput, setErrosInput] = useState('');
@@ -74,7 +74,7 @@ export default function SimuladosPage() {
     }
   }
 
-  async function handleSalvarSimulado(e: React.FormEvent) {
+  async function handleSalvarTudo(e: React.FormEvent) {
     e.preventDefault();
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -84,7 +84,8 @@ export default function SimuladosPage() {
       const numTotal = parseInt(total);
       const notaCalculada = Number(((numAcertos / numTotal) * 10).toFixed(2));
 
-      const { error } = await supabase.from('simulados').insert([
+      // 1. Inserir Simulado
+      const { error: erroSimulado } = await supabase.from('simulados').insert([
         {
           user_id: user.id,
           titulo,
@@ -94,67 +95,58 @@ export default function SimuladosPage() {
         },
       ]);
 
-      if (error) throw error;
+      if (erroSimulado) throw erroSimulado;
 
-      setTitulo('');
-      setAcertos('');
-      setModalSimuladoOpen(false);
-      carregarDados();
-    } catch (error) {
-      console.error('Erro ao salvar simulado:', error);
-      alert('Erro ao guardar o simulado.');
-    }
-  }
+      // 2. Inserir Pontos de Melhoria (se preenchido)
+      if (incluirMelhorias) {
+        let itensParaInserir: any[] = [];
 
-  async function handleSalvarMelhoria(e: React.FormEvent) {
-    e.preventDefault();
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      let itensParaInserir: any[] = [];
-
-      if (modoJson) {
-        try {
-          const parsed = JSON.parse(jsonInput);
-          const arrayParsed = Array.isArray(parsed) ? parsed : [parsed];
-          itensParaInserir = arrayParsed.map((item) => ({
+        if (modoJson && jsonInput.trim()) {
+          try {
+            const parsed = JSON.parse(jsonInput);
+            const arrayParsed = Array.isArray(parsed) ? parsed : [parsed];
+            itensParaInserir = arrayParsed.map((item) => ({
+              user_id: user.id,
+              materia: item.materia,
+              quantidade_erros: Number(item.quantidade_erros) || 0,
+              quantidade_acertos: Number(item.quantidade_acertos) || 0,
+              assunto_estudar: item.assunto_estudar || item.assunto || ''
+            }));
+          } catch (err) {
+            alert('JSON inválido. O simulado foi guardado, mas verifique a sintaxe do JSON de melhorias.');
+            return;
+          }
+        } else if (!modoJson && novaMateria && assuntoInput) {
+          itensParaInserir = [{
             user_id: user.id,
-            materia: item.materia,
-            quantidade_erros: Number(item.quantidade_erros) || 0,
-            quantidade_acertos: Number(item.quantidade_acertos) || 0,
-            assunto_estudar: item.assunto_estudar || item.assunto || ''
-          }));
-        } catch (err) {
-          alert('JSON inválido. Verifique a sintaxe.');
-          return;
+            materia: novaMateria,
+            quantidade_erros: Number(errosInput) || 0,
+            quantidade_acertos: Number(acertosInput) || 0,
+            assunto_estudar: assuntoInput
+          }];
         }
-      } else {
-        if (!novaMateria || !assuntoInput) {
-          alert('Preencha os campos obrigatórios.');
-          return;
+
+        if (itensParaInserir.length > 0) {
+          const { error: erroMelhoria } = await supabase.from('pontos_melhoria').insert(itensParaInserir);
+          if (erroMelhoria) throw erroMelhoria;
         }
-        itensParaInserir = [{
-          user_id: user.id,
-          materia: novaMateria,
-          quantidade_erros: Number(errosInput) || 0,
-          quantidade_acertos: Number(acertosInput) || 0,
-          assunto_estudar: assuntoInput
-        }];
       }
 
-      const { error } = await supabase.from('pontos_melhoria').insert(itensParaInserir);
-      if (error) throw error;
-
-      setModalMelhoriaOpen(false);
+      // Resetar estados e fechar modal
+      setTitulo('');
+      setAcertos('');
+      setIncluirMelhorias(false);
+      setModoJson(false);
       setNovaMateria('');
       setErrosInput('');
       setAcertosInput('');
       setAssuntoInput('');
       setJsonInput('');
+      setModalOpen(false);
+      
       carregarDados();
     } catch (error) {
-      console.error('Erro ao guardar ponto de melhoria:', error);
+      console.error('Erro ao guardar dados:', error);
       alert('Erro ao guardar no Supabase.');
     }
   }
@@ -201,22 +193,13 @@ export default function SimuladosPage() {
               Registe os seus simulados e faça a gestão inteligente das suas lacunas de estudo.
             </p>
           </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setModalMelhoriaOpen(true)}
-              className="flex items-center gap-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-white px-4 py-2.5 rounded-xl text-sm font-bold transition-all cursor-pointer"
-            >
-              <Target className="w-4 h-4 text-red-500" />
-              Adicionar Melhoria
-            </button>
-            <button
-              onClick={() => setModalSimuladoOpen(true)}
-              className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-red-600/20 transition-all cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              Adicionar Simulado
-            </button>
-          </div>
+          <button
+            onClick={() => setModalOpen(true)}
+            className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-red-600/20 transition-all cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            Adicionar Simulado
+          </button>
         </div>
 
         {/* Secção de Pontos de Melhoria */}
@@ -231,7 +214,7 @@ export default function SimuladosPage() {
             </div>
             <button
               onClick={copiarPrompt}
-              className="text-xs bg-zinc-950 border border-zinc-700 hover:border-red-500 text-zinc-300 px-3.5 py-2 rounded-xl flex items-center gap-2 transition-all"
+              className="text-xs bg-zinc-950 border border-zinc-700 hover:border-red-500 text-zinc-300 px-3.5 py-2 rounded-xl flex items-center gap-2 transition-all cursor-pointer"
             >
               {copiado ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-red-500" />}
               {copiado ? 'Prompt Copiado!' : 'Copiar Prompt para IA'}
@@ -243,7 +226,7 @@ export default function SimuladosPage() {
           ) : melhorias.length === 0 ? (
             <div className="bg-zinc-900/30 border border-zinc-800/60 rounded-2xl p-8 text-center space-y-2">
               <p className="text-xs text-zinc-400">Nenhum ponto de melhoria registado.</p>
-              <p className="text-[10px] text-zinc-500">Adicione manualmente ou cole um payload JSON gerado pela IA.</p>
+              <p className="text-[10px] text-zinc-500">Pode adicioná-los diretamente ao registar um novo simulado.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -318,189 +301,182 @@ export default function SimuladosPage() {
           )}
         </div>
 
-        {/* Modal de Registo de Simulado */}
-        {modalSimuladoOpen && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl max-w-md w-full p-6 space-y-6 shadow-2xl">
-              <div className="flex justify-between items-center">
-                <h3 className="text-lg font-bold text-white">Registar Novo Simulado</h3>
-                <button onClick={() => setModalSimuladoOpen(false)} className="text-zinc-400 hover:text-white">
-                  <XCircle className="w-6 h-6" />
+        {/* Modal Unificado (Simulado + Pontos de Melhoria Opcionais) */}
+        {modalOpen && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl max-w-lg w-full p-6 space-y-5 shadow-2xl my-8">
+              <div className="flex justify-between items-center border-b border-zinc-800 pb-4">
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  <Award className="w-5 h-5 text-red-600" />
+                  Registar Simulado e Melhorias
+                </h3>
+                <button onClick={() => setModalOpen(false)} className="text-zinc-400 hover:text-white cursor-pointer">
+                  <XCircle className="w-5 h-5" />
                 </button>
               </div>
 
-              <form onSubmit={handleSalvarSimulado} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-semibold text-zinc-400 mb-1">Título do Simulado</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Ex: Simulado 01 - VUNESP TJSP"
-                    value={titulo}
-                    onChange={(e) => setTitulo(e.target.value)}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-red-600"
-                  />
+              <form onSubmit={handleSalvarTudo} className="space-y-4">
+                {/* Dados do Simulado */}
+                <div className="space-y-3">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-red-500">1. Dados do Simulado</h4>
+                  <div>
+                    <label className="block text-xs font-semibold text-zinc-400 mb-1">Título do Simulado</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Ex: Simulado 01 - VUNESP TJSP"
+                      value={titulo}
+                      onChange={(e) => setTitulo(e.target.value)}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-red-600"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-zinc-400 mb-1">Acertos</label>
+                      <input
+                        type="number"
+                        required
+                        placeholder="Ex: 75"
+                        value={acertos}
+                        onChange={(e) => setAcertos(e.target.value)}
+                        className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-red-600"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-zinc-400 mb-1">Total de Questões</label>
+                      <input
+                        type="number"
+                        required
+                        value={total}
+                        onChange={(e) => setTotal(e.target.value)}
+                        className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-red-600"
+                      />
+                    </div>
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-semibold text-zinc-400 mb-1">Acertos</label>
-                    <input
-                      type="number"
-                      required
-                      placeholder="Ex: 75"
-                      value={acertos}
-                      onChange={(e) => setAcertos(e.target.value)}
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-red-600"
-                    />
+                {/* Secção Opcional de Pontos de Melhoria */}
+                <div className="pt-3 border-t border-zinc-800 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={incluirMelhorias}
+                        onChange={(e) => setIncluirMelhorias(e.target.checked)}
+                        className="rounded bg-zinc-950 border-zinc-800 text-red-600 focus:ring-red-600 w-4 h-4"
+                      />
+                      <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                        <Target className="w-3.5 h-3.5 text-red-500" /> Adicionar Pontos de Melhoria (Opcional)
+                      </span>
+                    </label>
                   </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-zinc-400 mb-1">Total de Questões</label>
-                    <input
-                      type="number"
-                      required
-                      value={total}
-                      onChange={(e) => setTotal(e.target.value)}
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-red-600"
-                    />
-                  </div>
+
+                  {incluirMelhorias && (
+                    <div className="bg-zinc-950/60 border border-zinc-800 p-4 rounded-xl space-y-3">
+                      {/* Seletor Manual / JSON */}
+                      <div className="flex bg-zinc-950 p-1 rounded-xl border border-zinc-800">
+                        <button
+                          type="button"
+                          onClick={() => setModoJson(false)}
+                          className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${!modoJson ? 'bg-red-600 text-white shadow' : 'text-zinc-400 hover:text-white'}`}
+                        >
+                          Manual
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setModoJson(true)}
+                          className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${modoJson ? 'bg-red-600 text-white shadow' : 'text-zinc-400 hover:text-white'}`}
+                        >
+                          <Code className="w-3.5 h-3.5" /> Payload JSON
+                        </button>
+                      </div>
+
+                      {modoJson ? (
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-center">
+                            <span className="text-[11px] text-zinc-400">JSON (materia, quantidade_erros, quantidade_acertos, assunto_estudar):</span>
+                            <button 
+                              type="button" 
+                              onClick={() => setJsonInput(jsonExemplo)}
+                              className="text-[10px] text-red-400 hover:underline cursor-pointer"
+                            >
+                              Inserir Exemplo
+                            </button>
+                          </div>
+                          <textarea
+                            rows={4}
+                            value={jsonInput}
+                            onChange={(e) => setJsonInput(e.target.value)}
+                            placeholder='[{"materia": "...", "quantidade_erros": 0, "quantidade_acertos": 0, "assunto_estudar": "..."}]'
+                            className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-xs text-white font-mono focus:outline-none focus:border-red-600"
+                          />
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          <div>
+                            <label className="block text-[11px] font-semibold text-zinc-400 mb-1">Matéria</label>
+                            <input
+                              type="text"
+                              value={novaMateria}
+                              onChange={(e) => setNovaMateria(e.target.value)}
+                              placeholder="Ex: Direito Constitucional"
+                              className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-red-600"
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-[11px] font-semibold text-zinc-400 mb-1">Erros</label>
+                              <input
+                                type="number"
+                                value={errosInput}
+                                onChange={(e) => setErrosInput(e.target.value)}
+                                placeholder="0"
+                                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-red-600"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[11px] font-semibold text-zinc-400 mb-1">Acertos</label>
+                              <input
+                                type="number"
+                                value={acertosInput}
+                                onChange={(e) => setAcertosInput(e.target.value)}
+                                placeholder="0"
+                                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-red-600"
+                              />
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-[11px] font-semibold text-zinc-400 mb-1">Assunto a ser estudado</label>
+                            <input
+                              type="text"
+                              value={assuntoInput}
+                              onChange={(e) => setAssuntoInput(e.target.value)}
+                              placeholder="Ex: Direitos e Garantias Fundamentais"
+                              className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-red-600"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex justify-end gap-3 pt-4 border-t border-zinc-800">
                   <button
                     type="button"
-                    onClick={() => setModalSimuladoOpen(false)}
-                    className="px-4 py-2 rounded-xl text-sm font-semibold bg-zinc-800 hover:bg-zinc-700 text-zinc-300"
+                    onClick={() => setModalOpen(false)}
+                    className="px-4 py-2 rounded-xl text-xs font-semibold bg-zinc-800 hover:bg-zinc-700 text-zinc-300 cursor-pointer"
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
-                    className="px-5 py-2 rounded-xl text-sm font-bold bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-600/20"
+                    className="px-5 py-2 rounded-xl text-xs font-bold bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-600/20 cursor-pointer"
                   >
-                    Guardar Simulado
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
-
-        {/* Modal de Registo de Ponto de Melhoria (Manual ou JSON) */}
-        {modalMelhoriaOpen && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl max-w-lg w-full p-6 space-y-5 shadow-2xl">
-              <div className="flex justify-between items-center">
-                <h3 className="text-base font-bold text-white flex items-center gap-2">
-                  <Target className="w-5 h-5 text-red-500" />
-                  Adicionar Ponto de Melhoria
-                </h3>
-                <button onClick={() => setModalMelhoriaOpen(false)} className="text-zinc-400 hover:text-white">
-                  <XCircle className="w-5 h-5" />
-                </button>
-              </div>
-
-              {/* Seletor Manual / JSON */}
-              <div className="flex bg-zinc-950 p-1 rounded-xl border border-zinc-800">
-                <button
-                  type="button"
-                  onClick={() => setModoJson(false)}
-                  className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${!modoJson ? 'bg-red-600 text-white shadow' : 'text-zinc-400 hover:text-white'}`}
-                >
-                  Preenchimento Manual
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setModoJson(true)}
-                  className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 ${modoJson ? 'bg-red-600 text-white shadow' : 'text-zinc-400 hover:text-white'}`}
-                >
-                  <Code className="w-3.5 h-3.5" /> Colar Payload JSON
-                </button>
-              </div>
-
-              <form onSubmit={handleSalvarMelhoria} className="space-y-4">
-                {modoJson ? (
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <label className="text-xs text-zinc-400 font-medium">Payload JSON (materia, quantidade_erros, quantidade_acertos, assunto_estudar):</label>
-                      <button 
-                        type="button" 
-                        onClick={() => setJsonInput(jsonExemplo)}
-                        className="text-[10px] text-red-400 hover:underline"
-                      >
-                        Inserir Exemplo
-                      </button>
-                    </div>
-                    <textarea
-                      rows={6}
-                      value={jsonInput}
-                      onChange={(e) => setJsonInput(e.target.value)}
-                      placeholder='[{"materia": "...", "quantidade_erros": 0, "quantidade_acertos": 0, "assunto_estudar": "..."}]'
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-xs text-white font-mono focus:outline-none focus:border-red-600"
-                    />
-                  </div>
-                ) : (
-                  <>
-                    <div>
-                      <label className="block text-xs font-semibold text-zinc-400 mb-1">Matéria</label>
-                      <input
-                        type="text"
-                        value={novaMateria}
-                        onChange={(e) => setNovaMateria(e.target.value)}
-                        placeholder="Ex: Direito Constitucional"
-                        className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2 text-xs text-white focus:outline-none focus:border-red-600"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs font-semibold text-zinc-400 mb-1">Quantidade de Erros</label>
-                        <input
-                          type="number"
-                          value={errosInput}
-                          onChange={(e) => setErrosInput(e.target.value)}
-                          placeholder="0"
-                          className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2 text-xs text-white focus:outline-none focus:border-red-600"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-zinc-400 mb-1">Quantidade de Acertos</label>
-                        <input
-                          type="number"
-                          value={acertosInput}
-                          onChange={(e) => setAcertosInput(e.target.value)}
-                          placeholder="0"
-                          className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2 text-xs text-white focus:outline-none focus:border-red-600"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-zinc-400 mb-1">Assunto a ser estudado</label>
-                      <input
-                        type="text"
-                        value={assuntoInput}
-                        onChange={(e) => setAssuntoInput(e.target.value)}
-                        placeholder="Ex: Direitos e Garantias Fundamentais"
-                        className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2 text-xs text-white focus:outline-none focus:border-red-600"
-                      />
-                    </div>
-                  </>
-                )}
-
-                <div className="flex justify-end gap-3 pt-3 border-t border-zinc-800">
-                  <button
-                    type="button"
-                    onClick={() => setModalMelhoriaOpen(false)}
-                    className="px-4 py-2 rounded-xl text-xs font-semibold bg-zinc-800 text-zinc-300"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 rounded-xl text-xs font-bold bg-red-600 hover:bg-red-700 text-white shadow-lg"
-                  >
-                    Salvar Registo
+                    Guardar Registo
                   </button>
                 </div>
               </form>

@@ -2,16 +2,6 @@ import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { createClient } from '@supabase/supabase-js';
 
-const nvidiaClient = new OpenAI({
-  apiKey: process.env.NVIDIA_API_KEY || '',
-  baseURL: 'https://integrate.api.nvidia.com/v1',
-});
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
-
 export async function POST(req: Request) {
   try {
     const { messages, userId } = await req.json();
@@ -24,6 +14,17 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'A chave NVIDIA_API_KEY não está configurada no ambiente.' }, { status: 500 });
     }
 
+    // Inicialização segura dentro da rota para evitar falhas no build da Vercel
+    const nvidiaClient = new OpenAI({
+      apiKey: process.env.NVIDIA_API_KEY,
+      baseURL: 'https://integrate.api.nvidia.com/v1',
+    });
+
+    const supabaseAdmin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+    );
+
     // Tenta buscar dados das tabelas de forma segura
     let questoesData: any[] = [];
     let redacoesData: any[] = [];
@@ -32,7 +33,6 @@ export async function POST(req: Request) {
       const { data } = await supabaseAdmin.from('user_questions').select('*').eq('user_id', userId);
       if (data) questoesData = data;
     } catch (e) {
-      // Tenta tabela alternativa se existir
       try {
         const { data } = await supabaseAdmin.from('questoes').select('*').eq('user_id', userId);
         if (data) questoesData = data;

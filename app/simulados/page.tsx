@@ -29,6 +29,7 @@ export default function SimuladosPage() {
   const [simulados, setSimulados] = useState<Simulado[]>([]);
   const [melhorias, setMelhorias] = useState<PontoMelhoria[]>([]);
   const [loading, setLoading] = useState(true);
+  const [aGuardar, setAGuardar] = useState(false);
   
   // Modal único
   const [modalOpen, setModalOpen] = useState(false);
@@ -76,9 +77,15 @@ export default function SimuladosPage() {
 
   async function handleSalvarTudo(e: React.FormEvent) {
     e.preventDefault();
+    if (aGuardar) return; // Bloqueia novos cliques se já estiver a processar
+    setAGuardar(true);
+
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        setAGuardar(false);
+        return;
+      }
 
       const numAcertos = parseInt(acertos);
       const numTotal = parseInt(total);
@@ -95,7 +102,12 @@ export default function SimuladosPage() {
         },
       ]);
 
-      if (erroSimulado) throw erroSimulado;
+      if (erroSimulado) {
+        console.error('Erro detalhado Simulado:', erroSimulado);
+        alert(`Erro ao guardar Simulado: ${erroSimulado.message}`);
+        setAGuardar(false);
+        return;
+      }
 
       // 2. Inserir Pontos de Melhoria (se preenchido)
       if (incluirMelhorias) {
@@ -114,6 +126,7 @@ export default function SimuladosPage() {
             }));
           } catch (err) {
             alert('JSON inválido. O simulado foi guardado, mas verifique a sintaxe do JSON de melhorias.');
+            setAGuardar(false);
             return;
           }
         } else if (!modoJson && novaMateria && assuntoInput) {
@@ -128,7 +141,12 @@ export default function SimuladosPage() {
 
         if (itensParaInserir.length > 0) {
           const { error: erroMelhoria } = await supabase.from('pontos_melhoria').insert(itensParaInserir);
-          if (erroMelhoria) throw erroMelhoria;
+          if (erroMelhoria) {
+            console.error('Erro detalhado Ponto de Melhoria:', erroMelhoria);
+            alert(`Erro ao guardar Ponto de Melhoria: ${erroMelhoria.message}`);
+            setAGuardar(false);
+            return;
+          }
         }
       }
 
@@ -146,8 +164,10 @@ export default function SimuladosPage() {
       
       carregarDados();
     } catch (error) {
-      console.error('Erro ao guardar dados:', error);
-      alert('Erro ao guardar no Supabase.');
+      console.error('Erro geral ao guardar dados:', error);
+      alert('Erro inesperado ao guardar dados.');
+    } finally {
+      setAGuardar(false);
     }
   }
 
@@ -468,15 +488,17 @@ export default function SimuladosPage() {
                   <button
                     type="button"
                     onClick={() => setModalOpen(false)}
+                    disabled={aGuardar}
                     className="px-4 py-2 rounded-xl text-xs font-semibold bg-zinc-800 hover:bg-zinc-700 text-zinc-300 cursor-pointer"
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
-                    className="px-5 py-2 rounded-xl text-xs font-bold bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-600/20 cursor-pointer"
+                    disabled={aGuardar}
+                    className="px-5 py-2 rounded-xl text-xs font-bold bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-600/20 cursor-pointer disabled:opacity-50"
                   >
-                    Guardar Registo
+                    {aGuardar ? 'A guardar...' : 'Guardar Registo'}
                   </button>
                 </div>
               </form>

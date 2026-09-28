@@ -23,51 +23,41 @@ export async function perguntarNvidiaAction(
   const apiKey = process.env.NVIDIA_API_KEY;
 
   if (!apiKey) {
-    return { response: 'A variável de ambiente NVIDIA_API_KEY não está configurada.' };
+    return { response: 'Erro: Chave da API NVIDIA não configurada.' };
   }
 
   try {
-    // Buscar diretamente as tabelas do Supabase
-    const [simRes, redRes, melRes] = await Promise.all([
+    // 1. CONSULTA DIRETA AO SUPABASE
+    const [simRes, redRes] = await Promise.all([
       supabaseAdmin.from('simulados').select('*').order('created_at', { ascending: false }),
-      supabaseAdmin.from('redaccoes').select('*').order('created_at', { ascending: false }),
-      supabaseAdmin.from('pontos_melhoria').select('*').order('created_at', { ascending: false })
+      supabaseAdmin.from('redaccoes').select('*').order('created_at', { ascending: false })
     ]);
 
     const simulados = simRes.data || [];
     const redaccoes = redRes.data || [];
-    const melhorias = melRes.data || [];
 
-    // Montar o resumo direto dos dados reais
-    let resumoSimulados = 'Nenhum simulado registado.';
+    // 2. CONSTRUIR TEXTO EXPLICITO DE FACTOS REAIS
+    let dadosFactuais = `ESTATÍSTICAS REAIS DO ALUNO NO SISTEMA:\n`;
+    
     if (simulados.length > 0) {
-      resumoSimulados = simulados.map(s => 
-        `- Titulo: ${s.titulo} | Acertos: ${s.acertos}/${s.total_questoes} | Nota: ${s.nota} \vert{} Data:${new Date(s.created_at).toLocaleDateString('pt-BR')}`
-      ).join('\n');
+      dadosFactuais += `- Simulados realizados: ${simulados.length}. Detalhe do último simulado: "${simulados[0].titulo}", com ${simulados[0].acertos} acertos em${simulados[0].total_questoes} questões, obtendo a nota ${simulados[0].nota}.\n`;
+    } else {
+      dadosFactuais += `- Simulados realizados: 0.\n`;
     }
 
-    let resumoRedacoes = redaccoes.length > 0 ? `${redaccoes.length} redações registadas.` : 'Nenhuma redação registada.';
+    dadosFactuais += `- Redações registadas: ${redaccoes.length}.\n`;
 
-    const contextoDados = `
-ESTATÍSTICAS OFICIAIS DO ALUNO NA BASE DE DADOS:
-- Total de Simulados Realizados: ${simulados.length}
-Lista de Simulados:
-${resumoSimulados}
+    // 3. SYSTEM PROMPT RIGOROSO E CURTO
+    const systemPrompt = `És o assistente de inteligência artificial do UPQUEST-ES, mentor para o concurso de Escrevente do TJSP (VUNESP).
+Deves responder sempre com base estrita nos dados factuais fornecidos abaixo pelo sistema. 
 
-- Total de Redações: ${redaccoes.length}
-- Pontos de Melhoria Registados: ${melhorias.length}
-    `;
+REGRAS OBRIGATÓRIAS:
+1. Nunca digas que o aluno tem 0 simulados se os dados abaixo indicarem o contrário.
+2. NUNCA uses asteriscos, negritos, itálicos ou quaisquer símbolos markdown de formatação. Apenas texto limpo.
 
-    const systemPrompt = `És o assistente de inteligência artificial de elite do UPQUEST-ES, especializado em preparar candidatos para o concurso de Escrevente do TJSP (VUNESP).
-Tens acima os dados exatos e contados diretamente do banco de dados. O aluno realizou exatamente ${simulados.length} simulado(s) (o Simulado 01 - VUNESP SP com 17 acertos, 46 questões e nota 3.70). 
-Nunca digas que o aluno tem 0 simulados se o número acima for maior que 0.
+${dadosFactuais}`;
 
-REGRAS:
-- Responde com base estrita nos dados fornecidos acima.
-- NUNCA uses asteriscos, negritos, itálicos ou símbolos markdown de formatação. Responde em texto limpo.
-
-${contextoDados}`;
-
+    // Formatar mensagens garantindo que o system prompt é respeitado
     const formattedMessages = [
       { role: 'system' as const, content: systemPrompt },
       ...messages.map(m => ({
@@ -81,7 +71,7 @@ ${contextoDados}`;
       messages: formattedMessages,
       temperature: 0.1,
       top_p: 0.9,
-      max_tokens: 1500,
+      max_tokens: 1000,
       stream: false,
     });
 
@@ -91,11 +81,12 @@ ${contextoDados}`;
       return { response: 'O assistente processou o pedido mas não gerou conteúdo.' };
     }
 
-    respostaIA = respostaIA.replace(/[*_#`~]/g, '');
+    // Limpeza total de markdown de forma agressiva
+    respostaIA = respostaIA.replace(/[*_#`~[\]()>-]/g, '').trim();
 
     return { response: respostaIA };
   } catch (error: any) {
-    console.error('Erro ao consultar o banco de dados:', error);
-    return { response: `Erro ao processar os dados do sistema: ${error?.message || 'Erro desconhecido'}.` };
+    console.error('Erro no chatAction:', error);
+    return { response: `Erro ao processar a solicitação: ${error?.message || 'Erro desconhecido'}.` };
   }
 }

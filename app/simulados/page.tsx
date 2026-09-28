@@ -77,7 +77,7 @@ export default function SimuladosPage() {
 
   async function handleSalvarTudo(e: React.FormEvent) {
     e.preventDefault();
-    if (aGuardar) return; // Bloqueia novos cliques se já estiver a processar
+    if (aGuardar) return;
     setAGuardar(true);
 
     try {
@@ -87,11 +87,54 @@ export default function SimuladosPage() {
         return;
       }
 
-      const numAcertos = parseInt(acertos);
-      const numTotal = parseInt(total);
+      let numAcertos = parseInt(acertos) || 0;
+      let numTotal = parseInt(total) || 100;
+      let itensParaInserir: any[] = [];
+
+      // Se incluir melhorias por JSON, calculamos automaticamente o total e os acertos reais com base no payload
+      if (incluirMelhorias && modoJson && jsonInput.trim()) {
+        try {
+          const parsed = JSON.parse(jsonInput);
+          const arrayParsed = Array.isArray(parsed) ? parsed : [parsed];
+          
+          const somaAcertosJson = arrayParsed.reduce((acc, item) => acc + (Number(item.quantidade_acertos) || 0), 0);
+          const somaErrosJson = arrayParsed.reduce((acc, item) => acc + (Number(item.quantidade_erros) || 0), 0);
+          
+          numAcertos = somaAcertosJson;
+          numTotal = somaAcertosJson + somaErrosJson; // Soma automática (ex: 17 acertos + 29 erros = 46 questões)
+
+          itensParaInserir = arrayParsed.map((item) => ({
+            user_id: user.id,
+            materia: item.materia,
+            quantidade_erros: Number(item.quantidade_erros) || 0,
+            quantidade_acertos: Number(item.quantidade_acertos) || 0,
+            assunto_estudar: item.assunto_estudar || item.assunto || ''
+          }));
+        } catch (err) {
+          alert('JSON inválido. Verifique a sintaxe do JSON de melhorias.');
+          setAGuardar(false);
+          return;
+        }
+      } else if (incluirMelhorias && !modoJson) {
+        numAcertos = parseInt(acertos) || 0;
+        numTotal = parseInt(total) || 100;
+        if (novaMateria && assuntoInput) {
+          itensParaInserir = [{
+            user_id: user.id,
+            materia: novaMateria,
+            quantidade_erros: Number(errosInput) || 0,
+            quantidade_acertos: Number(acertosInput) || 0,
+            assunto_estudar: assuntoInput
+          }];
+        }
+      } else {
+        numAcertos = parseInt(acertos) || 0;
+        numTotal = parseInt(total) || 100;
+      }
+
       const notaCalculada = Number(((numAcertos / numTotal) * 10).toFixed(2));
 
-      // 1. Inserir Simulado
+      // 1. Inserir Simulado com os valores recalculados (se aplicável)
       const { error: erroSimulado } = await supabase.from('simulados').insert([
         {
           user_id: user.id,
@@ -109,50 +152,21 @@ export default function SimuladosPage() {
         return;
       }
 
-      // 2. Inserir Pontos de Melhoria (se preenchido)
-      if (incluirMelhorias) {
-        let itensParaInserir: any[] = [];
-
-        if (modoJson && jsonInput.trim()) {
-          try {
-            const parsed = JSON.parse(jsonInput);
-            const arrayParsed = Array.isArray(parsed) ? parsed : [parsed];
-            itensParaInserir = arrayParsed.map((item) => ({
-              user_id: user.id,
-              materia: item.materia,
-              quantidade_erros: Number(item.quantidade_erros) || 0,
-              quantidade_acertos: Number(item.quantidade_acertos) || 0,
-              assunto_estudar: item.assunto_estudar || item.assunto || ''
-            }));
-          } catch (err) {
-            alert('JSON inválido. O simulado foi guardado, mas verifique a sintaxe do JSON de melhorias.');
-            setAGuardar(false);
-            return;
-          }
-        } else if (!modoJson && novaMateria && assuntoInput) {
-          itensParaInserir = [{
-            user_id: user.id,
-            materia: novaMateria,
-            quantidade_erros: Number(errosInput) || 0,
-            quantidade_acertos: Number(acertosInput) || 0,
-            assunto_estudar: assuntoInput
-          }];
-        }
-
-        if (itensParaInserir.length > 0) {
-          const { error: erroMelhoria } = await supabase.from('pontos_melhoria').insert(itensParaInserir);
-          if (erroMelhoria) {
-            console.error('Erro detalhado Ponto de Melhoria:', erroMelhoria);
-            alert(`Erro ao guardar Ponto de Melhoria: ${erroMelhoria.message}`);
-            setAGuardar(false);
-            return;
-          }
+      // 2. Inserir Pontos de Melhoria (se existirem)
+      if (incluirMelhorias && itensParaInserir.length > 0) {
+        const { error: erroMelhoria } = await supabase.from('pontos_melhoria').insert(itensParaInserir);
+        if (erroMelhoria) {
+          console.error('Erro detalhado Ponto de Melhoria:', erroMelhoria);
+          alert(`Erro ao guardar Ponto de Melhoria: ${erroMelhoria.message}`);
+          setAGuardar(false);
+          return;
         }
       }
 
       // Resetar estados e fechar modal
       setTitulo('');
       setAcertos('');
+      setTotal('100');
       setIncluirMelhorias(false);
       setModoJson(false);
       setNovaMateria('');
@@ -353,24 +367,26 @@ export default function SimuladosPage() {
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-semibold text-zinc-400 mb-1">Acertos</label>
+                      <label className="block text-xs font-semibold text-zinc-400 mb-1">Acertos {incluirMelhorias && modoJson && '(Auto via JSON)'}</label>
                       <input
                         type="number"
-                        required
-                        placeholder="Ex: 75"
+                        required={!(incluirMelhorias && modoJson)}
+                        disabled={incluirMelhorias && modoJson}
+                        placeholder="Ex: 17"
                         value={acertos}
                         onChange={(e) => setAcertos(e.target.value)}
-                        className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-red-600"
+                        className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-red-600 disabled:opacity-50"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-zinc-400 mb-1">Total de Questões</label>
+                      <label className="block text-xs font-semibold text-zinc-400 mb-1">Total de Questões {incluirMelhorias && modoJson && '(Auto via JSON)'}</label>
                       <input
                         type="number"
-                        required
+                        required={!(incluirMelhorias && modoJson)}
+                        disabled={incluirMelhorias && modoJson}
                         value={total}
                         onChange={(e) => setTotal(e.target.value)}
-                        className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-red-600"
+                        className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-red-600 disabled:opacity-50"
                       />
                     </div>
                   </div>
@@ -415,7 +431,7 @@ export default function SimuladosPage() {
                       {modoJson ? (
                         <div className="space-y-2">
                           <div className="flex justify-between items-center">
-                            <span className="text-[11px] text-zinc-400">JSON (materia, quantidade_erros, quantidade_acertos, assunto_estudar):</span>
+                            <span className="text-[11px] text-zinc-400">JSON (Calcula total e acertos automaticamente):</span>
                             <button 
                               type="button" 
                               onClick={() => setJsonInput(jsonExemplo)}
@@ -425,7 +441,7 @@ export default function SimuladosPage() {
                             </button>
                           </div>
                           <textarea
-                            rows={4}
+                            rows={6}
                             value={jsonInput}
                             onChange={(e) => setJsonInput(e.target.value)}
                             placeholder='[{"materia": "...", "quantidade_erros": 0, "quantidade_acertos": 0, "assunto_estudar": "..."}]'

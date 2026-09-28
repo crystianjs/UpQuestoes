@@ -22,10 +22,20 @@ interface RedacaoRegistro {
   created_at: string;
 }
 
+interface SimuladoRegistro {
+  id: string;
+  titulo: string;
+  acertos: number;
+  total_questoes: number;
+  nota: number;
+  created_at: string;
+}
+
 export default function DesempenhoPage() {
   const router = useRouter();
   const [questoes, setQuestoes] = useState<QuestaoRegistro[]>([]);
   const [redacoes, setRedacoes] = useState<RedacaoRegistro[]>([]);
+  const [simulados, setSimulados] = useState<SimuladoRegistro[]>([]);
   const [loading, setLoading] = useState(true);
   
   // Filtro de tempo para questões ('todas', 'semana', 'mes')
@@ -53,8 +63,15 @@ export default function DesempenhoPage() {
         .eq('user_id', userId)
         .order('created_at', { ascending: false });
 
+      const { data: sData } = await supabase
+        .from('simulados')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
       if (qData) setQuestoes(qData);
       if (rData) setRedacoes(rData);
+      if (sData) setSimulados(sData);
       setLoading(false);
     }
 
@@ -84,6 +101,11 @@ export default function DesempenhoPage() {
   const totalAcertos = questoesFiltradas.reduce((acc, q) => acc + q.acertos, 0);
   const totalErros = questoesFiltradas.reduce((acc, q) => acc + q.erros, 0);
   const aproveitamento = totalFeitas > 0 ? ((totalAcertos / totalFeitas) * 100).toFixed(1) : '0';
+
+  // Média dos simulados
+  const mediaSimulados = simulados.length > 0
+    ? (simulados.reduce((acc, s) => acc + Number(s.nota), 0) / simulados.length).toFixed(1)
+    : '0.0';
 
   // Formatar segundos de redação no formato amigável (ex: 1h 34m ou 55s)
   const formatarTempoRedacao = (segundosTotais: number) => {
@@ -148,8 +170,8 @@ export default function DesempenhoPage() {
           <div className="text-center py-20 text-zinc-500 text-sm">A carregar métricas...</div>
         ) : (
           <>
-            {/* Cards de Métricas Principais */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Cards de Métricas Principais (Agora incluindo Simulados) */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               
               <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 shadow-xl relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-1.5 h-full bg-red-600"></div>
@@ -172,20 +194,27 @@ export default function DesempenhoPage() {
                 <span className="text-xs text-zinc-500 mt-1 block">Treinos cronometrados</span>
               </div>
 
+              <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 shadow-xl relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-1.5 h-full bg-amber-500"></div>
+                <p className="text-xs font-bold uppercase tracking-wider text-zinc-400">Média em Simulados</p>
+                <h3 className="text-3xl font-black text-white mt-2">{mediaSimulados} <span className="text-sm font-normal text-zinc-500">/ 10</span></h3>
+                <span className="text-xs text-zinc-500 mt-1 block">{simulados.length} simulados registados</span>
+              </div>
+
             </div>
 
-            {/* Secção de Estatísticas e Gráfico de Barras por Matéria */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Secção de Estatísticas e Listagens Detalhadas */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               
               {/* Histórico de Questões */}
               <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 shadow-xl space-y-4">
                 <h2 className="text-lg font-bold text-white flex items-center gap-2">
                   <Award className="w-5 h-5 text-red-500" />
-                  Registo de Questões ({filtroPeriodo.toUpperCase()})
+                  Questões ({filtroPeriodo.toUpperCase()})
                 </h2>
 
                 {questoesFiltradas.length === 0 ? (
-                  <p className="text-xs text-zinc-500 py-6 text-center">Nenhum registo encontrado para este período.</p>
+                  <p className="text-xs text-zinc-500 py-6 text-center">Nenhum registo de questões.</p>
                 ) : (
                   <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
                     {questoesFiltradas.map((q) => (
@@ -197,10 +226,9 @@ export default function DesempenhoPage() {
                             {new Date(q.created_at).toLocaleDateString('pt-BR')}
                           </span>
                         </div>
-                        <div className="flex items-center gap-3 text-xs">
-                          <span className="bg-zinc-800 px-2.5 py-1 rounded-lg text-zinc-300">Total: {q.total_feitas}</span>
-                          <span className="text-emerald-400 flex items-center gap-1 font-semibold"><CheckCircle2 className="w-3.5 h-3.5" />{q.acertos}</span>
-                          <span className="text-red-400 flex items-center gap-1 font-semibold"><XCircle className="w-3.5 h-3.5" />{q.erros}</span>
+                        <div className="flex items-center gap-2 text-xs">
+                          <span className="text-emerald-400 flex items-center gap-0.5 font-semibold"><CheckCircle2 className="w-3.5 h-3.5" />{q.acertos}</span>
+                          <span className="text-red-400 flex items-center gap-0.5 font-semibold"><XCircle className="w-3.5 h-3.5" />{q.erros}</span>
                         </div>
                       </div>
                     ))}
@@ -208,33 +236,72 @@ export default function DesempenhoPage() {
                 )}
               </div>
 
-              {/* Redações com Cards Individuais e Tempo Gasto */}
+              {/* Simulados Recentes */}
+              <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 shadow-xl space-y-4">
+                <div className="flex justify-between items-center">
+                  <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                    <Award className="w-5 h-5 text-amber-500" />
+                    Simulados VUNESP
+                  </h2>
+                  <button 
+                    onClick={() => router.push('/simulados')}
+                    className="text-xs text-red-400 hover:text-red-300 font-semibold"
+                  >
+                    Ver todos →
+                  </button>
+                </div>
+
+                {simulados.length === 0 ? (
+                  <p className="text-xs text-zinc-500 py-6 text-center">Nenhum simulado registado.</p>
+                ) : (
+                  <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
+                    {simulados.map((s) => (
+                      <div key={s.id} className="bg-zinc-900/60 border border-zinc-800/80 rounded-xl p-4 flex justify-between items-center">
+                        <div>
+                          <h4 className="text-sm font-bold text-white">{s.titulo}</h4>
+                          <span className="text-[10px] text-zinc-500 flex items-center gap-1 mt-0.5">
+                            <Calendar className="w-3 h-3" />
+                            {new Date(s.created_at).toLocaleDateString('pt-BR')}
+                          </span>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-xs bg-red-950/40 border border-red-600/30 text-red-400 px-2 py-1 rounded-lg font-bold">
+                            Nota: {s.nota}
+                          </span>
+                          <p className="text-[10px] text-zinc-400 mt-1">{s.acertos}/{s.total_questoes} acertos</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Redações com Tempo Gasto */}
               <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 shadow-xl space-y-4">
                 <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                  <Clock className="w-5 h-5 text-red-500" />
-                  Tempo de Treino de Redações VUNESP
+                  <Clock className="w-5 h-5 text-blue-500" />
+                  Redações VUNESP
                 </h2>
 
                 {redacoes.length === 0 ? (
-                  <p className="text-xs text-zinc-500 py-6 text-center">Nenhuma redação cronometrada ainda.</p>
+                  <p className="text-xs text-zinc-500 py-6 text-center">Nenhuma redação cronometrada.</p>
                 ) : (
                   <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
                     {redacoes.map((r) => (
                       <div key={r.id} className="bg-zinc-900/60 border border-zinc-800/80 rounded-xl p-4 space-y-3">
                         <div className="flex justify-between items-start gap-2">
-                          <h4 className="text-sm font-bold text-white leading-snug">{r.tema}</h4>
+                          <h4 className="text-sm font-bold text-white leading-snug truncate max-w-[180px]">{r.tema}</h4>
                           <span className="text-[10px] text-zinc-500 shrink-0">
                             {new Date(r.created_at).toLocaleDateString('pt-BR')}
                           </span>
                         </div>
 
-                        {/* Card Estatístico de Tempo de Redação Formatado */}
-                        <div className="bg-zinc-950 border border-zinc-800/60 p-3 rounded-lg flex items-center justify-between">
-                          <div className="flex items-center gap-2 text-xs text-zinc-400">
-                            <Clock className="w-4 h-4 text-red-500" />
-                            <span>Tempo dedicado ao treino:</span>
+                        <div className="bg-zinc-950 border border-zinc-800/60 p-2.5 rounded-lg flex items-center justify-between">
+                          <div className="flex items-center gap-1.5 text-xs text-zinc-400">
+                            <Clock className="w-3.5 h-3.5 text-red-500" />
+                            <span>Tempo:</span>
                           </div>
-                          <span className="text-xs font-bold text-emerald-400 bg-emerald-950/40 border border-emerald-600/30 px-3 py-1 rounded-md font-mono">
+                          <span className="text-xs font-bold text-emerald-400 bg-emerald-950/40 border border-emerald-600/30 px-2.5 py-0.5 rounded-md font-mono">
                             {formatarTempoRedacao(r.tempo_gasto_segundos)}
                           </span>
                         </div>

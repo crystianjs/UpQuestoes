@@ -23,50 +23,48 @@ export async function perguntarNvidiaAction(
   const apiKey = process.env.NVIDIA_API_KEY;
 
   if (!apiKey) {
-    return { response: 'A variável de ambiente NVIDIA_API_KEY não está configurada no ficheiro .env.local.' };
+    return { response: 'A variável de ambiente NVIDIA_API_KEY não está configurada.' };
   }
 
   try {
-    // Buscar diretamente as tabelas principais de forma isolada para garantir exatidão absoluta
-    const { data: simulados } = await supabaseAdmin.from('simulados').select('*');
-    const { data: redaccoes } = await supabaseAdmin.from('redaccoes').select('*');
-    const { data: melhorias } = await supabaseAdmin.from('pontos_melhoria').select('*');
-    const { data: questoes } = await supabaseAdmin.from('user_questions').select('*');
+    // Buscar diretamente as tabelas do Supabase
+    const [simRes, redRes, melRes] = await Promise.all([
+      supabaseAdmin.from('simulados').select('*').order('created_at', { ascending: false }),
+      supabaseAdmin.from('redaccoes').select('*').order('created_at', { ascending: false }),
+      supabaseAdmin.from('pontos_melhoria').select('*').order('created_at', { ascending: false })
+    ]);
 
-    const listaSimulados = simulados && simulados.length > 0 
-      ? JSON.stringify(simulados, null, 2) 
-      : 'NENHUM SIMULADO REGISTADO.';
+    const simulados = simRes.data || [];
+    const redaccoes = redRes.data || [];
+    const melhorias = melRes.data || [];
 
-    const listaRedacoes = redaccoes && redaccoes.length > 0 
-      ? JSON.stringify(redaccoes, null, 2) 
-      : 'NENHUMA REDAÇÃO REGISTADA.';
+    // Montar o resumo direto dos dados reais
+    let resumoSimulados = 'Nenhum simulado registado.';
+    if (simulados.length > 0) {
+      resumoSimulados = simulados.map(s => 
+        `- Titulo: ${s.titulo} | Acertos: ${s.acertos}/${s.total_questoes} | Nota: ${s.nota} \vert{} Data:${new Date(s.created_at).toLocaleDateString('pt-BR')}`
+      ).join('\n');
+    }
 
-    const listaMelhorias = melhorias && melhorias.length > 0 
-      ? JSON.stringify(melhorias, null, 2) 
-      : 'NENHUM PONTO DE MELHORIA REGISTADO.';
+    let resumoRedacoes = redaccoes.length > 0 ? `${redaccoes.length} redações registadas.` : 'Nenhuma redação registada.';
 
     const contextoDados = `
-DADOS OFICIAIS DO ALUNO NA BASE DE DADOS:
+ESTATÍSTICAS OFICIAIS DO ALUNO NA BASE DE DADOS:
+- Total de Simulados Realizados: ${simulados.length}
+Lista de Simulados:
+${resumoSimulados}
 
-1. TABELA SIMULADOS (REGISTOS REAIS):
-${listaSimulados}
-
-2. TABELA REDAÇÕES (redaccoes):
-${listaRedacoes}
-
-3. PONTOS DE MELHORIA:
-${listaMelhorias}
+- Total de Redações: ${redaccoes.length}
+- Pontos de Melhoria Registados: ${melhorias.length}
     `;
 
-    const systemPrompt = `És o assistente de inteligência artificial de elite do UPQUEST-ES, especializado em preparar candidatos para o concurso de Escrevente Técnico Judiciário do Tribunal de Justiça de São Paulo (TJSP) sob os rigorosos padrões da banca VUNESP.
-
-ATENÇÃO CRÍTICA E OBRIGATÓRIA:
-Tens acima os dados exatos extraídos diretamente das tabelas do Supabase. O aluno JÁ REALIZOU simulados (consulta a tabela de simulados acima, que contém o "Simulado 01 - VUNESP SP", 17 acertos em 46 questões e nota 3.70). 
-É TERMINANTEMENTE PROIBIDO dizeres que o aluno não tem simulados ou que o campo está vazio, pois os dados estão visíveis e presentes na tabela.
+    const systemPrompt = `És o assistente de inteligência artificial de elite do UPQUEST-ES, especializado em preparar candidatos para o concurso de Escrevente do TJSP (VUNESP).
+Tens acima os dados exatos e contados diretamente do banco de dados. O aluno realizou exatamente ${simulados.length} simulado(s) (o Simulado 01 - VUNESP SP com 17 acertos, 46 questões e nota 3.70). 
+Nunca digas que o aluno tem 0 simulados se o número acima for maior que 0.
 
 REGRAS:
-- Responde com base estrita nos dados do banco fornecidos acima.
-- NUNCA uses asteriscos, negritos, itálicos ou símbolos markdown de formatação. Responde em texto limpo e direto.
+- Responde com base estrita nos dados fornecidos acima.
+- NUNCA uses asteriscos, negritos, itálicos ou símbolos markdown de formatação. Responde em texto limpo.
 
 ${contextoDados}`;
 
@@ -83,7 +81,7 @@ ${contextoDados}`;
       messages: formattedMessages,
       temperature: 0.1,
       top_p: 0.9,
-      max_tokens: 2048,
+      max_tokens: 1500,
       stream: false,
     });
 

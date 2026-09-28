@@ -36,34 +36,21 @@ export async function perguntarNvidiaAction(
     const simulados = simRes.data || [];
     const redaccoes = redRes.data || [];
 
-    // 2. CRIAR UM BLOCO DE DADOS INEGOCIÁVEL
-    let infoBanco = `\n\n[DADOS OFICIAIS DO BANCO DE DADOS - LEIA OBRIGATORIAMENTE]:\n`;
-    infoBanco += `- Total de simulados na tabela simulados: ${simulados.length}\n`;
-    if (simulados.length > 0) {
-      infoBanco += `- Detalhe do Simulado: Título="${simulados[0].titulo}", Acertos=${simulados[0].acertos}/${simulados[0].total_questoes}, Nota=${simulados[0].nota}\n`;
-    }
-    infoBanco += `- Total de redações na tabela redaccoes: ${redaccoes.length}\n`;
+    // Vamos imprimir no servidor para termos certeza absoluta do que o Supabase devolve
+    console.log("DADOS REAIS SUPABASE -> Simulados:", simulados.length, "| Redações:", redaccoes.length);
 
-    // 3. INJETAR OS DADOS DIRETAMENTE NA ÚLTIMA MENSAGEM DO UTILIZADOR
-    // Isto força o LLM a ver os dados quer queira quer não, pois faz parte da prompt ativa.
-    const mensagensModificadas = [...messages];
-    if (mensagensModificadas.length > 0) {
-      const ultimaMsgIndex = mensagensModificadas.length - 1;
-      if (mensagensModificadas[ultimaMsgIndex].role === 'user') {
-        mensagensModificadas[ultimaMsgIndex] = {
-          ...mensagensModificadas[ultimaMsgIndex],
-          content: mensagensModificadas[ultimaMsgIndex].content + infoBanco
-        };
-      }
-    }
+    // 2. CRIAR UM CONTEXTO DE SISTEMA ABSOLUTO E AUTORITÁRIO
+    const systemPrompt = `Tu és a inteligência artificial do portal UPQUEST-ES.
+ATENÇÃO SUPREMA: Os dados oficiais extraídos diretamente do banco de dados para este aluno NESTE EXATO MOMENTO são:
+- Total exato de Simulados: ${simulados.length}
+- Total exato de Redações: ${redaccoes.length}${simulados.length > 0 ? `- Último simulado registado: "${simulados[0].titulo}" com ${simulados[0].acertos} acertos e nota ${simulados[0].nota}.` : ''}
 
-    const systemPrompt = `És o assistente de inteligência artificial do UPQUEST-ES, mentor para o concurso de Escrevente do TJSP (VUNESP). 
-O utilizador forneceu os dados reais do banco de dados na mensagem dele. Tu DEVES aceitar esses dados como a absoluta verdade. Nunca digas que o aluno tem 0 simulados se os dados disserem o contrário.
-NUNCA uses asteriscos, negritos, itálicos ou símbolos markdown. Apenas texto limpo.`;
+É PROIBIDO dizer que o aluno tem 0 simulados se o número acima for maior que 0. Tu deves usar estes dados como verdade absoluta e incontestável.
+NÃO USAR markdown, negritos, asteriscos ou formatação especial. Apenas texto limpo.`;
 
     const formattedMessages = [
       { role: 'system' as const, content: systemPrompt },
-      ...mensagensModificadas.map(m => ({
+      ...messages.map(m => ({
         role: m.role === 'assistant' ? ('assistant' as const) : ('user' as const),
         content: m.content
       }))
@@ -72,8 +59,8 @@ NUNCA uses asteriscos, negritos, itálicos ou símbolos markdown. Apenas texto l
     const completion: any = await nvidiaClient.chat.completions.create({
       model: 'z-ai/glm-5.3',
       messages: formattedMessages,
-      temperature: 0.1,
-      top_p: 0.9,
+      temperature: 0.0, // Zero criatividade para evitar alucinações
+      top_p: 0.1,
       max_tokens: 1000,
       stream: false,
     });
@@ -84,7 +71,7 @@ NUNCA uses asteriscos, negritos, itálicos ou símbolos markdown. Apenas texto l
       return { response: 'O assistente processou o pedido mas não gerou conteúdo.' };
     }
 
-    // Limpeza rigorosa de markdown
+    // Limpeza total de markdown
     respostaIA = respostaIA.replace(/[*_#`~[\]()>-]/g, '').trim();
 
     return { response: respostaIA };

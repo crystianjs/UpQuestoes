@@ -27,7 +27,7 @@ export async function perguntarNvidiaAction(
   }
 
   try {
-    // 1. CONSULTA DIRETA AO SUPABASE
+    // 1. BUSCAR DADOS REAIS DIRETAMENTE DO SUPABASE
     const [simRes, redRes] = await Promise.all([
       supabaseAdmin.from('simulados').select('*').order('created_at', { ascending: false }),
       supabaseAdmin.from('redaccoes').select('*').order('created_at', { ascending: false })
@@ -36,31 +36,34 @@ export async function perguntarNvidiaAction(
     const simulados = simRes.data || [];
     const redaccoes = redRes.data || [];
 
-    // 2. CONSTRUIR TEXTO EXPLICITO DE FACTOS REAIS
-    let dadosFactuais = `ESTATÍSTICAS REAIS DO ALUNO NO SISTEMA:\n`;
-    
+    // 2. CRIAR UM BLOCO DE DADOS INEGOCIÁVEL
+    let infoBanco = `\n\n[DADOS OFICIAIS DO BANCO DE DADOS - LEIA OBRIGATORIAMENTE]:\n`;
+    infoBanco += `- Total de simulados na tabela simulados: ${simulados.length}\n`;
     if (simulados.length > 0) {
-      dadosFactuais += `- Simulados realizados: ${simulados.length}. Detalhe do último simulado: "${simulados[0].titulo}", com ${simulados[0].acertos} acertos em${simulados[0].total_questoes} questões, obtendo a nota ${simulados[0].nota}.\n`;
-    } else {
-      dadosFactuais += `- Simulados realizados: 0.\n`;
+      infoBanco += `- Detalhe do Simulado: Título="${simulados[0].titulo}", Acertos=${simulados[0].acertos}/${simulados[0].total_questoes}, Nota=${simulados[0].nota}\n`;
+    }
+    infoBanco += `- Total de redações na tabela redaccoes: ${redaccoes.length}\n`;
+
+    // 3. INJETAR OS DADOS DIRETAMENTE NA ÚLTIMA MENSAGEM DO UTILIZADOR
+    // Isto força o LLM a ver os dados quer queira quer não, pois faz parte da prompt ativa.
+    const mensagensModificadas = [...messages];
+    if (mensagensModificadas.length > 0) {
+      const ultimaMsgIndex = mensagensModificadas.length - 1;
+      if (mensagensModificadas[ultimaMsgIndex].role === 'user') {
+        mensagensModificadas[ultimaMsgIndex] = {
+          ...mensagensModificadas[ultimaMsgIndex],
+          content: mensagensModificadas[ultimaMsgIndex].content + infoBanco
+        };
+      }
     }
 
-    dadosFactuais += `- Redações registadas: ${redaccoes.length}.\n`;
+    const systemPrompt = `És o assistente de inteligência artificial do UPQUEST-ES, mentor para o concurso de Escrevente do TJSP (VUNESP). 
+O utilizador forneceu os dados reais do banco de dados na mensagem dele. Tu DEVES aceitar esses dados como a absoluta verdade. Nunca digas que o aluno tem 0 simulados se os dados disserem o contrário.
+NUNCA uses asteriscos, negritos, itálicos ou símbolos markdown. Apenas texto limpo.`;
 
-    // 3. SYSTEM PROMPT RIGOROSO E CURTO
-    const systemPrompt = `És o assistente de inteligência artificial do UPQUEST-ES, mentor para o concurso de Escrevente do TJSP (VUNESP).
-Deves responder sempre com base estrita nos dados factuais fornecidos abaixo pelo sistema. 
-
-REGRAS OBRIGATÓRIAS:
-1. Nunca digas que o aluno tem 0 simulados se os dados abaixo indicarem o contrário.
-2. NUNCA uses asteriscos, negritos, itálicos ou quaisquer símbolos markdown de formatação. Apenas texto limpo.
-
-${dadosFactuais}`;
-
-    // Formatar mensagens garantindo que o system prompt é respeitado
     const formattedMessages = [
       { role: 'system' as const, content: systemPrompt },
-      ...messages.map(m => ({
+      ...mensagensModificadas.map(m => ({
         role: m.role === 'assistant' ? ('assistant' as const) : ('user' as const),
         content: m.content
       }))
@@ -81,7 +84,7 @@ ${dadosFactuais}`;
       return { response: 'O assistente processou o pedido mas não gerou conteúdo.' };
     }
 
-    // Limpeza total de markdown de forma agressiva
+    // Limpeza rigorosa de markdown
     respostaIA = respostaIA.replace(/[*_#`~[\]()>-]/g, '').trim();
 
     return { response: respostaIA };

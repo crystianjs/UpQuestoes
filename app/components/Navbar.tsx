@@ -62,6 +62,12 @@ export default function Navbar() {
         >
           Mapas Mentais
         </Link>
+        <Link 
+        href="/simulados" 
+        className={`px-3 py-2 rounded-xl transition-all ${isActive('/simulados') ? 'bg-red-600 text-white font-bold shadow-lg shadow-red-600/20' : 'text-zinc-400 hover:text-white hover:bg-zinc-900'}`}
+    >
+        Simulados
+      </Link>
 
         {/* Novo Link do Chat IA (Destaque NVIDIA) */}
         <Link 

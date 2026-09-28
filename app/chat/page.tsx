@@ -17,58 +17,26 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
-      content: 'Olá! Sou o teu mentor de IA do UPQUESTOS. Estou pronto para te ajudar com dúvidas sobre o concurso do TJSP (VUNESP) e analisar o teu progresso em tempo real. O que gostarias de estudar hoje?'
+      content: 'Olá! Sou o teu mentor de IA do UPQUEST-ES. Estou pronto para te ajudar com dúvidas sobre o concurso do TJSP (VUNESP) e analisar o teu progresso em tempo real. O que gostarias de estudar hoje?'
     }
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const [totalFeitas, setTotalFeitas] = useState(0);
-  const [totalAcertos, setTotalAcertos] = useState(0);
-  const [totalErros, setTotalErros] = useState(0);
-  const [redacoesCount, setRedacoesCount] = useState(0);
+  const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
-    async function carregarDadosUtilizador() {
+    async function carregarSessao() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         router.push('/');
         return;
       }
-
-      const userId = session.user.id;
-
-      const { data: qData } = await supabase
-        .from('user_questions')
-        .select('*')
-        .eq('user_id', userId);
-
-      const { data: rData } = await supabase
-        .from('redaccoes')
-        .select('*')
-        .eq('user_id', userId);
-
-      if (qData) {
-        let feitas = 0;
-        let acertos = 0;
-        let erros = 0;
-        qData.forEach((q: any) => {
-          feitas += Number(q.total_feitas || 0);
-          acertos += Number(q.acertos || 0);
-          erros += Number(q.erros || 0);
-        });
-        setTotalFeitas(feitas);
-        setTotalAcertos(acertos);
-        setTotalErros(erros);
-      }
-
-      if (rData) {
-        setRedacoesCount(rData.length);
-      }
+      setUserId(session.user.id);
     }
 
-    carregarDadosUtilizador();
+    carregarSessao();
   }, [router]);
 
   const scrollToBottom = () => {
@@ -91,14 +59,8 @@ export default function ChatPage() {
     setLoading(true);
 
     try {
-      const dadosDoCliente = {
-        totalFeitas,
-        totalAcertos,
-        totalErros,
-        redacoesCount
-      };
-
-      const res = await perguntarNvidiaAction(novasMensagens, dadosDoCliente);
+      // Passamos o array de mensagens e o ID do utilizador para que a Server Action aceda diretamente ao Supabase
+      const res = await perguntarNvidiaAction(novasMensagens, userId || undefined);
       setMessages([...novasMensagens, { role: 'assistant', content: res.response }]);
     } catch (error: any) {
       setMessages([
@@ -156,7 +118,7 @@ export default function ChatPage() {
               </div>
               <div className="bg-zinc-950 border border-zinc-800 text-zinc-400 rounded-2xl px-4 py-3 text-xs flex items-center gap-2">
                 <Loader2 className="w-4 h-4 animate-spin text-red-500" />
-                A analisar o teu progresso...
+                A analisar os simulados e o teu progresso...
               </div>
             </div>
           )}

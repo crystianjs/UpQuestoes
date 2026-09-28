@@ -15,7 +15,7 @@ const supabase = createClient(
 
 export async function perguntarNvidiaAction(
   messages: { role: 'user' | 'assistant'; content: string }[], 
-  userId?: string 
+  userInfo?: string | { id?: string; [key: string]: any }
 ) {
   const apiKey = process.env.NVIDIA_API_KEY;
 
@@ -23,8 +23,15 @@ export async function perguntarNvidiaAction(
     return { response: 'A variável de ambiente NVIDIA_API_KEY não está configurada no ficheiro .env.local.' };
   }
 
+  // Extrair o ID do utilizador independentemente de vir como string ou objeto
+  let userId = '';
+  if (typeof userInfo === 'string') {
+    userId = userInfo;
+  } else if (userInfo && typeof userInfo === 'object') {
+    userId = userInfo.id || '';
+  }
+
   try {
-    // 1. BUSCAR DIRETAMENTE DO SUPABASE (Com fallback se o userId vier vazio)
     let querySimulados = supabase.from('simulados').select('*').order('created_at', { ascending: false });
     if (userId) {
       querySimulados = querySimulados.eq('user_id', userId);
@@ -40,7 +47,6 @@ export async function perguntarNvidiaAction(
     const simulados = simRes.data || [];
     const melhorias = melRes.data || [];
 
-    // 2. CONVERTER OS DADOS DIRETAMENTE EM TEXTO EXPLICÍCITO PARA A IA
     const simuladosTexto = simulados.length > 0 
       ? JSON.stringify(simulados, null, 2) 
       : 'NENHUM SIMULADO ENCONTRADO NA TABELA.';
@@ -79,7 +85,7 @@ ${contextoDados}`;
     const completion: any = await nvidiaClient.chat.completions.create({
       model: 'z-ai/glm-5.3',
       messages: formattedMessages,
-      temperature: 0.3, // Temperatura mais baixa para garantir foco absoluto nos dados
+      temperature: 0.3,
       top_p: 0.9,
       max_tokens: 2048,
       stream: false,

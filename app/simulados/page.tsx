@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import Navbar from '../components/Navbar';
-import { Award, Plus, CheckCircle2, XCircle, Calendar, BarChart2, Target, Code, Copy, Check } from 'lucide-react';
+import { Award, Plus, CheckCircle2, XCircle, Calendar, BarChart2, Target, Code, Copy, Check, Trash2 } from 'lucide-react';
 
 interface Simulado {
   id: string;
@@ -91,7 +91,6 @@ export default function SimuladosPage() {
       let numTotal = parseInt(total) || 100;
       let itensParaInserir: any[] = [];
 
-      // Se incluir melhorias por JSON, calculamos automaticamente o total e os acertos reais com base no payload
       if (incluirMelhorias && modoJson && jsonInput.trim()) {
         try {
           const parsed = JSON.parse(jsonInput);
@@ -101,7 +100,7 @@ export default function SimuladosPage() {
           const somaErrosJson = arrayParsed.reduce((acc, item) => acc + (Number(item.quantidade_erros) || 0), 0);
           
           numAcertos = somaAcertosJson;
-          numTotal = somaAcertosJson + somaErrosJson; // Soma automática (ex: 17 acertos + 29 erros = 46 questões)
+          numTotal = somaAcertosJson + somaErrosJson;
 
           itensParaInserir = arrayParsed.map((item) => ({
             user_id: user.id,
@@ -134,7 +133,6 @@ export default function SimuladosPage() {
 
       const notaCalculada = Number(((numAcertos / numTotal) * 10).toFixed(2));
 
-      // 1. Inserir Simulado com os valores recalculados (se aplicável)
       const { error: erroSimulado } = await supabase.from('simulados').insert([
         {
           user_id: user.id,
@@ -146,24 +144,20 @@ export default function SimuladosPage() {
       ]);
 
       if (erroSimulado) {
-        console.error('Erro detalhado Simulado:', erroSimulado);
         alert(`Erro ao guardar Simulado: ${erroSimulado.message}`);
         setAGuardar(false);
         return;
       }
 
-      // 2. Inserir Pontos de Melhoria (se existirem)
       if (incluirMelhorias && itensParaInserir.length > 0) {
         const { error: erroMelhoria } = await supabase.from('pontos_melhoria').insert(itensParaInserir);
         if (erroMelhoria) {
-          console.error('Erro detalhado Ponto de Melhoria:', erroMelhoria);
           alert(`Erro ao guardar Ponto de Melhoria: ${erroMelhoria.message}`);
           setAGuardar(false);
           return;
         }
       }
 
-      // Resetar estados e fechar modal
       setTitulo('');
       setAcertos('');
       setTotal('100');
@@ -182,6 +176,36 @@ export default function SimuladosPage() {
       alert('Erro inesperado ao guardar dados.');
     } finally {
       setAGuardar(false);
+    }
+  }
+
+  async function apagarMelhoria(id: string) {
+    if (!confirm('Tens a certeza que pretendes apagar este ponto de melhoria?')) return;
+    
+    try {
+      const { error } = await supabase.from('pontos_melhoria').delete().eq('id', id);
+      if (error) {
+        alert(`Erro ao apagar: ${error.message}`);
+        return;
+      }
+      setMelhorias(melhorias.filter((m) => m.id !== id));
+    } catch (err) {
+      console.error('Erro ao apagar melhoria:', err);
+    }
+  }
+
+  async function apagarSimulado(id: string) {
+    if (!confirm('Tens a certeza que pretendes apagar este simulado?')) return;
+    
+    try {
+      const { error } = await supabase.from('simulados').delete().eq('id', id);
+      if (error) {
+        alert(`Erro ao apagar: ${error.message}`);
+        return;
+      }
+      setSimulados(simulados.filter((s) => s.id !== id));
+    } catch (err) {
+      console.error('Erro ao apagar simulado:', err);
     }
   }
 
@@ -265,15 +289,27 @@ export default function SimuladosPage() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {melhorias.map((m) => (
-                <div key={m.id} className="bg-zinc-900/80 border border-zinc-800 rounded-2xl p-5 space-y-3 relative overflow-hidden shadow-lg">
+                <div key={m.id} className="bg-zinc-900/80 border border-zinc-800 rounded-2xl p-5 space-y-3 relative overflow-hidden shadow-lg group">
                   <div className="absolute top-0 left-0 w-1.5 h-full bg-red-600"></div>
+                  
+                  {/* Cabeçalho do Card com Matéria, Acertos/Erros e Botão Apagar */}
                   <div className="flex justify-between items-start">
                     <span className="text-xs font-bold text-zinc-200 bg-zinc-800 px-2.5 py-1 rounded-lg">{m.materia}</span>
-                    <div className="flex items-center gap-2 text-[11px]">
-                      <span className="text-emerald-400 font-semibold">✓ {m.quantidade_acertos}</span>
-                      <span className="text-red-400 font-semibold">✕ {m.quantidade_erros}</span>
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2 text-[11px]">
+                        <span className="text-emerald-400 font-semibold">✓ {m.quantidade_acertos}</span>
+                        <span className="text-red-400 font-semibold">✕ {m.quantidade_erros}</span>
+                      </div>
+                      <button
+                        onClick={() => apagarMelhoria(m.id)}
+                        title="Apagar ponto de melhoria"
+                        className="text-zinc-500 hover:text-red-500 transition-colors cursor-pointer p-1"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   </div>
+
                   <div>
                     <span className="text-[10px] uppercase font-bold text-zinc-500 block">Assunto a ser estudado:</span>
                     <p className="text-xs text-white font-medium mt-1 leading-snug">{m.assunto_estudar}</p>
@@ -306,12 +342,21 @@ export default function SimuladosPage() {
               {simulados.map((sim) => {
                 const percentual = Math.round((sim.acertos / sim.total_questoes) * 100);
                 return (
-                  <div key={sim.id} className="bg-zinc-900/80 border border-zinc-800 rounded-2xl p-6 space-y-4 shadow-xl">
+                  <div key={sim.id} className="bg-zinc-900/80 border border-zinc-800 rounded-2xl p-6 space-y-4 shadow-xl relative">
                     <div className="flex justify-between items-start">
-                      <h3 className="font-bold text-base text-white">{sim.titulo}</h3>
-                      <span className="text-xs bg-red-950/40 border border-red-600/30 text-red-400 px-2.5 py-1 rounded-lg font-semibold">
-                        Nota: {sim.nota}
-                      </span>
+                      <h3 className="font-bold text-base text-white pr-6">{sim.titulo}</h3>
+                      <div className="flex items-center gap-2 absolute top-6 right-6">
+                        <span className="text-xs bg-red-950/40 border border-red-600/30 text-red-400 px-2.5 py-1 rounded-lg font-semibold">
+                          Nota: {sim.nota}
+                        </span>
+                        <button
+                          onClick={() => apagarSimulado(sim.id)}
+                          title="Apagar simulado"
+                          className="text-zinc-500 hover:text-red-500 transition-colors cursor-pointer p-1"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
 
                     <div className="flex items-center gap-2 text-xs text-zinc-400">

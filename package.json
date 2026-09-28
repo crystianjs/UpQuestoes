@@ -1,0 +1,30 @@
+{
+  "name": "UPQUESTOES",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@google/genai": "^2.24.0",
+    "@supabase/supabase-js": "^2.116.0",
+    "@tailwindcss/postcss": "^4.3.3",
+    "lucide-react": "latest",
+    "next": "latest",
+    "openai": "^7.23.0",
+    "react": "latest",
+    "react-dom": "latest"
+  },
+  "devDependencies": {
+    "@types/node": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "autoprefixer": "latest",
+    "postcss": "latest",
+    "tailwindcss": "^4.3.3",
+    "typescript": "latest"
+  }
+}

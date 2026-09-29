@@ -1,52 +1,29 @@
 'use server';
 
 import OpenAI from 'openai';
-import { createClient } from '@supabase/supabase-js';
 
 const nvidiaClient = new OpenAI({
   apiKey: process.env.NVIDIA_API_KEY || '',
   baseURL: 'https://integrate.api.nvidia.com/v1',
 });
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
-  {
-    auth: { persistSession: false, autoRefreshToken: false }
-  }
-);
-
 export async function perguntarNvidiaAction(
   messages: { role: 'user' | 'assistant'; content: string }[], 
-  userId?: string 
+  contextoDados?: string
 ) {
   const apiKey = process.env.NVIDIA_API_KEY;
 
   if (!apiKey) {
-    return { response: 'Erro: Chave da API NVIDIA não configurada.' };
+    return { response: 'Erro: A chave NVIDIA_API_KEY não está configurada no ficheiro .env.local.' };
   }
 
   try {
-    // 1. BUSCAR DADOS REAIS DIRETAMENTE DO SUPABASE
-    const [simRes, redRes] = await Promise.all([
-      supabaseAdmin.from('simulados').select('*').order('created_at', { ascending: false }),
-      supabaseAdmin.from('redaccoes').select('*').order('created_at', { ascending: false })
-    ]);
+    let systemPrompt = `Tu és o mentor de inteligência artificial oficial do portal UPQUEST-ES, especializado no concurso de Escrevente Técnico Judiciário do TJSP sob o padrão da banca VUNESP.
+O teu objetivo é ajudar o aluno respondendo às suas dúvidas de direito, português, fornecendo temas inéditos de redação nos padrões VUNESP (com texto motivador e propostas claras), e analisando o seu desempenho de forma inteligente, cirúrgica e motivadora.`;
 
-    const simulados = simRes.data || [];
-    const redaccoes = redRes.data || [];
-
-    // Vamos imprimir no servidor para termos certeza absoluta do que o Supabase devolve
-    console.log("DADOS REAIS SUPABASE -> Simulados:", simulados.length, "| Redações:", redaccoes.length);
-
-    // 2. CRIAR UM CONTEXTO DE SISTEMA ABSOLUTO E AUTORITÁRIO
-    const systemPrompt = `Tu és a inteligência artificial do portal UPQUEST-ES.
-ATENÇÃO SUPREMA: Os dados oficiais extraídos diretamente do banco de dados para este aluno NESTE EXATO MOMENTO são:
-- Total exato de Simulados: ${simulados.length}
-- Total exato de Redações: ${redaccoes.length}${simulados.length > 0 ? `- Último simulado registado: "${simulados[0].titulo}" com ${simulados[0].acertos} acertos e nota ${simulados[0].nota}.` : ''}
-
-É PROIBIDO dizer que o aluno tem 0 simulados se o número acima for maior que 0. Tu deves usar estes dados como verdade absoluta e incontestável.
-NÃO USAR markdown, negritos, asteriscos ou formatação especial. Apenas texto limpo.`;
+    if (contextoDados) {
+      systemPrompt += `\n\nDADOS REAIS DO ALUNO NO SISTEMA:\n${contextoDados}`;
+    }
 
     const formattedMessages = [
       { role: 'system' as const, content: systemPrompt },
@@ -57,26 +34,17 @@ NÃO USAR markdown, negritos, asteriscos ou formatação especial. Apenas texto 
     ];
 
     const completion: any = await nvidiaClient.chat.completions.create({
-      model: 'z-ai/glm-5.3',
+      model: 'z-ai/glm-5.3-flash', // Modelo exato selecionado no teu painel da NVIDIA NIM
       messages: formattedMessages,
-      temperature: 0.0, // Zero criatividade para evitar alucinações
-      top_p: 0.1,
-      max_tokens: 1000,
-      stream: false,
+      temperature: 0.6,
+      max_tokens: 1500,
     });
 
-    let respostaIA = completion.choices[0]?.message?.content || '';
-
-    if (!respostaIA) {
-      return { response: 'O assistente processou o pedido mas não gerou conteúdo.' };
-    }
-
-    // Limpeza total de markdown
-    respostaIA = respostaIA.replace(/[*_#`~[\]()>-]/g, '').trim();
+    const respostaIA = completion.choices[0]?.message?.content || 'O assistente não gerou resposta.';
 
     return { response: respostaIA };
   } catch (error: any) {
-    console.error('Erro no chatAction:', error);
-    return { response: `Erro ao processar a solicitação: ${error?.message || 'Erro desconhecido'}.` };
+    console.error('Erro ao chamar a API da NVIDIA:', error);
+    return { response: `Erro ao processar com a IA da NVIDIA: ${error?.message || 'Erro desconhecido'}` };
   }
 }

@@ -64,7 +64,7 @@ const mapaInicialExemplo = {
         icon: "fa-envelope",
         casosPraticos: [
           {
-            titulo: "CASO PRÁTICO 1 — CITAÇÃO ELETRÔNICA:",
+            titulo: "CASO PRÁTICO — CITAÇÃO ELETRÔNICA:",
             texto: "A empresa ré é intimada por meio eletrônico cadastrado, mas deixa passar o prazo de 3 dias úteis sem acusar o recebimento."
           }
         ],
@@ -174,7 +174,7 @@ const mapaInicialExemplo = {
 };
 
 const PROMPT_MESTRE_TEXTO = `Com base no resumo de estudo fornecido, transforme-o estritamente no seguinte formato JSON válido (sem markdown extra fora das chaves). 
-IMPORTANTE: O objeto 'modalInfo' deve conter obrigatoriamente um array 'casosPraticos' (com titulo e texto) e um array 'conclusoes', além da string 'pegadinha' focada na banca VUNESP. Cada subnó deve conter o campo 'icone' (ex: fa-bolt, fa-bell, fa-user, etc).
+IMPORTANTE: Cada objeto dentro de 'ramos' deve conter obrigatoriamente o seu próprio objeto 'modalInfo' detalhado com arrays 'casosPraticos' (com titulo e texto) e 'conclusoes', além da string 'pegadinha' focada na banca VUNESP. Cada subnó deve conter o campo 'icone' (ex: fa-bolt, fa-bell, fa-user, etc).
 
 {
   "disciplina": "Nome da Disciplina do Edital TJSP",
@@ -199,14 +199,14 @@ IMPORTANTE: O objeto 'modalInfo' deve conter obrigatoriamente um array 'casosPra
         }
       ],
       "modalInfo": {
-        "title": "Exemplo Prático do Assunto",
+        "title": "Exemplo Prático Específico deste Assunto",
         "tag": "Referência Legal",
         "tagBg": "bg-rose-500/20 text-rose-300 border-rose-500/30",
         "iconBg": "bg-rose-500/20 text-rose-400 border border-rose-500/40",
         "icon": "fa-gavel",
         "casosPraticos": [
           {
-            "titulo": "CASO PRÁTICO 1 — TEMA:",
+            "titulo": "CASO PRÁTICO — TEMA:",
             "texto": "Descrição detalhada do caso prático..."
           }
         ],

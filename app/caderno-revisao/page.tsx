@@ -85,6 +85,8 @@ export default function CadernoRevisaoPage() {
   const [modalDisciplinaAlvo, setModalDisciplinaAlvo] = useState<string>("Língua Portuguesa");
   const [jsonInputText, setJsonInputText] = useState<string>('');
   const [copiadoPrompt, setCopiadoPrompt] = useState<boolean>(false);
+  const [copiadoModalPrompt, setCopiadoModalPrompt] = useState<boolean>(false);
+  const [modalFeedback, setModalFeedback] = useState<{ tipo: 'erro' | 'sucesso'; mensagem: string } | null>(null);
 
   useEffect(() => {
     const savedDecks = localStorage.getItem('upquest_flashcards');
@@ -116,6 +118,7 @@ export default function CadernoRevisaoPage() {
   };
 
   const handleCarregarJson = () => {
+    setModalFeedback(null);
     try {
       const parsed = JSON.parse(jsonInputText);
       if (parsed && parsed.cards && Array.isArray(parsed.cards)) {
@@ -127,18 +130,20 @@ export default function CadernoRevisaoPage() {
           }
         };
         salvarStorage(atualizado);
-        setShowJsonModal(false);
-        setJsonInputText('');
-        setSelectedDisciplina(modalDisciplinaAlvo);
-        setSelectedAssunto('all');
-        setCardIndex(0);
-        setIsFlipped(false);
-        alert(`Flashcards salvos com sucesso para ${modalDisciplinaAlvo}!`);
+        setModalFeedback({ tipo: 'sucesso', mensagem: `Deck salvo com sucesso para ${modalDisciplinaAlvo}!` });
+        setTimeout(() => {
+          setShowJsonModal(false);
+          setModalFeedback(null);
+          setSelectedDisciplina(modalDisciplinaAlvo);
+          setSelectedAssunto('all');
+          setCardIndex(0);
+          setIsFlipped(false);
+        }, 1200);
       } else {
-        alert('O JSON precisa conter obrigatoriamente a chave "cards".');
+        setModalFeedback({ tipo: 'erro', mensagem: 'O JSON precisa conter obrigatoriamente a chave "cards" em formato de array ([...]).' });
       }
-    } catch (e) {
-      alert('Erro de sintaxe no JSON. Verifique as chaves e aspas.');
+    } catch (e: any) {
+      setModalFeedback({ tipo: 'erro', mensagem: `Erro de sintaxe no JSON: ${e.message}` });
     }
   };
 
@@ -162,6 +167,12 @@ export default function CadernoRevisaoPage() {
     navigator.clipboard.writeText(PROMPT_MESTRE_FLASHCARDS);
     setCopiadoPrompt(true);
     setTimeout(() => setCopiadoPrompt(false), 3000);
+  };
+
+  const copiarPromptModal = () => {
+    navigator.clipboard.writeText(PROMPT_MESTRE_FLASHCARDS);
+    setCopiadoModalPrompt(true);
+    setTimeout(() => setCopiadoModalPrompt(false), 3000);
   };
 
   const deckAtual = selectedDisciplina !== "Todas as Matérias" ? decksPorDisciplina[selectedDisciplina] : null;
@@ -226,11 +237,13 @@ export default function CadernoRevisaoPage() {
               onClick={() => {
                 setModalDisciplinaAlvo(selectedDisciplina !== "Todas as Matérias" ? selectedDisciplina : DISCIPLINAS_TJSP[0]);
                 setJsonInputText(JSON.stringify(flashcardsInicialExemplo, null, 2));
+                setModalFeedback(null);
                 setShowJsonModal(true);
               }}
               className="text-xs font-semibold px-4 py-2.5 rounded-xl border border-amber-500/40 bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 transition-all flex items-center gap-1.5 shadow-md"
             >
-              <i className="fa-solid fa-code text-amber-400"></i> Gerenciar / Colar Novo JSON
+              <svg className="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
+              Gerenciar / Colar Novo JSON
             </button>
           </div>
         </div>
@@ -238,7 +251,7 @@ export default function CadernoRevisaoPage() {
         {/* Filtros */}
         <div className="bg-zinc-950 border border-zinc-800 p-4 rounded-2xl shadow-lg flex flex-col md:flex-row items-center gap-4">
           <div className="w-full md:w-1/3 flex items-center gap-2">
-            <span className="text-xs font-bold text-zinc-400 whitespace-nowrap"><i className="fa-solid fa-book text-amber-400 mr-1"></i> Disciplina:</span>
+            <span className="text-xs font-bold text-zinc-400 whitespace-nowrap">Disciplina:</span>
             <select 
               value={selectedDisciplina}
               onChange={(e) => {
@@ -259,7 +272,7 @@ export default function CadernoRevisaoPage() {
           </div>
 
           <div className="w-full md:w-2/3 flex items-center gap-2 overflow-x-auto pb-1 md:pb-0">
-            <span className="text-xs font-bold text-zinc-400 whitespace-nowrap"><i className="fa-solid fa-filter text-amber-400 mr-1"></i> Tópico:</span>
+            <span className="text-xs font-bold text-zinc-400 whitespace-nowrap">Tópico:</span>
             {selectedDisciplina === "Todas as Matérias" ? (
               <span className="text-xs text-zinc-500 italic">Selecione uma disciplina ao lado.</span>
             ) : !deckAtual ? (
@@ -293,7 +306,7 @@ export default function CadernoRevisaoPage() {
           <div className="z-10 flex items-center justify-between pb-3 border-b border-zinc-800">
             <div className="flex items-center gap-2">
               <span className="bg-amber-500/20 text-amber-300 text-xs font-bold px-2.5 py-1 rounded-lg border border-amber-500/30 flex items-center gap-1.5">
-                <i className="fa-solid fa-layer-group text-amber-400"></i> Card {cardsExibir.length > 0 ? cardIndex + 1 : 0} de {cardsExibir.length}
+                Card {cardsExibir.length > 0 ? cardIndex + 1 : 0} de {cardsExibir.length}
               </span>
               {cardAtual && (
                 <span className={`text-xs font-bold px-2.5 py-1 rounded-lg border ${cardAtual.tagClasses}`}>
@@ -308,7 +321,8 @@ export default function CadernoRevisaoPage() {
                 className="text-zinc-400 hover:text-rose-400 bg-zinc-900/80 hover:bg-rose-950/40 px-3 py-1.5 rounded-xl border border-zinc-800 hover:border-rose-500/40 transition-all text-xs font-semibold flex items-center gap-1.5"
                 title="Apagar este flashcard específico"
               >
-                <i className="fa-solid fa-trash-can text-rose-400"></i> Apagar Card
+                <svg className="w-3.5 h-3.5 text-rose-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                Apagar Card
               </button>
             )}
           </div>
@@ -316,15 +330,20 @@ export default function CadernoRevisaoPage() {
           <div className="z-10 my-6 flex-1 flex flex-col items-center justify-center">
             {selectedDisciplina === "Todas as Matérias" ? (
               <div className="text-center p-12 space-y-3">
-                <i className="fa-solid fa-brain text-5xl text-zinc-700"></i>
+                <svg className="w-12 h-12 mx-auto text-zinc-700" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23-.693L5 14.5m14.8.8l1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0112 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.611L5 14.5"/></svg>
                 <p className="text-sm text-zinc-400 font-medium">Selecione uma disciplina no filtro acima para iniciar os estudos.</p>
               </div>
             ) : !deckAtual || cardsExibir.length === 0 ? (
               <div className="text-center p-12 space-y-3">
-                <i className="fa-solid fa-code text-5xl text-amber-500/60"></i>
+                <svg className="w-12 h-12 mx-auto text-amber-500/60" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
                 <p className="text-sm text-zinc-300 font-medium">Nenhum flashcard encontrado para esta seleção.</p>
                 <button 
-                  onClick={() => { setModalDisciplinaAlvo(selectedDisciplina); setShowJsonModal(true); }}
+                  onClick={() => { 
+                    setModalDisciplinaAlvo(selectedDisciplina); 
+                    setJsonInputText(JSON.stringify(flashcardsInicialExemplo, null, 2));
+                    setModalFeedback(null);
+                    setShowJsonModal(true); 
+                  }}
                   className="px-4 py-2.5 bg-amber-500 text-black font-bold rounded-xl text-xs shadow-md hover:bg-amber-400 transition-all"
                 >
                   Gerar Flashcards por JSON
@@ -343,7 +362,7 @@ export default function CadernoRevisaoPage() {
                   {!isFlipped ? (
                     <div className="space-y-3">
                       <span className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
-                        <i className={`fa-solid ${cardAtual.icone || 'fa-circle-question'}`}></i> {cardAtual.assunto}
+                        {cardAtual.assunto}
                       </span>
                       <h2 className="text-base sm:text-lg font-bold text-white leading-relaxed">
                         {cardAtual.pergunta}
@@ -352,7 +371,7 @@ export default function CadernoRevisaoPage() {
                   ) : (
                     <div className="space-y-4">
                       <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
-                        <i className="fa-solid fa-circle-check"></i> Resposta Correta:
+                        Resposta Correta:
                       </span>
                       <p className="text-sm sm:text-base font-semibold text-zinc-100 leading-relaxed bg-zinc-950/80 p-4 rounded-2xl border border-zinc-800">
                         {cardAtual.respostaResumida}
@@ -409,7 +428,7 @@ export default function CadernoRevisaoPage() {
                       onClick={() => setIsFlipped(true)}
                       className="w-full py-3 rounded-xl font-bold text-xs sm:text-sm transition-all shadow-lg flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-400 text-black border border-amber-400 shadow-amber-500/20"
                     >
-                      <i className="fa-solid fa-eye"></i> Virar Cartão e Ver Resposta
+                      Virar Cartão e Ver Resposta
                     </button>
                   </div>
                 )}
@@ -424,7 +443,7 @@ export default function CadernoRevisaoPage() {
                 onClick={cardAnterior}
                 className="px-4 py-2.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 font-semibold rounded-xl text-xs border border-zinc-800 transition-all flex items-center gap-2"
               >
-                <i className="fa-solid fa-arrow-left"></i> Anterior
+                Anterior
               </button>
 
               <span className="text-xs text-zinc-500 font-medium">
@@ -435,7 +454,7 @@ export default function CadernoRevisaoPage() {
                 onClick={proximoCard}
                 className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl text-xs border border-blue-500/40 transition-all flex items-center gap-2 shadow-md"
               >
-                Próximo Card <i className="fa-solid fa-arrow-right"></i>
+                Próximo Card
               </button>
             </div>
           )}
@@ -461,7 +480,6 @@ export default function CadernoRevisaoPage() {
                 : 'bg-amber-500 hover:bg-amber-400 text-black font-bold border border-amber-400'
             }`}
           >
-            <i className={`fa-solid ${copiadoPrompt ? 'fa-check' : 'fa-copy'}`}></i>
             {copiadoPrompt ? 'Prompt Copiado!' : 'Copiar Prompt Mestre'}
           </button>
         </div>
@@ -472,26 +490,44 @@ export default function CadernoRevisaoPage() {
       {showJsonModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-zinc-950 border border-zinc-800 rounded-3xl max-w-2xl w-full p-6 shadow-2xl relative space-y-4">
+            
+            {/* Botão X Vermelho de Fechar Ajustado e Visível */}
             <button 
-              onClick={() => setShowJsonModal(false)} 
-              className="absolute top-4 right-4 text-zinc-400 hover:text-white bg-zinc-900 p-2 rounded-full border border-zinc-800 transition-all"
+              onClick={() => { setShowJsonModal(false); setModalFeedback(null); }} 
+              className="absolute top-4 right-4 z-20 text-rose-400 hover:text-white bg-rose-950/40 hover:bg-rose-600 p-2 rounded-xl border border-rose-500/40 transition-all shadow-md flex items-center justify-center w-9 h-9"
+              title="Fechar"
             >
-              <i className="fa-solid fa-xmark text-lg"></i>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
 
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl flex items-center justify-center text-xl font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
-                <i className="fa-solid fa-code"></i>
+            <div className="flex items-center justify-between pr-12">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl flex items-center justify-center text-xl font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 shrink-0">
+                  <svg className="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
+                </div>
+                <div>
+                  <span className="text-xs font-bold px-2.5 py-0.5 rounded-full border bg-amber-500/20 text-amber-300 border-amber-500/30">Gerenciador de Decks</span>
+                  <h2 className="text-lg font-bold text-white mt-1">Colar Novo JSON de Flashcards</h2>
+                </div>
               </div>
-              <div>
-                <span className="text-xs font-bold px-2.5 py-0.5 rounded-full border bg-amber-500/20 text-amber-300 border-amber-500/30">Gerenciador de Decks</span>
-                <h2 className="text-lg font-bold text-white mt-1">Colar JSON de Flashcards</h2>
-              </div>
+
+              {/* Botão de Copiar Prompt dentro do Modal */}
+              <button
+                onClick={copiarPromptModal}
+                className={`text-xs font-semibold px-3 py-2 rounded-xl border transition-all flex items-center gap-1.5 shadow-md ${
+                  copiadoModalPrompt 
+                    ? 'bg-emerald-600 text-white border-emerald-500' 
+                    : 'bg-zinc-900 hover:bg-zinc-800 text-amber-300 border-amber-500/40'
+                }`}
+                title="Copiar Prompt Mestre para gerar novos cards"
+              >
+                {copiadoModalPrompt ? 'Prompt Copiado!' : 'Copiar Prompt Mestre'}
+              </button>
             </div>
 
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-zinc-300 flex items-center gap-1">
-                <i className="fa-solid fa-book text-amber-400"></i> Disciplina Alvo:
+                Disciplina Alvo:
               </label>
               <select 
                 value={modalDisciplinaAlvo}
@@ -505,24 +541,43 @@ export default function CadernoRevisaoPage() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-zinc-300 flex items-center gap-1">
-                <i className="fa-solid fa-code text-amber-400"></i> Cole o JSON gerado pelo Prompt Mestre:
-              </label>
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-zinc-300 flex items-center gap-1">
+                  Cole o JSON gerado pelo Prompt Mestre:
+                </label>
+                <span className="text-[11px] text-amber-400/90 font-medium italic">
+                  O prompt vai manter a estrutura atual e adicionar o que foi solicitado.
+                </span>
+              </div>
               <textarea
                 value={jsonInputText}
-                onChange={(e) => setJsonInputText(e.target.value)}
-                className="w-full h-40 bg-zinc-900 text-amber-300 p-3 rounded-2xl border border-zinc-800 font-mono text-xs outline-none focus:border-amber-500 resize-none"
+                onChange={(e) => {
+                  setJsonInputText(e.target.value);
+                  if (modalFeedback) setModalFeedback(null);
+                }}
+                className="w-full h-36 bg-zinc-900 text-amber-300 p-3 rounded-2xl border border-zinc-800 font-mono text-xs outline-none focus:border-amber-500 resize-none"
                 placeholder="Cole o JSON dos flashcards aqui..."
               />
             </div>
+
+            {/* CAIXA DE FEEDBACK VISUAL NA TELA */}
+            {modalFeedback && (
+              <div className={`p-3 rounded-xl border text-xs font-semibold flex items-center gap-2 ${
+                modalFeedback.tipo === 'sucesso' 
+                  ? 'bg-emerald-950/40 text-emerald-300 border-emerald-500/40' 
+                  : 'bg-rose-950/50 text-rose-300 border-rose-500/40'
+              }`}>
+                <span>{modalFeedback.mensagem}</span>
+              </div>
+            )}
 
             <div className="pt-2 border-t border-zinc-800 flex items-center justify-between">
               <span className="text-[11px] text-zinc-500">Salva automaticamente no armazenamento local.</span>
               <button 
                 onClick={handleCarregarJson} 
-                className="px-5 py-2 bg-amber-500 hover:bg-amber-400 text-black font-bold rounded-xl text-xs transition-all flex items-center gap-1.5 shadow-md"
+                className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-black font-bold rounded-xl text-xs transition-all flex items-center gap-1.5 shadow-md"
               >
-                <i className="fa-solid fa-check"></i> Salvar Deck de Flashcards
+                Salvar Deck de Flashcards
               </button>
             </div>
           </div>

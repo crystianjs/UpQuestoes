@@ -23,7 +23,7 @@ const DISCIPLINAS_TJSP = [
 
 const flashcardsInicialExemplo = {
   disciplina: "Língua Portuguesa",
-  titulo: "Flashcards: Morfologia & Classes de Palavras",
+  titulo: "Flashcards: Morfologia e Classes de Palavras",
   banca: "VUNESP",
   cards: [
     {
@@ -214,7 +214,7 @@ export default function CadernoRevisaoPage() {
           <div>
             <div className="flex items-center gap-2">
               <span className="bg-amber-500/20 text-amber-300 text-xs font-bold px-2.5 py-0.5 rounded-full border border-amber-500/30">TJSP - VUNESP</span>
-              <span className="bg-blue-500/20 text-blue-400 text-xs font-bold px-2.5 py-0.5 rounded-full border border-blue-500/30">Caderno de Revisão & Flashcards</span>
+              <span className="bg-blue-500/20 text-blue-400 text-xs font-bold px-2.5 py-0.5 rounded-full border border-blue-500/30">Caderno de Revisão e Flashcards</span>
             </div>
             <h1 className="text-2xl font-bold text-white mt-1">
               {deckAtual ? deckAtual.titulo : "Flashcards de Memorização Ativa"}
@@ -409,7 +409,7 @@ export default function CadernoRevisaoPage() {
                       onClick={() => setIsFlipped(true)}
                       className="w-full py-3 rounded-xl font-bold text-xs sm:text-sm transition-all shadow-lg flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-400 text-black border border-amber-400 shadow-amber-500/20"
                     >
-                      <i className="fa-solid fa-eye"></i> Virar Cartão & Ver Resposta
+                      <i className="fa-solid fa-eye"></i> Virar Cartão e Ver Resposta
                     </button>
                   </div>
                 )}

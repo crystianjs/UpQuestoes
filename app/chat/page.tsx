@@ -18,7 +18,7 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
-      content: 'Olá! Sou o teu mentor do UPQUESTOES. Estou pronto para te ajudar com o concurso do TJSP (VUNESP). Clica no botão de atualizar panorama para carregar o teu raio-X de desempenho.'
+      content: 'Olá! Sou o teu mentor do UPQUEST-ES. Estou pronto para te ajudar com o concurso do TJSP (VUNESP). Clica no botão de atualizar panorama para carregar o teu raio-X de desempenho.'
     }
   ]);
   const [input, setInput] = useState('');

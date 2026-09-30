@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Navbar from '../components/Navbar';
 import { supabase } from '@/lib/supabase';
-import { BarChart3, Award, CheckCircle2, XCircle, Clock, Calendar, Filter, Brain, HelpCircle } from 'lucide-react';
+import { BarChart3, Award, CheckCircle2, XCircle, Clock, Calendar, Filter, Brain, HelpCircle, FileText } from 'lucide-react';
 
 interface QuestaoRegistro {
   id: string;
@@ -19,6 +19,7 @@ interface RedacaoRegistro {
   id: string;
   tema: string;
   tempo_gasto_segundos: number;
+  nota?: number | null;
   created_at: string;
 }
 
@@ -178,6 +179,29 @@ export default function DesempenhoPage() {
     if (horas > 0) return `${horas}h ${minutos}m`;
     if (minutos > 0) return `${minutos}m ${segundos > 0 ? `${segundos}s` : ''}`.trim();
     return `${segundos}s`;
+  };
+
+  // Função para renderizar a nota da redação com cores dinâmicas (0-5 Vermelho, 5-7 Azul, 7-10 Verde)
+  const renderizarBadgeNota = (nota?: number | null) => {
+    if (nota === null || nota === undefined) {
+      return <span className="text-zinc-600 italic text-[11px]">Sem nota</span>;
+    }
+
+    let estilos = 'bg-zinc-900/60 border-zinc-700/40 text-zinc-300';
+
+    if (nota >= 0 && nota < 5) {
+      estilos = 'bg-rose-950/60 border-rose-600/40 text-rose-400';
+    } else if (nota >= 5 && nota < 7) {
+      estilos = 'bg-blue-950/60 border-blue-600/40 text-blue-400';
+    } else if (nota >= 7 && nota <= 10) {
+      estilos = 'bg-emerald-950/60 border-emerald-600/40 text-emerald-400';
+    }
+
+    return (
+      <span className={`px-2 py-0.5 rounded-md font-bold border text-xs ${estilos}`}>
+        {nota.toFixed(1)}
+      </span>
+    );
   };
 
   const copiarPromptMestre = () => {
@@ -414,21 +438,29 @@ export default function DesempenhoPage() {
                 )}
               </div>
 
-              {/* Redações com Tempo Gasto */}
+              {/* Redações com Nota e Tempo Gasto */}
               <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 shadow-xl space-y-4">
-                <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                  <Clock className="w-5 h-5 text-blue-500" />
-                  Redações VUNESP
-                </h2>
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                  <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-blue-500" />
+                    Redações VUNESP
+                  </h2>
+                  {/* Legenda de Desempenho da Nota */}
+                  <div className="flex items-center gap-2 text-[10px] text-zinc-400 bg-zinc-900 px-2 py-1 rounded-lg border border-zinc-800">
+                    <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>0-5</span>
+                    <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>5-7</span>
+                    <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>7-10</span>
+                  </div>
+                </div>
 
                 {redacoes.length === 0 ? (
-                  <p className="text-xs text-zinc-500 py-6 text-center">Nenhuma redação cronometrada.</p>
+                  <p className="text-xs text-zinc-500 py-6 text-center">Nenhuma redação registada.</p>
                 ) : (
                   <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
                     {redacoes.map((r) => (
                       <div key={r.id} className="bg-zinc-900/60 border border-zinc-800/80 rounded-xl p-4 space-y-3">
                         <div className="flex justify-between items-start gap-2">
-                          <h4 className="text-sm font-bold text-white leading-snug truncate max-w-[180px]">{r.tema}</h4>
+                          <h4 className="text-sm font-bold text-white leading-snug truncate max-w-[170px]">{r.tema}</h4>
                           <span className="text-[10px] text-zinc-500 shrink-0">
                             {new Date(r.created_at).toLocaleDateString('pt-BR')}
                           </span>
@@ -437,11 +469,11 @@ export default function DesempenhoPage() {
                         <div className="bg-zinc-950 border border-zinc-800/60 p-2.5 rounded-lg flex items-center justify-between">
                           <div className="flex items-center gap-1.5 text-xs text-zinc-400">
                             <Clock className="w-3.5 h-3.5 text-red-500" />
-                            <span>Tempo:</span>
+                            <span className="font-mono text-[11px]">{formatarTempoRedacao(r.tempo_gasto_segundos)}</span>
                           </div>
-                          <span className="text-xs font-bold text-emerald-400 bg-emerald-950/40 border border-emerald-600/30 px-2.5 py-0.5 rounded-md font-mono">
-                            {formatarTempoRedacao(r.tempo_gasto_segundos)}
-                          </span>
+                          <div>
+                            {renderizarBadgeNota(r.nota)}
+                          </div>
                         </div>
                       </div>
                     ))}

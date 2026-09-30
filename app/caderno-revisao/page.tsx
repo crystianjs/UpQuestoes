@@ -335,7 +335,7 @@ export default function CadernoRevisaoPage() {
                 
                 <div className="absolute top-4 right-4">
                   <span className={`text-[10px] font-bold px-2.5 py-1 rounded-md uppercase tracking-wider ${isFlipped ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-blue-500/20 text-blue-300 border border-blue-500/30'}`}>
-                    {isFlipped ? '✨ Verso (Resposta)' : '❓ Frente (Pergunta)'}
+                    {isFlipped ? 'Verso (Resposta)' : 'Frente (Pergunta)'}
                   </span>
                 </div>
 
@@ -375,7 +375,7 @@ export default function CadernoRevisaoPage() {
                                 : 'bg-rose-950/40 hover:bg-rose-900/50 text-rose-400 border border-rose-600/30'
                             }`}
                           >
-                            🔴 Ruim
+                            Ruim
                           </button>
                           <button
                             onClick={() => avaliarDesempenho('medio')}
@@ -385,7 +385,7 @@ export default function CadernoRevisaoPage() {
                                 : 'bg-amber-950/40 hover:bg-amber-900/50 text-amber-400 border border-amber-600/30'
                             }`}
                           >
-                            🟡 Médio
+                            Médio
                           </button>
                           <button
                             onClick={() => avaliarDesempenho('bom')}
@@ -395,7 +395,7 @@ export default function CadernoRevisaoPage() {
                                 : 'bg-emerald-950/40 hover:bg-emerald-900/50 text-emerald-400 border border-emerald-600/30'
                             }`}
                           >
-                            🟢 Bom
+                            Bom
                           </button>
                         </div>
                       </div>

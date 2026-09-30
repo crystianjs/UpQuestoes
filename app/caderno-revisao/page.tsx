@@ -1,532 +1,534 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, useEffect } from 'react';
 import Navbar from '../components/Navbar';
-import { supabase } from '@/lib/supabase';
-import { BookMarked, Pin, CheckCircle2, Clock, AlertCircle, Edit3, Trash2, Code, X, Save, Copy, Check, Loader2, MessageSquare, Highlighter, Filter, Search } from 'lucide-react';
 
-interface PostIt {
-  id: string;
-  user_id?: string;
-  materia: string;
-  assunto?: string;
-  categoria: string;
-  titulo: string;
-  conteudo: string;
-  status: 'Pendente' | 'Revisando' | 'Dominada';
-  cor: 'amarelo' | 'azul' | 'verde' | 'rosa' | 'laranja';
-  comentarios?: string;
-}
-
-const MATERIAS_TJSP = [
-  'TODAS AS MATÉRIAS',
-  'Língua Portuguesa',
-  'Direito Penal',
-  'Direito Processual Penal',
-  'Direito Processual Civil',
-  'Direito Constitucional',
-  'Direito Administrativo',
-  'Normas da Corregedoria',
-  'Matemática',
-  'Raciocínio Lógico',
-  'Informática',
-  'Atualidades',
-  'Estatuto da Pessoa com Deficiência'
+// ============================================================================
+// MATÉRIAS OFICIAIS DO EDITAL TJSP - VUNESP
+// ============================================================================
+const DISCIPLINAS_TJSP = [
+  "Língua Portuguesa",
+  "Direito Penal",
+  "Direito Processual Penal",
+  "Direito Processual Civil",
+  "Direito Constitucional",
+  "Direito Administrativo",
+  "Normas da Corregedoria",
+  "Matemática",
+  "Raciocínio Lógico",
+  "Informática",
+  "Atualidades",
+  "Estatuto da Pessoa com Deficiência"
 ];
 
-const CORES_MARCA_TEXTO = [
-  { name: 'Vermelho TJSP', tag: 'bg-red-600 text-white px-1 py-0.5 rounded font-bold', hex: '#dc2626' },
-  { name: 'Amarelo', tag: 'bg-yellow-400 text-zinc-950 px-1 py-0.5 rounded font-bold', hex: '#facc15' },
-  { name: 'Verde', tag: 'bg-emerald-600 text-white px-1 py-0.5 rounded font-bold', hex: '#059669' },
-  { name: 'Azul', tag: 'bg-blue-600 text-white px-1 py-0.5 rounded font-bold', hex: '#2563eb' },
-];
-
-export default function CadernoRevisaoPage() {
-  const router = useRouter();
-  const [filtroCategoria, setFiltroCategoria] = useState<string>('TODAS AS MATÉRIAS');
-  const [filtroAssunto, setFiltroAssunto] = useState<string>('');
-  const [buscaTitulo, setBuscaTitulo] = useState<string>('');
-  const [postits, setPostits] = useState<PostIt[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [userId, setUserId] = useState<string | null>(null);
-
-  const [modalJsonOpen, setModalJsonOpen] = useState(false);
-  const [jsonInput, setJsonInput] = useState('');
-  const [copiado, setCopiado] = useState(false);
-  const [postitEmEdicao, setPostitEmEdicao] = useState<PostIt | null>(null);
-  
-  const [comentariosAbertos, setComentariosAbertos] = useState<{ [key: string]: boolean }>({});
-  const [textoComentarioTemp, setTextoComentarioTemp] = useState<{ [key: string]: string }>({});
-
-  const textareaEdicaoRef = useRef<HTMLTextAreaElement | null>(null);
-
-  useEffect(() => {
-    async function carregarDados() {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) {
-          router.push('/');
-          return;
-        }
-        setUserId(session.user.id);
-
-        const { data, error } = await supabase
-          .from('caderno_revisao')
-          .select('*')
-          .order('created_at', { ascending: false });
-
-        if (error) throw error;
-        if (data) setPostits(data);
-      } catch (err) {
-        console.error('Erro ao carregar caderno:', err);
-      } finally {
-        setLoading(false);
-      }
+const flashcardsInicialExemplo = {
+  disciplina: "Língua Portuguesa",
+  titulo: "Flashcards: Morfologia & Classes de Palavras",
+  banca: "VUNESP",
+  cards: [
+    {
+      id: "fc-1",
+      assunto: "Morfologia",
+      tag: "Classes Gramaticais",
+      tagClasses: "bg-amber-500/20 text-amber-300 border-amber-500/30",
+      pergunta: "Quais são as 10 classes gramaticais da Língua Portuguesa?",
+      respostaResumida: "Substantivo, Artigo, Adjetivo, Pronome, Numeral, Verbo, Advérbio, Preposição, Conjunção e Interjeição.",
+      detalhes: "Dica VUNESP: As 6 primeiras são variáveis em gênero, número e/ou grau; as 4 últimas são invariáveis. Cuidado com o Numeral, que pode ser variável.",
+      icone: "fa-book-open"
+    },
+    {
+      id: "fc-2",
+      assunto: "Morfologia",
+      tag: "Verbos",
+      tagClasses: "bg-blue-500/20 text-blue-300 border-blue-500/30",
+      pergunta: "Qual é a diferença fundamental entre Verbos Transitivos Diretos e Indiretos?",
+      respostaResumida: "O VTD exige objeto direto sem preposição obrigatória. O VTI exige objeto indireto regido por preposição obrigatória.",
+      detalhes: "A VUNESP adora cobrar verbos que mudam de regência ou que aceitam os dois tipos (bitransitivos). Atente-se à regência do verbo 'aspirar' e 'visar'.",
+      icone: "fa-bolt"
     }
-    carregarDados();
-  }, [router]);
+  ]
+};
 
-  const dominadasCount = postits.filter(p => p.status === 'Dominada').length;
-
-  const postitsFiltrados = postits.filter(item => {
-    const matchMateria = filtroCategoria === 'TODAS AS MATÉRIAS' || 
-      item.materia.toLowerCase() === filtroCategoria.toLowerCase() || 
-      item.categoria.toLowerCase() === filtroCategoria.toLowerCase();
-      
-    const matchAssunto = filtroAssunto.trim() === '' || 
-      (item.assunto && item.assunto.toLowerCase().includes(filtroAssunto.toLowerCase().trim()));
-      
-    const matchBusca = item.titulo.toLowerCase().includes(buscaTitulo.toLowerCase().trim());
-
-    return matchMateria && matchAssunto && matchBusca;
-  });
-
-  const aplicarDestaqueNoEditor = (colorClass: string) => {
-    if (!postitEmEdicao || !textareaEdicaoRef.current) return;
-    const textarea = textareaEdicaoRef.current;
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-
-    if (start === end) {
-      alert('Selecione um trecho do texto no campo de conteúdo para aplicar o marca-texto.');
-      return;
-    }
-
-    const textoAtual = postitEmEdicao.conteudo;
-    const selecionado = textoAtual.substring(start, end);
-    
-    const textoModificado = 
-      textoAtual.substring(0, start) + 
-      `<mark class="${colorClass}">${selecionado}</mark>` + 
-      textoAtual.substring(end);
-
-    setPostitEmEdicao({ ...postitEmEdicao, conteudo: textoModificado });
-  };
-
-  const limparDestaquesNoEditor = () => {
-    if (!postitEmEdicao || !textareaEdicaoRef.current) return;
-    const textarea = textareaEdicaoRef.current;
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-
-    const textoAtual = postitEmEdicao.conteudo;
-    const selecionado = textoAtual.substring(start, end);
-    const limpo = selecionado.replace(/<\/?mark[^>]*>/g, '');
-
-    const textoModificado = 
-      textoAtual.substring(0, start) + 
-      limpo + 
-      textoAtual.substring(end);
-
-    setPostitEmEdicao({ ...postitEmEdicao, conteudo: textoModificado });
-  };
-
-  const handleSalvarComentarioRodape = async (itemId: string) => {
-    const textoComentario = textoComentarioTemp[itemId];
-    if (!textoComentario) return;
-
-    const itemAlvo = postits.find(p => p.id === itemId);
-    if (!itemAlvo) return;
-
-    const novoComentarioCompleto = itemAlvo.comentarios 
-      ? `${itemAlvo.comentarios}\n\n- ${textoComentario}` 
-      : `- ${textoComentario}`;
-
-    try {
-      const { error } = await supabase
-        .from('caderno_revisao')
-        .update({ comentarios: novoComentarioCompleto })
-        .eq('id', itemId);
-
-      if (error) throw error;
-
-      setPostits(postits.map(p => p.id === itemId ? { ...p, comentarios: novoComentarioCompleto } : p));
-      setTextoComentarioTemp({ ...textoComentarioTemp, [itemId]: '' });
-    } catch (err) {
-      console.error(err);
-      alert('Erro ao salvar comentário.');
-    }
-  };
-
-  const handleAdicionarJson = async () => {
-    if (!userId) return;
-    try {
-      let rawInput = jsonInput.trim();
-      const startIdx = rawInput.indexOf('{');
-      const endIdx = rawInput.lastIndexOf('}');
-
-      if (startIdx === -1 || endIdx === -1 || endIdx <= startIdx) {
-        throw new Error('Estrutura JSON não encontrada.');
-      }
-
-      const cleanJsonString = rawInput.substring(startIdx, endIdx + 1);
-      const parsed = JSON.parse(cleanJsonString);
-
-      const novoItem = {
-        user_id: userId,
-        materia: parsed.materia || 'Direito Constitucional',
-        assunto: parsed.assunto || parsed.topico || null,
-        categoria: parsed.categoria || 'TJSP',
-        titulo: parsed.titulo || 'Resumo de Erros',
-        conteudo: parsed.conteudo || parsed.resumo || 'Sem conteúdo especificado.',
-        status: parsed.status || 'Pendente',
-        cor: parsed.cor || 'amarelo'
-      };
-
-      const { data, error } = await supabase
-        .from('caderno_revisao')
-        .insert([novoItem])
-        .select();
-
-      if (error) throw error;
-
-      if (data && data[0]) {
-        setPostits([data[0], ...postits]);
-      }
-
-      setJsonInput('');
-      setModalJsonOpen(false);
-      alert('Resumo salvo com sucesso no Banco!');
-    } catch (err) {
-      console.error('Erro ao processar JSON:', err);
-      alert('Erro no formato JSON. Verifique se você colou apenas o objeto JSON gerado pela IA.');
-    }
-  };
-
-  const handleSalvarEdicao = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!postitEmEdicao) return;
-
-    try {
-      const { error } = await supabase
-        .from('caderno_revisao')
-        .update({
-          titulo: postitEmEdicao.titulo,
-          conteudo: postitEmEdicao.conteudo,
-          status: postitEmEdicao.status,
-          cor: postitEmEdicao.cor,
-          materia: postitEmEdicao.materia,
-          assunto: postitEmEdicao.assunto?.trim() || null
-        })
-        .eq('id', postitEmEdicao.id);
-
-      if (error) throw error;
-
-      setPostits(postits.map(p => p.id === postitEmEdicao.id ? postitEmEdicao : p));
-      setPostitEmEdicao(null);
-    } catch (err) {
-      console.error(err);
-      alert('Erro ao atualizar post-it.');
-    }
-  };
-
-  const handleRemover = async (id: string) => {
-    if (confirm('Deseja excluir permanentemente este resumo?')) {
-      try {
-        const { error } = await supabase.from('caderno_revisao').delete().eq('id', id);
-        if (error) throw error;
-        setPostits(postits.filter(p => p.id !== id));
-      } catch (err) {
-        console.error(err);
-      }
-    }
-  };
-
-  const promptIaRecomendado = `Com base nos meus erros nas questões, crie um resumo objetivo e estruturado em tópicos adaptado para o concurso de Escrevente do TJSP. O retorno deve ser estritamente em formato de objeto JSON puro, seguindo exatamente esta estrutura:
+const PROMPT_MESTRE_FLASHCARDS = `Com base no assunto de estudo fornecido, transforme-o estritamente no seguinte formato JSON válido (sem markdown extra fora das chaves). 
+IMPORTANTE: Gere cartões focados em memorização ativa para concurso público (padrão VUNESP), contendo ID único, assunto, tag curta, classes de estilo para a tag, pergunta, respostaResumida, macete de detalhes e icone (ex: fa-brain, fa-book, fa-bolt).
 
 {
-  "materia": "Nome exato da matéria",
-  "assunto": "Assunto ou tópico específico",
-  "categoria": "TJSP",
-  "titulo": "Título curto focado no tema",
-  "conteudo": "1. Primeiro ponto essencial.\n\n2. Segundo ponto essencial.",
-  "status": "Pendente",
-  "cor": "amarelo"
+  "disciplina": "Nome exato da Disciplina do Edital TJSP",
+  "titulo": "Título descritivo do Deck de Flashcards",
+  "banca": "VUNESP",
+  "cards": [
+    {
+      "id": "fc-identificador-unico",
+      "assunto": "Subtema ou Tópico",
+      "tag": "Palavra Chave",
+      "tagClasses": "bg-amber-500/20 text-amber-300 border-amber-500/30",
+      "pergunta": "Pergunta direta e desafiadora estimulando a lembrança ativa?",
+      "respostaResumida": "Resposta clara, objetiva e direta que aparece ao virar o cartão.",
+      "detalhes": "Detalhe complementar, macete ou pegadinha clássica da banca VUNESP sobre o tema.",
+      "icone": "fa-brain"
+    }
+  ]
 }`;
 
-  const copiarPrompt = () => {
-    navigator.clipboard.writeText(promptIaRecomendado);
-    setCopiado(true);
-    setTimeout(() => setCopiado(false), 2000);
+export default function CadernoRevisaoPage() {
+  const [decksPorDisciplina, setDecksPorDisciplina] = useState<Record<string, any>>({});
+  const [selectedDisciplina, setSelectedDisciplina] = useState<string>("Todas as Matérias");
+  const [selectedAssunto, setSelectedAssunto] = useState<string>("all");
+
+  // Estados dos Flashcards
+  const [cardIndex, setCardIndex] = useState<number>(0);
+  const [isFlipped, setIsFlipped] = useState<boolean>(false);
+  const [progressoCards, setProgressoCards] = useState<Record<string, string>>({});
+
+  // Estados dos Modais
+  const [showJsonModal, setShowJsonModal] = useState<boolean>(false);
+  const [modalDisciplinaAlvo, setModalDisciplinaAlvo] = useState<string>("Língua Portuguesa");
+  const [jsonInputText, setJsonInputText] = useState<string>('');
+  const [copiadoPrompt, setCopiadoPrompt] = useState<boolean>(false);
+
+  useEffect(() => {
+    const savedDecks = localStorage.getItem('upquest_flashcards');
+    if (savedDecks) {
+      try {
+        setDecksPorDisciplina(JSON.parse(savedDecks));
+      } catch (e) {
+        console.error("Erro ao carregar flashcards", e);
+      }
+    } else {
+      const inicial = { "Língua Portuguesa": flashcardsInicialExemplo };
+      setDecksPorDisciplina(inicial);
+      localStorage.setItem('upquest_flashcards', JSON.stringify(inicial));
+    }
+
+    const savedProgresso = localStorage.getItem('upquest_flashcards_progresso');
+    if (savedProgresso) {
+      try {
+        setProgressoCards(JSON.parse(savedProgresso));
+      } catch (e) {
+        console.error("Erro ao carregar progresso", e);
+      }
+    }
+  }, []);
+
+  const salvarStorage = (novoEstado: Record<string, any>) => {
+    setDecksPorDisciplina(novoEstado);
+    localStorage.setItem('upquest_flashcards', JSON.stringify(novoEstado));
   };
 
-  const getCorPostIt = (cor: string) => {
-    switch (cor) {
-      case 'amarelo': return 'bg-amber-100 text-zinc-900 border-amber-300';
-      case 'rosa': return 'bg-rose-100 text-zinc-900 border-rose-300';
-      case 'verde': return 'bg-emerald-100 text-zinc-900 border-emerald-300';
-      case 'azul': return 'bg-sky-100 text-zinc-900 border-sky-300';
-      case 'laranja': return 'bg-orange-100 text-zinc-900 border-orange-300';
-      default: return 'bg-amber-100 text-zinc-900 border-amber-300';
+  const handleCarregarJson = () => {
+    try {
+      const parsed = JSON.parse(jsonInputText);
+      if (parsed && parsed.cards && Array.isArray(parsed.cards)) {
+        const atualizado = {
+          ...decksPorDisciplina,
+          [modalDisciplinaAlvo]: {
+            ...parsed,
+            disciplina: modalDisciplinaAlvo
+          }
+        };
+        salvarStorage(atualizado);
+        setShowJsonModal(false);
+        setJsonInputText('');
+        setSelectedDisciplina(modalDisciplinaAlvo);
+        setSelectedAssunto('all');
+        setCardIndex(0);
+        setIsFlipped(false);
+        alert(`Flashcards salvos com sucesso para ${modalDisciplinaAlvo}!`);
+      } else {
+        alert('O JSON precisa conter obrigatoriamente a chave "cards".');
+      }
+    } catch (e) {
+      alert('Erro de sintaxe no JSON. Verifique as chaves e aspas.');
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'Dominada':
-        return <span className="bg-emerald-900/90 text-emerald-100 text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1 font-semibold"><CheckCircle2 className="w-3 h-3" /> Dominada</span>;
-      case 'Revisando':
-        return <span className="bg-amber-900/90 text-amber-100 text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1 font-semibold"><Clock className="w-3 h-3" /> Revisando</span>;
-      default:
-        return <span className="bg-zinc-800 text-zinc-300 text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1 font-semibold"><AlertCircle className="w-3 h-3" /> Pendente</span>;
+  const excluirCard = (cardId: string) => {
+    if (!deckAtual) return;
+    if (confirm("Deseja apagar este flashcard específico?")) {
+      const novosCards = deckAtual.cards.filter((c: any) => c.id !== cardId);
+      let novoEstado = { ...decksPorDisciplina };
+      if (novosCards.length === 0) {
+        delete novoEstado[selectedDisciplina];
+      } else {
+        novoEstado[selectedDisciplina] = { ...deckAtual, cards: novosCards };
+      }
+      salvarStorage(novoEstado);
+      setCardIndex(0);
+      setIsFlipped(false);
     }
+  };
+
+  const copiarPromptMestre = () => {
+    navigator.clipboard.writeText(PROMPT_MESTRE_FLASHCARDS);
+    setCopiadoPrompt(true);
+    setTimeout(() => setCopiadoPrompt(false), 3000);
+  };
+
+  const deckAtual = selectedDisciplina !== "Todas as Matérias" ? decksPorDisciplina[selectedDisciplina] : null;
+  const assuntosDisponiveis = deckAtual?.cards ? Array.from(new Set(deckAtual.cards.map((c: any) => c.assunto))) : [];
+
+  const cardsExibir = deckAtual?.cards ? deckAtual.cards.filter((c: any) => selectedAssunto === 'all' || c.assunto === selectedAssunto) : [];
+  const cardAtual = cardsExibir[cardIndex] || cardsExibir[0];
+
+  const proximoCard = () => {
+    setIsFlipped(false);
+    if (cardIndex < cardsExibir.length - 1) {
+      setCardIndex(cardIndex + 1);
+    } else {
+      setCardIndex(0);
+    }
+  };
+
+  const cardAnterior = () => {
+    setIsFlipped(false);
+    if (cardIndex > 0) {
+      setCardIndex(cardIndex - 1);
+    } else {
+      setCardIndex(cardsExibir.length - 1);
+    }
+  };
+
+  const avaliarDesempenho = (avaliacao: 'ruim' | 'medio' | 'bom') => {
+    if (!cardAtual) return;
+    const novoProgresso = {
+      ...progressoCards,
+      [cardAtual.id]: avaliacao
+    };
+    setProgressoCards(novoProgresso);
+    localStorage.setItem('upquest_flashcards_progresso', JSON.stringify(novoProgresso));
+    
+    setTimeout(() => {
+      proximoCard();
+    }, 350);
   };
 
   return (
     <div className="min-h-screen bg-black text-zinc-100 font-sans selection:bg-red-600 selection:text-white">
+      
       <Navbar />
 
-      <main className="max-w-7xl mx-auto px-6 py-8 space-y-8">
-        <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-red-950/60 border border-red-600/50 flex items-center justify-center text-red-500 shadow-lg shadow-red-950/50 shrink-0">
-              <BookMarked className="w-6 h-6" />
+      <main className="max-w-6xl mx-auto px-6 py-8 space-y-6">
+        
+        {/* Header da Página */}
+        <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="bg-amber-500/20 text-amber-300 text-xs font-bold px-2.5 py-0.5 rounded-full border border-amber-500/30">TJSP - VUNESP</span>
+              <span className="bg-blue-500/20 text-blue-400 text-xs font-bold px-2.5 py-0.5 rounded-full border border-blue-500/30">Caderno de Revisão & Flashcards</span>
             </div>
-            <div>
-              <div className="flex items-center gap-3">
-                <h1 className="text-xl md:text-2xl font-black tracking-tight text-white">CADERNO DE REVISÃO</h1>
-                <span className="bg-red-950/80 border border-red-600/40 text-red-400 text-xs px-2.5 py-0.5 rounded-lg font-bold">TJSP Escrevente</span>
+            <h1 className="text-2xl font-bold text-white mt-1">
+              {deckAtual ? deckAtual.titulo : "Flashcards de Memorização Ativa"}
+            </h1>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                setModalDisciplinaAlvo(selectedDisciplina !== "Todas as Matérias" ? selectedDisciplina : DISCIPLINAS_TJSP[0]);
+                setJsonInputText(JSON.stringify(flashcardsInicialExemplo, null, 2));
+                setShowJsonModal(true);
+              }}
+              className="text-xs font-semibold px-4 py-2.5 rounded-xl border border-amber-500/40 bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 transition-all flex items-center gap-1.5 shadow-md"
+            >
+              <i className="fa-solid fa-code text-amber-400"></i> Gerenciar / Colar Novo JSON
+            </button>
+          </div>
+        </div>
+
+        {/* Filtros */}
+        <div className="bg-zinc-950 border border-zinc-800 p-4 rounded-2xl shadow-lg flex flex-col md:flex-row items-center gap-4">
+          <div className="w-full md:w-1/3 flex items-center gap-2">
+            <span className="text-xs font-bold text-zinc-400 whitespace-nowrap"><i className="fa-solid fa-book text-amber-400 mr-1"></i> Disciplina:</span>
+            <select 
+              value={selectedDisciplina}
+              onChange={(e) => {
+                setSelectedDisciplina(e.target.value);
+                setSelectedAssunto('all');
+                setCardIndex(0);
+                setIsFlipped(false);
+              }}
+              className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 text-xs rounded-xl px-3 py-2.5 outline-none focus:border-amber-500"
+            >
+              <option value="Todas as Matérias">Todas as Matérias</option>
+              {DISCIPLINAS_TJSP.map((disc) => (
+                <option key={disc} value={disc}>
+                  {disc} {decksPorDisciplina[disc] ? "🟢" : "⚪"}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="w-full md:w-2/3 flex items-center gap-2 overflow-x-auto pb-1 md:pb-0">
+            <span className="text-xs font-bold text-zinc-400 whitespace-nowrap"><i className="fa-solid fa-filter text-amber-400 mr-1"></i> Tópico:</span>
+            {selectedDisciplina === "Todas as Matérias" ? (
+              <span className="text-xs text-zinc-500 italic">Selecione uma disciplina ao lado.</span>
+            ) : !deckAtual ? (
+              <span className="text-xs text-amber-400/90 italic">Nenhum flashcard cadastrado.</span>
+            ) : (
+              <div className="flex items-center gap-1.5">
+                <button 
+                  onClick={() => { setSelectedAssunto('all'); setCardIndex(0); setIsFlipped(false); }} 
+                  className={`text-xs font-semibold px-3 py-2 rounded-xl border transition-all whitespace-nowrap ${selectedAssunto === 'all' ? 'border-amber-500 bg-amber-500 text-black font-bold shadow-lg' : 'border-zinc-800 bg-zinc-900 text-zinc-300 hover:text-white'}`}
+                >
+                  Todos os Tópicos
+                </button>
+                {assuntosDisponiveis.map((assunto: any) => (
+                  <button 
+                    key={assunto}
+                    onClick={() => { setSelectedAssunto(assunto); setCardIndex(0); setIsFlipped(false); }} 
+                    className={`text-xs font-semibold px-3 py-2 rounded-xl border transition-all whitespace-nowrap ${selectedAssunto === assunto ? 'border-amber-500 bg-amber-500 text-black font-bold shadow-lg' : 'border-zinc-800 bg-zinc-900 text-zinc-300 hover:text-white'}`}
+                  >
+                    {assunto}
+                  </button>
+                ))}
               </div>
-              <p className="text-xs text-zinc-400 mt-1">Cards interativos com Marca-Texto direto no Editor e Comentários</p>
-            </div>
+            )}
           </div>
-
-          <button 
-            onClick={() => setModalJsonOpen(true)}
-            className="bg-red-600 hover:bg-red-700 text-white font-bold text-xs py-2.5 px-4 rounded-xl shadow-lg shadow-red-600/20 flex items-center gap-2 transition-all cursor-pointer w-full md:w-auto justify-center"
-          >
-            <Code className="w-4 h-4" /> Adicionar Resumo (JSON)
-          </button>
         </div>
 
-        <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4 space-y-4">
-          <div className="flex items-center gap-2 overflow-x-auto w-full pb-2 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
-            {MATERIAS_TJSP.map((cat) => (
+        {/* Main Container do Flashcard */}
+        <div className="bg-zinc-950 rounded-3xl border border-zinc-800 shadow-2xl relative overflow-hidden flex flex-col p-6 min-h-[550px] justify-between">
+          <div className="absolute inset-0 bg-[radial-gradient(#1E293B_1px,transparent_1px)] [background-size:20px_20px] opacity-20 pointer-events-none"></div>
+
+          <div className="z-10 flex items-center justify-between pb-3 border-b border-zinc-800">
+            <div className="flex items-center gap-2">
+              <span className="bg-amber-500/20 text-amber-300 text-xs font-bold px-2.5 py-1 rounded-lg border border-amber-500/30 flex items-center gap-1.5">
+                <i className="fa-solid fa-layer-group text-amber-400"></i> Card {cardsExibir.length > 0 ? cardIndex + 1 : 0} de {cardsExibir.length}
+              </span>
+              {cardAtual && (
+                <span className={`text-xs font-bold px-2.5 py-1 rounded-lg border ${cardAtual.tagClasses}`}>
+                  {cardAtual.tag}
+                </span>
+              )}
+            </div>
+
+            {cardAtual && (
               <button
-                key={cat}
-                onClick={() => setFiltroCategoria(cat)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
-                  filtroCategoria === cat ? 'bg-red-600 text-white shadow-lg shadow-red-600/20' : 'bg-zinc-900 text-zinc-400 hover:text-white hover:bg-zinc-800 border border-zinc-800'
-                }`}
+                onClick={() => excluirCard(cardAtual.id)}
+                className="text-zinc-400 hover:text-rose-400 bg-zinc-900/80 hover:bg-rose-950/40 px-3 py-1.5 rounded-xl border border-zinc-800 hover:border-rose-500/40 transition-all text-xs font-semibold flex items-center gap-1.5"
+                title="Apagar este flashcard específico"
               >
-                {cat}
+                <i className="fa-solid fa-trash-can text-rose-400"></i> Apagar Card
               </button>
-            ))}
+            )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t border-zinc-900">
-            <div className="relative">
-              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
-              <input 
-                type="text"
-                placeholder="Filtrar por assunto (ex: Art. 5º, Crase)..."
-                value={filtroAssunto}
-                onChange={(e) => setFiltroAssunto(e.target.value)}
-                className="w-full bg-zinc-900 border border-zinc-800 rounded-xl pl-9 pr-4 py-2 text-xs text-zinc-100 focus:outline-none focus:border-red-600 transition-colors"
-              />
-            </div>
+          <div className="z-10 my-6 flex-1 flex flex-col items-center justify-center">
+            {selectedDisciplina === "Todas as Matérias" ? (
+              <div className="text-center p-12 space-y-3">
+                <i className="fa-solid fa-brain text-5xl text-zinc-700"></i>
+                <p className="text-sm text-zinc-400 font-medium">Selecione uma disciplina no filtro acima para iniciar os estudos.</p>
+              </div>
+            ) : !deckAtual || cardsExibir.length === 0 ? (
+              <div className="text-center p-12 space-y-3">
+                <i className="fa-solid fa-code text-5xl text-amber-500/60"></i>
+                <p className="text-sm text-zinc-300 font-medium">Nenhum flashcard encontrado para esta seleção.</p>
+                <button 
+                  onClick={() => { setModalDisciplinaAlvo(selectedDisciplina); setShowJsonModal(true); }}
+                  className="px-4 py-2.5 bg-amber-500 text-black font-bold rounded-xl text-xs shadow-md hover:bg-amber-400 transition-all"
+                >
+                  Gerar Flashcards por JSON
+                </button>
+              </div>
+            ) : (
+              <div className="w-full max-w-2xl bg-zinc-900/95 border border-zinc-800 rounded-3xl p-6 sm:p-8 shadow-2xl flex flex-col justify-between min-h-[320px] relative transition-all">
+                
+                <div className="absolute top-4 right-4">
+                  <span className={`text-[10px] font-bold px-2.5 py-1 rounded-md uppercase tracking-wider ${isFlipped ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-blue-500/20 text-blue-300 border border-blue-500/30'}`}>
+                    {isFlipped ? '✨ Verso (Resposta)' : '❓ Frente (Pergunta)'}
+                  </span>
+                </div>
 
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
-              <input 
-                type="text"
-                placeholder="Buscar resumo pelo título..."
-                value={buscaTitulo}
-                onChange={(e) => setBuscaTitulo(e.target.value)}
-                className="w-full bg-zinc-900 border border-zinc-800 rounded-xl pl-9 pr-4 py-2 text-xs text-zinc-100 focus:outline-none focus:border-red-600 transition-colors"
-              />
-            </div>
-          </div>
-        </div>
-
-        {loading ? (
-          <div className="py-20 text-center flex flex-col items-center justify-center space-y-3">
-            <Loader2 className="w-8 h-8 text-red-600 animate-spin" />
-            <p className="text-xs text-zinc-400">Carregando seus resumos...</p>
-          </div>
-        ) : postits.length === 0 ? (
-          <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-16 text-center space-y-4">
-            <div className="w-12 h-12 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center mx-auto text-zinc-500">
-              <Code className="w-6 h-6" />
-            </div>
-            <div className="space-y-1">
-              <h3 className="text-sm font-bold text-white">Nenhum resumo cadastrado</h3>
-              <p className="text-xs text-zinc-500 max-w-sm mx-auto">Clique em "Adicionar Resumo (JSON)" para injetar resumos.</p>
-            </div>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {postitsFiltrados.map((item) => {
-              const idCard = item.id;
-              const isComentarioOpen = comentariosAbertos[idCard] || false;
-
-              return (
-                <div key={idCard} className={`rounded-2xl border shadow-xl flex flex-col justify-between transition-transform duration-200 hover:-translate-y-1 relative group overflow-hidden ${getCorPostIt(item.cor)}`}>
-                  <div className="absolute top-3 right-3 z-10 flex items-center gap-1.5 opacity-80 group-hover:opacity-100 transition-opacity bg-black/10 p-1 rounded-lg backdrop-blur-xs">
-                    <button onClick={() => setPostitEmEdicao(item)} title="Editar Card" className="p-1 rounded hover:bg-black/20 text-zinc-900 transition-colors cursor-pointer"><Edit3 className="w-3.5 h-3.5" /></button>
-                    <button onClick={() => handleRemover(idCard)} title="Remover" className="p-1 rounded hover:bg-rose-600 hover:text-white text-zinc-900 transition-colors cursor-pointer"><Trash2 className="w-3.5 h-3.5" /></button>
-                  </div>
-
-                  <div className="p-5 space-y-3">
-                    <div className="flex justify-between items-center pr-12 flex-wrap gap-1">
-                      <span className="text-[10px] uppercase font-black tracking-widest opacity-70">{item.categoria}</span>
-                      {getStatusBadge(item.status)}
+                <div className="mt-4 mb-6">
+                  {!isFlipped ? (
+                    <div className="space-y-3">
+                      <span className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                        <i className={`fa-solid ${cardAtual.icone || 'fa-circle-question'}`}></i> {cardAtual.assunto}
+                      </span>
+                      <h2 className="text-base sm:text-lg font-bold text-white leading-relaxed">
+                        {cardAtual.pergunta}
+                      </h2>
                     </div>
-
-                    {item.assunto && (
-                      <div>
-                        <span className="text-[10px] font-bold bg-black/10 px-2 py-0.5 rounded text-zinc-800">{item.assunto}</span>
-                      </div>
-                    )}
-
-                    <h3 className="text-base font-black tracking-tight">{item.titulo}</h3>
-
-                    <div className="max-h-[260px] overflow-y-auto pr-1 space-y-3 scrollbar-thin bg-black/5 p-2.5 rounded-xl border border-black/10">
-                      <div className="text-xs leading-relaxed opacity-90 whitespace-pre-line" dangerouslySetInnerHTML={{ __html: item.conteudo || '' }} />
-                    </div>
-                  </div>
-
-                  <div className="bg-black/10 border-t border-black/10 px-4 py-2.5 flex items-center justify-between text-xs">
-                    <button onClick={() => setComentariosAbertos({ ...comentariosAbertos, [idCard]: !isComentarioOpen })} className={`px-2.5 py-1 rounded-lg font-bold flex items-center gap-1.5 transition-all cursor-pointer ${isComentarioOpen ? 'bg-zinc-900 text-white shadow-md' : 'bg-black/20 text-zinc-900 hover:bg-black/30'}`}>
-                      <MessageSquare className="w-3.5 h-3.5" /> Comentários {item.comentarios ? '• (Salvo)' : ''}
-                    </button>
-                    <span className="text-[10px] font-bold opacity-70 truncate max-w-[120px]" title={item.materia}>{item.materia}</span>
-                  </div>
-
-                  {isComentarioOpen && (
-                    <div className="bg-zinc-950 text-zinc-100 border-t border-zinc-800 p-4 space-y-3 animate-in fade-in duration-200">
-                      <h4 className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-1.5"><MessageSquare className="w-3.5 h-3.5 text-red-500" /> Anotações</h4>
-                      {item.comentarios && (
-                        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-xs text-zinc-300 whitespace-pre-wrap leading-relaxed">{item.comentarios}</div>
+                  ) : (
+                    <div className="space-y-4">
+                      <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
+                        <i className="fa-solid fa-circle-check"></i> Resposta Correta:
+                      </span>
+                      <p className="text-sm sm:text-base font-semibold text-zinc-100 leading-relaxed bg-zinc-950/80 p-4 rounded-2xl border border-zinc-800">
+                        {cardAtual.respostaResumida}
+                      </p>
+                      {cardAtual.detalhes && (
+                        <p className="text-xs text-amber-300 bg-amber-950/20 p-3 rounded-xl border border-amber-500/30">
+                          <b>Macete VUNESP:</b> {cardAtual.detalhes}
+                        </p>
                       )}
-                      <div className="space-y-2">
-                        <textarea rows={2} placeholder="Adicionar anotação..." value={textoComentarioTemp[idCard] || ''} onChange={(e) => setTextoComentarioTemp({ ...textoComentarioTemp, [idCard]: e.target.value })} className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-2.5 text-xs text-zinc-100 focus:outline-none focus:border-red-600" />
-                        <div className="flex justify-end">
-                          <button onClick={() => handleSalvarComentarioRodape(idCard)} className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white font-bold text-[11px] rounded-lg shadow-md flex items-center gap-1.5 cursor-pointer"><Save className="w-3 h-3" /> Salvar</button>
+
+                      {/* Botões com Fixação de Cor Baseada no Estado Armazenado */}
+                      <div className="pt-3 border-t border-zinc-800/80 space-y-2">
+                        <p className="text-xs font-semibold text-zinc-400">Sua revisão sobre o assunto é:</p>
+                        <div className="grid grid-cols-3 gap-2">
+                          <button
+                            onClick={() => avaliarDesempenho('ruim')}
+                            className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all shadow ${
+                              progressoCards[cardAtual.id] === 'ruim'
+                                ? 'bg-rose-600 text-white border-2 border-rose-400 shadow-rose-900/50 scale-[1.02]'
+                                : 'bg-rose-950/40 hover:bg-rose-900/50 text-rose-400 border border-rose-600/30'
+                            }`}
+                          >
+                            🔴 Ruim
+                          </button>
+                          <button
+                            onClick={() => avaliarDesempenho('medio')}
+                            className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all shadow ${
+                              progressoCards[cardAtual.id] === 'medio'
+                                ? 'bg-amber-600 text-white border-2 border-amber-400 shadow-amber-900/50 scale-[1.02]'
+                                : 'bg-amber-950/40 hover:bg-amber-900/50 text-amber-400 border border-amber-600/30'
+                            }`}
+                          >
+                            🟡 Médio
+                          </button>
+                          <button
+                            onClick={() => avaliarDesempenho('bom')}
+                            className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all shadow ${
+                              progressoCards[cardAtual.id] === 'bom'
+                                ? 'bg-emerald-600 text-white border-2 border-emerald-400 shadow-emerald-900/50 scale-[1.02]'
+                                : 'bg-emerald-950/40 hover:bg-emerald-900/50 text-emerald-400 border border-emerald-600/30'
+                            }`}
+                          >
+                            🟢 Bom
+                          </button>
                         </div>
                       </div>
                     </div>
                   )}
                 </div>
-              );
-            })}
+
+                {!isFlipped && (
+                  <div className="pt-4 border-t border-zinc-800 flex items-center justify-center">
+                    <button
+                      onClick={() => setIsFlipped(true)}
+                      className="w-full py-3 rounded-xl font-bold text-xs sm:text-sm transition-all shadow-lg flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-400 text-black border border-amber-400 shadow-amber-500/20"
+                    >
+                      <i className="fa-solid fa-eye"></i> Virar Cartão & Ver Resposta
+                    </button>
+                  </div>
+                )}
+
+              </div>
+            )}
           </div>
-        )}
+
+          {cardsExibir.length > 0 && (
+            <div className="z-10 flex items-center justify-between pt-4 border-t border-zinc-800">
+              <button
+                onClick={cardAnterior}
+                className="px-4 py-2.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 font-semibold rounded-xl text-xs border border-zinc-800 transition-all flex items-center gap-2"
+              >
+                <i className="fa-solid fa-arrow-left"></i> Anterior
+              </button>
+
+              <span className="text-xs text-zinc-500 font-medium">
+                TJSP Escrevente VUNESP
+              </span>
+
+              <button
+                onClick={proximoCard}
+                className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl text-xs border border-blue-500/40 transition-all flex items-center gap-2 shadow-md"
+              >
+                Próximo Card <i className="fa-solid fa-arrow-right"></i>
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Prompt Mestre Card no Final da Página */}
+        <div className="bg-zinc-950 p-6 rounded-2xl border border-zinc-800 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="bg-amber-500/25 text-amber-300 text-xs font-bold px-2.5 py-0.5 rounded-full border border-amber-500/40">Automação de Repetição</span>
+              <h2 className="text-sm font-bold text-white">Prompt Mestre para Flashcards</h2>
+            </div>
+            <p className="text-xs text-zinc-400 max-w-xl">
+              Gera perguntas diretas de memorização ativa e macetes VUNESP para adicionar direto no seu Caderno de Revisão.
+            </p>
+          </div>
+
+          <button
+            onClick={copiarPromptMestre}
+            className={`px-4 py-2.5 rounded-xl font-semibold text-xs transition-all flex items-center gap-2 whitespace-nowrap shadow-md ${
+              copiadoPrompt 
+                ? 'bg-emerald-600 text-white border border-emerald-500' 
+                : 'bg-amber-500 hover:bg-amber-400 text-black font-bold border border-amber-400'
+            }`}
+          >
+            <i className={`fa-solid ${copiadoPrompt ? 'fa-check' : 'fa-copy'}`}></i>
+            {copiadoPrompt ? 'Prompt Copiado!' : 'Copiar Prompt Mestre'}
+          </button>
+        </div>
+
       </main>
 
-      {/* MODAL EDITAR */}
-      {postitEmEdicao && (
+      {/* Modal de Injeção de JSON */}
+      {showJsonModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-zinc-950 border border-zinc-800 rounded-2xl w-full max-w-2xl p-6 space-y-6 shadow-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center">
-              <h3 className="text-base font-bold text-white flex items-center gap-2"><Edit3 className="w-5 h-5 text-red-500" /> Editar Resumo</h3>
-              <button onClick={() => setPostitEmEdicao(null)} className="text-zinc-400 hover:text-white p-1 rounded-lg hover:bg-zinc-900 cursor-pointer"><X className="w-5 h-5" /></button>
+          <div className="bg-zinc-950 border border-zinc-800 rounded-3xl max-w-2xl w-full p-6 shadow-2xl relative space-y-4">
+            <button 
+              onClick={() => setShowJsonModal(false)} 
+              className="absolute top-4 right-4 text-zinc-400 hover:text-white bg-zinc-900 p-2 rounded-full border border-zinc-800 transition-all"
+            >
+              <i className="fa-solid fa-xmark text-lg"></i>
+            </button>
+
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl flex items-center justify-center text-xl font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                <i className="fa-solid fa-code"></i>
+              </div>
+              <div>
+                <span className="text-xs font-bold px-2.5 py-0.5 rounded-full border bg-amber-500/20 text-amber-300 border-amber-500/30">Gerenciador de Decks</span>
+                <h2 className="text-lg font-bold text-white mt-1">Colar JSON de Flashcards</h2>
+              </div>
             </div>
-            <form onSubmit={handleSalvarEdicao} className="space-y-4 text-xs">
-              <div className="space-y-1.5">
-                <label className="text-zinc-400 font-semibold">Título</label>
-                <input type="text" value={postitEmEdicao.titulo} onChange={(e) => setPostitEmEdicao({...postitEmEdicao, titulo: e.target.value})} className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-zinc-100 focus:outline-none focus:border-red-600" required />
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <label className="text-zinc-400 font-semibold">Matéria</label>
-                  <select value={postitEmEdicao.materia} onChange={(e) => setPostitEmEdicao({...postitEmEdicao, materia: e.target.value})} className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-zinc-100 focus:outline-none focus:border-red-600">
-                    {MATERIAS_TJSP.filter(m => m !== 'TODAS AS MATÉRIAS').map(m => (<option key={m} value={m}>{m}</option>))}
-                  </select>
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-zinc-400 font-semibold">Assunto / Tópico</label>
-                  <input type="text" value={postitEmEdicao.assunto || ''} onChange={(e) => setPostitEmEdicao({...postitEmEdicao, assunto: e.target.value})} placeholder="Ex: Art. 5º, Crase..." className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-zinc-100 focus:outline-none focus:border-red-600" />
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <label className="text-zinc-400 font-semibold">Status</label>
-                  <select value={postitEmEdicao.status} onChange={(e) => setPostitEmEdicao({...postitEmEdicao, status: e.target.value as any})} className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-zinc-100 focus:outline-none focus:border-red-600">
-                    <option value="Pendente">Pendente</option>
-                    <option value="Revisando">Revisando</option>
-                    <option value="Dominada">Dominada</option>
-                  </select>
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-zinc-400 font-semibold">Cor</label>
-                  <select value={postitEmEdicao.cor} onChange={(e) => setPostitEmEdicao({...postitEmEdicao, cor: e.target.value as any})} className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-zinc-100 focus:outline-none focus:border-red-600">
-                    <option value="amarelo">Amarelo</option>
-                    <option value="rosa">Rosa</option>
-                    <option value="verde">Verde</option>
-                    <option value="azul">Azul</option>
-                    <option value="laranja">Laranja</option>
-                  </select>
-                </div>
-              </div>
-              <div className="space-y-2 pt-2 border-t border-zinc-900">
-                <div className="flex justify-between items-center">
-                  <label className="text-zinc-300 font-bold flex items-center gap-1.5"><Highlighter className="w-3.5 h-3.5 text-red-500" /> Conteúdo</label>
-                  <div className="flex items-center gap-1 bg-zinc-900 p-1 rounded-xl border border-zinc-800">
-                    {CORES_MARCA_TEXTO.map((cor) => (
-                      <button key={cor.name} type="button" onClick={() => aplicarDestaqueNoEditor(cor.tag)} className={`text-[10px] px-2 py-1 rounded font-bold cursor-pointer ${cor.tag}`}>{cor.name}</button>
-                    ))}
-                    <button type="button" onClick={limparDestaquesNoEditor} className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-[10px] px-2 py-1 rounded font-semibold cursor-pointer">Limpar</button>
-                  </div>
-                </div>
-                <textarea ref={textareaEdicaoRef} rows={8} value={postitEmEdicao.conteudo} onChange={(e) => setPostitEmEdicao({...postitEmEdicao, conteudo: e.target.value})} className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-zinc-100 font-mono text-xs focus:outline-none focus:border-red-600 leading-relaxed" required />
-              </div>
-              <div className="flex justify-end gap-3 pt-3 border-t border-zinc-900">
-                <button type="button" onClick={() => setPostitEmEdicao(null)} className="px-4 py-2 rounded-xl bg-zinc-900 text-zinc-300 hover:bg-zinc-800 text-xs font-semibold cursor-pointer">Cancelar</button>
-                <button type="submit" className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-lg shadow-red-600/20 flex items-center gap-2 cursor-pointer"><Save className="w-4 h-4" /> Salvar</button>
-              </div>
-            </form>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-zinc-300 flex items-center gap-1">
+                <i className="fa-solid fa-book text-amber-400"></i> Disciplina Alvo:
+              </label>
+              <select 
+                value={modalDisciplinaAlvo}
+                onChange={(e) => setModalDisciplinaAlvo(e.target.value)}
+                className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 text-xs rounded-xl px-3 py-2.5 outline-none focus:border-amber-500"
+              >
+                {DISCIPLINAS_TJSP.map((disc) => (
+                  <option key={disc} value={disc}>{disc}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-zinc-300 flex items-center gap-1">
+                <i className="fa-solid fa-code text-amber-400"></i> Cole o JSON gerado pelo Prompt Mestre:
+              </label>
+              <textarea
+                value={jsonInputText}
+                onChange={(e) => setJsonInputText(e.target.value)}
+                className="w-full h-40 bg-zinc-900 text-amber-300 p-3 rounded-2xl border border-zinc-800 font-mono text-xs outline-none focus:border-amber-500 resize-none"
+                placeholder="Cole o JSON dos flashcards aqui..."
+              />
+            </div>
+
+            <div className="pt-2 border-t border-zinc-800 flex items-center justify-between">
+              <span className="text-[11px] text-zinc-500">Salva automaticamente no armazenamento local.</span>
+              <button 
+                onClick={handleCarregarJson} 
+                className="px-5 py-2 bg-amber-500 hover:bg-amber-400 text-black font-bold rounded-xl text-xs transition-all flex items-center gap-1.5 shadow-md"
+              >
+                <i className="fa-solid fa-check"></i> Salvar Deck de Flashcards
+              </button>
+            </div>
           </div>
         </div>
       )}
 
-      {/* MODAL JSON */}
-      {modalJsonOpen && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-zinc-950 border border-zinc-800 rounded-2xl w-full max-w-xl p-6 space-y-6 shadow-2xl">
-            <div className="flex justify-between items-center">
-              <h3 className="text-base font-bold text-white flex items-center gap-2"><Code className="w-5 h-5 text-red-500" /> Adicionar Resumo (JSON)</h3>
-              <button onClick={() => setModalJsonOpen(false)} className="text-zinc-400 hover:text-white p-1 rounded-lg hover:bg-zinc-900 cursor-pointer"><X className="w-5 h-5" /></button>
-            </div>
-            <div className="bg-zinc-900/90 border border-zinc-800 rounded-xl p-4 space-y-2">
-              <div className="flex justify-between items-center">
-                <span className="text-[11px] font-bold text-red-400 uppercase">1. Copie o prompt:</span>
-                <button onClick={copiarPrompt} className="bg-zinc-800 text-zinc-200 text-xs px-2.5 py-1 rounded-lg flex items-center gap-1.5 cursor-pointer font-semibold">{copiado ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}{copiado ? 'Copiado!' : 'Copiar'}</button>
-              </div>
-              <pre className="text-[11px] font-mono text-zinc-300 bg-black/40 p-3 rounded-lg overflow-x-auto whitespace-pre-wrap">{promptIaRecomendado}</pre>
-            </div>
-            <div className="space-y-2">
-              <span className="text-[11px] font-bold text-zinc-400 uppercase">2. Cole o JSON:</span>
-              <textarea rows={6} value={jsonInput} onChange={(e) => setJsonInput(e.target.value)} placeholder={`{\n  "materia": "Direito Constitucional",\n  "assunto": "Art. 5º",\n  "categoria": "TJSP",\n  "titulo": "Direitos",\n  "conteudo": "Texto",\n  "status": "Pendente",\n  "cor": "amarelo"\n}`} className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-xs font-mono text-zinc-100 focus:outline-none focus:border-red-600" />
-            </div>
-            <div className="flex justify-end gap-3 pt-2 border-t border-zinc-900">
-              <button onClick={() => setModalJsonOpen(false)} className="px-4 py-2 rounded-xl bg-zinc-900 text-zinc-300 text-xs font-semibold cursor-pointer">Cancelar</button>
-              <button onClick={handleAdicionarJson} className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-lg shadow-red-600/20 flex items-center gap-2 cursor-pointer"><Code className="w-4 h-4" /> Salvar</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

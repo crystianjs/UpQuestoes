@@ -1,589 +1,639 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, useEffect } from 'react';
 import Navbar from '../components/Navbar';
-import { supabase } from '@/lib/supabase';
-import { Network, Plus, Search, Trash2, X, Save, Loader2, Upload, Edit3, Paperclip, Bookmark, Maximize2, Filter } from 'lucide-react';
 
-interface MapaMentalItem {
-  id: string;
-  user_id?: string;
-  materia: string;
-  assunto?: string;
-  titulo: string;
-  imagem_url?: string;
-  cor?: string;
-}
-
-const MATERIAS_TJSP = [
-  'TODAS AS MATÉRIAS',
-  'Língua Portuguesa',
-  'Direito Penal',
-  'Direito Processual Penal',
-  'Direito Processual Civil',
-  'Direito Constitucional',
-  'Direito Administrativo',
-  'Normas da Corregedoria',
-  'Matemática',
-  'Raciocínio Lógico',
-  'Informática',
-  'Atualidades',
-  'Estatuto da Pessoa com Deficiência'
+// ============================================================================
+// MATÉRIAS OFICIAIS DO EDITAL TJSP - VUNESP
+// ============================================================================
+const DISCIPLINAS_TJSP = [
+  "Língua Portuguesa",
+  "Direito Penal",
+  "Direito Processual Penal",
+  "Direito Processual Civil",
+  "Direito Constitucional",
+  "Direito Administrativo",
+  "Normas da Corregedoria",
+  "Matemática",
+  "Raciocínio Lógico",
+  "Informática",
+  "Atualidades",
+  "Estatuto da Pessoa com Deficiência"
 ];
 
-export default function MapasMentaisPage() {
-  const router = useRouter();
-  const [filtroMateria, setFiltroMateria] = useState<string>('TODAS AS MATÉRIAS');
-  const [filtroAssunto, setFiltroAssunto] = useState<string>('');
-  const [busca, setBusca] = useState<string>('');
-  const [mapas, setMapas] = useState<MapaMentalItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [userId, setUserId] = useState<string | null>(null);
+const mapaInicialExemplo = {
+  disciplina: "Direito Processual Civil",
+  titulo: "Mapa Mental: D. Processual Civil & Normas",
+  banca: "VUNESP",
+  ramos: [
+    {
+      id: "citacao-conceito",
+      titulo: "1. Citação: Conceito e Formas de Realização",
+      artigos: "ARTS. 238 - 259",
+      tag: "Triangulação",
+      corBorda: "border-rose-500/40 hover:border-rose-400",
+      tagClasses: "bg-rose-500/20 text-rose-300 border-rose-500/30",
+      headerIcon: "fa-envelope text-rose-400",
+      subnos: [
+        {
+          titulo: "Regra Geral e Meio Eletrônico (Art. 246)",
+          descricao: "Convocação do réu, executado ou interessado para integrar a relação processual.",
+          corTitulo: "text-amber-300",
+          icone: "fa-bolt",
+          itens: [
+            "Regra PREFERENCIAL: Meio eletrônico (prazo de até 3 dias úteis para confirmação de recebimento após envio).",
+            "Ausência de confirmação em 3 dias úteis exige citação por correio, oficial, escrivão/chefe ou edital."
+          ]
+        },
+        {
+          titulo: "Demais Formas Reais (Correio, Oficial, Cartório)",
+          descricao: "Modalidades diretas de comunicação ao citando.",
+          corTitulo: "text-amber-300",
+          icone: "fa-user-tie",
+          itens: [
+            "Correio (AR): Regra subsidiária padrão. Entregue ao citando ou ao encarregado da recepção em condomínios/loteamentos.",
+            "Oficial de Justiça: Utilizada quando frustrado o meio eletrônico/correio, em ações de estado, réu incapaz ou pessoa de direito público."
+          ]
+        }
+      ],
+      modalInfo: {
+        title: "Exemplo Prático: Formas de Citação",
+        tag: "Art. 238 a 259 CPC",
+        tagBg: "bg-rose-500/20 text-rose-300 border-rose-500/30",
+        iconBg: "bg-rose-500/20 text-rose-400 border border-rose-500/40",
+        icon: "fa-envelope",
+        casosPraticos: [
+          {
+            titulo: "CASO PRÁTICO 1 — CITAÇÃO ELETRÔNICA:",
+            texto: "A empresa ré é intimada por meio eletrônico cadastrado, mas deixa passar o prazo de 3 dias úteis sem acusar o recebimento."
+          }
+        ],
+        conclusoes: [
+          "Conclusão: Frustrada a via eletrônica sem confirmação, o processo prossegue com a expedição de mandado por correio ou oficial de justiça."
+        ],
+        pegadinha: "A VUNESP costuma inventar que a ausência de confirmação da citação eletrônica gera revelia automática. Cuidado: ela apenas obriga o uso dos meios tradicionais (correio/oficial), salvo se houver justificativa indevida passível de multa por ato atentatório à dignidade da justiça."
+      }
+    },
+    {
+      id: "citacao-ficta",
+      titulo: "2. Citação Ficta: Hora Certa e Edital",
+      artigos: "ARTS. 252 - 259",
+      tag: "Presunção Legal",
+      corBorda: "border-amber-500/40 hover:border-amber-400",
+      tagClasses: "bg-amber-500/20 text-amber-300 border-amber-500/30",
+      headerIcon: "fa-triangle-exclamation text-amber-400",
+      subnos: [
+        {
+          titulo: "Citação por Hora Certa (Art. 252)",
+          descricao: "Modalidade executada exclusivamente por Oficial de Justiça em caso de ocultação.",
+          corTitulo: "text-amber-300",
+          icone: "fa-clock",
+          itens: [
+            "Requisito: Suspeita de OCULTAÇÃO do citando após o oficial procurar por 2 (duas) vezes sem sucesso.",
+            "Procedimento: Intimação de familiar ou vizinho informando o dia e horário em que retornará no dia útil imediato."
+          ]
+        },
+        {
+          titulo: "Citação por Edital (Art. 256)",
+          descricao: "Medida excepcionalíssima quando desconhecido ou incerto o citando, ou inacessível o lugar.",
+          corTitulo: "text-amber-300",
+          icone: "fa-newspaper",
+          itens: [
+            "Aplica-se quando ignorado, incerto ou inacessível o lugar em que se encontrar o citando.",
+            "Fixação do prazo de publicação do edital pelo juiz entre 20 e 60 dias."
+          ]
+        }
+      ],
+      modalInfo: {
+        title: "Exemplo Prático: Citação por Hora Certa e Edital",
+        tag: "Art. 252 a 259 CPC",
+        tagBg: "bg-amber-500/20 text-amber-300 border-amber-500/30",
+        iconBg: "bg-amber-500/20 text-amber-400 border border-amber-500/40",
+        icon: "fa-triangle-exclamation",
+        casosPraticos: [
+          {
+            titulo: "CASO PRÁTICO — HORA CERTA:",
+            texto: "O oficial vai à casa do réu duas vezes e percebe que ele se esconde para não receber o mandado."
+          }
+        ],
+        conclusoes: [
+          "Conclusão: O oficial avisa a pessoa da família que retornará no dia útil seguinte em horário certo, realizando a citação na hora marcada mesmo com a ausência intencional."
+        ],
+        pegadinha: "A VUNESP adora trocar o número de tentativas para a Hora Certa: são necessárias exatamente 2 (duas) tentativas frustradas por suspeita de ocultação."
+      }
+    },
+    {
+      id: "intimacoes",
+      titulo: "3. Intimações e Cartas Processuais",
+      artigos: "ARTS. 260 - 275",
+      tag: "Atos de Cientificação",
+      corBorda: "border-emerald-500/40 hover:border-emerald-400",
+      tagClasses: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
+      headerIcon: "fa-file-lines text-emerald-400",
+      subnos: [
+        {
+          titulo: "Intimação (Arts. 269 - 275)",
+          descricao: "Ato pelo qual se dá ciência a alguém dos atos e dos termos do processo.",
+          corTitulo: "text-amber-300",
+          icone: "fa-bell",
+          itens: [
+            "Regra: Realizada via Diário da Justiça Eletrônico (DJE) em nome do advogado constituído.",
+            "Nulidade da intimação: Ocorre quando realizada sem observar o pedido expresso de publicação em nome de advogado indicado."
+          ]
+        },
+        {
+          titulo: "Espécies de Cartas (Arts. 260 - 268)",
+          descricao: "Instrumentos de cooperação interjurisdicional.",
+          corTitulo: "text-amber-300",
+          icone: "fa-signs-post",
+          itens: [
+            "Carta Precatória: Solicitada por juízo estadual/federal a outro juízo de jurisdição diversa no território nacional.",
+            "Carta Rogatória: Solicitada a autoridade judiciária estrangeira."
+          ]
+        }
+      ],
+      modalInfo: {
+        title: "Exemplo Prático: Cartas e Intimações",
+        tag: "Art. 260 a 275 CPC",
+        tagBg: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
+        iconBg: "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40",
+        icon: "fa-file-lines",
+        casosPraticos: [
+          {
+            titulo: "CASO PRÁTICO — CARTA PRECATÓRIA:",
+            texto: "Um juiz de São Paulo precisa ouvir uma testemunha que mora em Campinas."
+          }
+        ],
+        conclusoes: [
+          "Conclusão: Emite-se uma Carta Precatória direcionada ao juízo de Campinas para a prática do ato processual fora da comarca de origem."
+        ],
+        pegadinha: "Lembre-se: atos fora da comarca dentro do Brasil utilizam Precatória. Para atos fora do país, usa-se a Rogatória."
+      }
+    }
+  ]
+};
 
-  // Estados do Modal de Adicionar
-  const [modalOpen, setModalOpen] = useState(false);
-  const [novoTitulo, setNovoTitulo] = useState('');
-  const [novoAssunto, setNovoAssunto] = useState('');
-  const [novaMateria, setNovaMateria] = useState('Língua Portuguesa');
-  const [imagemUrlTemp, setImagemUrlTemp] = useState('');
+const PROMPT_MESTRE_TEXTO = `Com base no resumo de estudo fornecido, transforme-o estritamente no seguinte formato JSON válido (sem markdown extra fora das chaves). 
+IMPORTANTE: O objeto 'modalInfo' deve conter obrigatoriamente um array 'casosPraticos' (com titulo e texto) e um array 'conclusoes', além da string 'pegadinha' focada na banca VUNESP. Cada subnó deve conter o campo 'icone' (ex: fa-bolt, fa-bell, fa-user, etc).
 
-  // Estado de Edição
-  const [mapaEmEdicao, setMapaEmEdicao] = useState<MapaMentalItem | null>(null);
+{
+  "disciplina": "Nome da Disciplina do Edital TJSP",
+  "titulo": "Título curto do Mapa Mental",
+  "banca": "VUNESP",
+  "ramos": [
+    {
+      "id": "identificador-unico",
+      "titulo": "Título do Bloco",
+      "artigos": "ARTS. X - Y",
+      "tag": "Palavra Chave",
+      "corBorda": "border-rose-500/40 hover:border-rose-400",
+      "tagClasses": "bg-rose-500/20 text-rose-300 border-rose-500/30",
+      "headerIcon": "fa-gavel text-rose-400",
+      "subnos": [
+        {
+          "titulo": "Título da Subseção",
+          "descricao": "Explicação objetiva.",
+          "corTitulo": "text-amber-300",
+          "icone": "fa-bolt",
+          "itens": ["Ponto 1"]
+        }
+      ],
+      "modalInfo": {
+        "title": "Exemplo Prático do Assunto",
+        "tag": "Referência Legal",
+        "tagBg": "bg-rose-500/20 text-rose-300 border-rose-500/30",
+        "iconBg": "bg-rose-500/20 text-rose-400 border border-rose-500/40",
+        "icon": "fa-gavel",
+        "casosPraticos": [
+          {
+            "titulo": "CASO PRÁTICO 1 — TEMA:",
+            "texto": "Descrição detalhada do caso prático..."
+          }
+        ],
+        "conclusoes": [
+          "Conclusão direta relacionada ao caso..."
+        ],
+        "pegadinha": "Descreva a pegadinha clássica da banca VUNESP..."
+      }
+    }
+  ]
+}`;
 
-  // Estado de Pré-visualização da Imagem (Modal de Zoom)
-  const [imagemAmpliada, setImagemAmpliada] = useState<{ url: string; titulo: string } | null>(null);
+export default function MapaMentalPage() {
+  const [mapasPorDisciplina, setMapasPorDisciplina] = useState<Record<string, any>>({});
+  const [selectedDisciplina, setSelectedDisciplina] = useState<string>("Todas as Matérias");
+  const [selectedAssunto, setSelectedAssunto] = useState<string>("all");
 
-  // Estado de upload de imagem
-  const [uploadingImage, setUploadingImage] = useState(false);
+  const [activeModal, setActiveModal] = useState<string | null>(null);
+  const [showJsonModal, setShowJsonModal] = useState<boolean>(false);
+  const [modalDisciplinaAlvo, setModalDisciplinaAlvo] = useState<string>("Direito Processual Civil");
+  const [jsonInputText, setJsonInputText] = useState<string>('');
+  const [copiadoPrompt, setCopiadoPrompt] = useState<boolean>(false);
 
   useEffect(() => {
-    async function carregarMapas() {
+    const saved = localStorage.getItem('upquest_mapas_mentais');
+    if (saved) {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) {
-          router.push('/');
-          return;
-        }
-        setUserId(session.user.id);
-
-        const { data, error } = await supabase
-          .from('mapas_mentais')
-          .select('*')
-          .eq('user_id', session.user.id)
-          .order('created_at', { ascending: false });
-
-        if (error) throw error;
-        if (data) setMapas(data);
-      } catch (err) {
-        console.error('Erro ao carregar mapas mentais:', err);
-      } finally {
-        setLoading(false);
+        setMapasPorDisciplina(JSON.parse(saved));
+      } catch (e) {
+        console.error("Erro ao carregar mapas", e);
       }
+    } else {
+      const inicial = { "Direito Processual Civil": mapaInicialExemplo };
+      setMapasPorDisciplina(inicial);
+      localStorage.setItem('upquest_mapas_mentais', JSON.stringify(inicial));
     }
-    carregarMapas();
-  }, [router]);
+  }, []);
 
-  const mapasFiltrados = mapas.filter(item => {
-    const matchMateria = filtroMateria === 'TODAS AS MATÉRIAS' || item.materia.toLowerCase() === filtroMateria.toLowerCase();
-    const matchAssunto = filtroAssunto.trim() === '' || 
-      (item.assunto && item.assunto.toLowerCase().includes(filtroAssunto.toLowerCase().trim()));
-    const matchBusca = item.titulo.toLowerCase().includes(busca.toLowerCase());
-    return matchMateria && matchAssunto && matchBusca;
-  });
+  const salvarMapasStorage = (novoEstado: Record<string, any>) => {
+    setMapasPorDisciplina(novoEstado);
+    localStorage.setItem('upquest_mapas_mentais', JSON.stringify(novoEstado));
+  };
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, isEdicao = false) => {
-    const file = e.target.files?.[0];
-    if (!file || !userId) return;
-
+  const handleCarregarJson = () => {
     try {
-      setUploadingImage(true);
-      const fileExt = file.name.split('.').pop()?.toLowerCase();
-      
-      if (!['jpg', 'jpeg', 'png'].includes(fileExt || '')) {
-        alert('Por favor, envie apenas arquivos nos formatos JPG, JPEG ou PNG.');
-        setUploadingImage(false);
-        return;
-      }
-
-      const fileName = `mapa-${userId}-${Math.random()}.${fileExt}`;
-      const filePath = `${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('mapas-mentais')
-        .upload(filePath, file);
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('mapas-mentais')
-        .getPublicUrl(filePath);
-
-      if (isEdicao && mapaEmEdicao) {
-        setMapaEmEdicao({ ...mapaEmEdicao, imagem_url: publicUrl });
+      const parsed = JSON.parse(jsonInputText);
+      if (parsed && parsed.ramos && Array.isArray(parsed.ramos)) {
+        const atualizado = {
+          ...mapasPorDisciplina,
+          [modalDisciplinaAlvo]: {
+            ...parsed,
+            disciplina: modalDisciplinaAlvo
+          }
+        };
+        salvarMapasStorage(atualizado);
+        setShowJsonModal(false);
+        setJsonInputText('');
+        setSelectedDisciplina(modalDisciplinaAlvo);
+        setSelectedAssunto('all');
+        alert(`Mapa mental salvo com sucesso para ${modalDisciplinaAlvo}!`);
       } else {
-        setImagemUrlTemp(publicUrl);
+        alert('O JSON precisa conter obrigatoriamente a chave "ramos".');
       }
-    } catch (err) {
-      console.error('Erro no upload da imagem:', err);
-      alert('Erro ao enviar imagem. Verifique se o bucket "mapas-mentais" existe no Supabase e é público.');
-    } finally {
-      setUploadingImage(false);
+    } catch (e) {
+      alert('Erro de sintaxe no JSON.');
     }
   };
 
-  const handleAdicionarMapa = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!userId) return;
-
-    if (!imagemUrlTemp) {
-      alert('Por favor, faça o upload de uma imagem para o mapa mental.');
-      return;
-    }
-
-    try {
-      const novoItem = {
-        user_id: userId,
-        materia: novaMateria,
-        assunto: novoAssunto.trim() || null,
-        titulo: novoTitulo,
-        imagem_url: imagemUrlTemp,
-        cor: 'branco'
-      };
-
-      const { data, error } = await supabase
-        .from('mapas_mentais')
-        .insert([novoItem])
-        .select();
-
-      if (error) throw error;
-
-      if (data && data[0]) {
-        setMapas([data[0], ...mapas]);
+  const excluirRamo = (ramoId: string) => {
+    if (!mapaAtual) return;
+    if (confirm("Deseja apagar este assunto?")) {
+      const novosRamos = mapaAtual.ramos.filter((r: any) => r.id !== ramoId);
+      let novoEstado = { ...mapasPorDisciplina };
+      if (novosRamos.length === 0) {
+        delete novoEstado[selectedDisciplina];
+      } else {
+        novoEstado[selectedDisciplina] = { ...mapaAtual, ramos: novosRamos };
       }
-
-      setNovoTitulo('');
-      setNovoAssunto('');
-      setImagemUrlTemp('');
-      setModalOpen(false);
-    } catch (err: any) {
-      console.error(err);
-      alert(`Erro ao salvar mapa mental: ${err.message || 'Erro desconhecido'}`);
+      salvarMapasStorage(novoEstado);
+      setSelectedAssunto('all');
     }
   };
 
-  const handleSalvarEdicao = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!mapaEmEdicao) return;
-
-    try {
-      const { error } = await supabase
-        .from('mapas_mentais')
-        .update({
-          titulo: mapaEmEdicao.titulo,
-          materia: mapaEmEdicao.materia,
-          assunto: mapaEmEdicao.assunto?.trim() || null,
-          imagem_url: mapaEmEdicao.imagem_url,
-        })
-        .eq('id', mapaEmEdicao.id);
-
-      if (error) throw error;
-
-      setMapas(mapas.map(p => p.id === mapaEmEdicao.id ? mapaEmEdicao : p));
-      setMapaEmEdicao(null);
-    } catch (err: any) {
-      console.error(err);
-      alert(`Erro ao atualizar mapa mental: ${err.message || 'Erro desconhecido'}`);
-    }
+  const copiarPromptMestre = () => {
+    navigator.clipboard.writeText(PROMPT_MESTRE_TEXTO);
+    setCopiadoPrompt(true);
+    setTimeout(() => setCopiadoPrompt(false), 3000);
   };
 
-  const handleRemover = async (id: string) => {
-    if (confirm('Deseja excluir permanentemente este mapa mental?')) {
-      try {
-        const { error } = await supabase.from('mapas_mentais').delete().eq('id', id);
-        if (error) throw error;
-        setMapas(mapas.filter(p => p.id !== id));
-      } catch (err) {
-        console.error(err);
-        alert('Erro ao excluir mapa mental.');
-      }
-    }
-  };
+  const mapaAtual = selectedDisciplina !== "Todas as Matérias" ? mapasPorDisciplina[selectedDisciplina] : null;
+  const ramosExibir = mapaAtual?.ramos ? mapaAtual.ramos.filter((r: any) => selectedAssunto === 'all' || r.id === selectedAssunto) : [];
 
   return (
     <div className="min-h-screen bg-black text-zinc-100 font-sans selection:bg-red-600 selection:text-white">
       <Navbar />
 
-      <main className="max-w-7xl mx-auto px-6 py-8 space-y-8">
+      <main className="max-w-6xl mx-auto px-6 py-8 space-y-6">
         
-        {/* Cabeçalho */}
-        <div className="bg-zinc-950 border border-zinc-800/80 rounded-2xl p-6 shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-red-950/60 border border-red-600/40 flex items-center justify-center text-red-500 shadow-lg shadow-red-950/50 shrink-0">
-              <Network className="w-6 h-6" />
+        {/* Header da Página */}
+        <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="bg-blue-500/20 text-blue-400 text-xs font-bold px-2.5 py-0.5 rounded-full border border-blue-500/30">TJSP - VUNESP</span>
+              <span className="bg-amber-500/20 text-amber-300 text-xs font-bold px-2.5 py-0.5 rounded-full border border-amber-500/30">Visão Sistêmica Ampla</span>
             </div>
-            <div>
-              <div className="flex items-center gap-3">
-                <h1 className="text-xl md:text-2xl font-black tracking-tight text-white">
-                  MAPAS MENTAIS TJSP
-                </h1>
-                <span className="bg-red-950/80 border border-red-600/40 text-red-400 text-xs px-2.5 py-0.5 rounded-lg font-bold">
-                  VUNESP
-                </span>
-              </div>
-              <p className="text-xs text-zinc-400 mt-1">
-                Esquemas visuais focados no padrão de cobrança da banca
-              </p>
-            </div>
+            <h1 className="text-2xl font-bold text-white mt-1">
+              {mapaAtual ? mapaAtual.titulo : "Mapa Mental • Edital TJSP"}
+            </h1>
           </div>
 
-          <button 
-            onClick={() => setModalOpen(true)}
-            className="bg-red-600 hover:bg-red-700 text-white font-bold text-xs py-2.5 px-4 rounded-xl shadow-lg shadow-red-600/20 flex items-center gap-2 transition-all cursor-pointer w-full md:w-auto justify-center"
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                setModalDisciplinaAlvo(selectedDisciplina !== "Todas as Matérias" ? selectedDisciplina : DISCIPLINAS_TJSP[0]);
+                setJsonInputText(JSON.stringify(mapaInicialExemplo, null, 2));
+                setShowJsonModal(true);
+              }}
+              className="text-xs font-semibold px-4 py-2.5 rounded-xl border border-blue-500/40 bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 transition-all flex items-center gap-1.5 shadow-md"
+            >
+              <i className="fa-solid fa-code text-blue-400"></i> Gerenciar / Colar Novo JSON
+            </button>
+          </div>
+        </div>
+
+        {/* Filtros */}
+        <div className="bg-zinc-950 border border-zinc-800 p-4 rounded-2xl shadow-lg flex flex-col md:flex-row items-center gap-4">
+          <div className="w-full md:w-1/3 flex items-center gap-2">
+            <span className="text-xs font-bold text-zinc-400 whitespace-nowrap"><i className="fa-solid fa-book text-blue-400 mr-1"></i> Disciplina:</span>
+            <select 
+              value={selectedDisciplina}
+              onChange={(e) => {
+                setSelectedDisciplina(e.target.value);
+                setSelectedAssunto('all');
+              }}
+              className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 text-xs rounded-xl px-3 py-2.5 outline-none focus:border-blue-500"
+            >
+              <option value="Todas as Matérias">Todas as Matérias</option>
+              {DISCIPLINAS_TJSP.map((disc) => (
+                <option key={disc} value={disc}>
+                  {disc} {mapasPorDisciplina[disc] ? "🟢" : "⚪"}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="w-full md:w-2/3 flex items-center gap-2 overflow-x-auto pb-1 md:pb-0">
+            <span className="text-xs font-bold text-zinc-400 whitespace-nowrap"><i className="fa-solid fa-filter text-blue-400 mr-1"></i> Assunto:</span>
+            {selectedDisciplina === "Todas as Matérias" ? (
+              <span className="text-xs text-zinc-500 italic">Selecione uma disciplina acima.</span>
+            ) : !mapaAtual ? (
+              <span className="text-xs text-amber-400/90 italic">Nenhum mapa cadastrado.</span>
+            ) : (
+              <div className="flex items-center gap-1.5">
+                <button 
+                  onClick={() => setSelectedAssunto('all')} 
+                  className={`text-xs font-semibold px-3 py-2 rounded-xl border transition-all whitespace-nowrap ${selectedAssunto === 'all' ? 'border-blue-500 bg-blue-600 text-white shadow-lg' : 'border-zinc-800 bg-zinc-900 text-zinc-300 hover:text-white'}`}
+                >
+                  Todos os Temas
+                </button>
+                {mapaAtual.ramos.map((ramo: any) => (
+                  <button 
+                    key={ramo.id}
+                    onClick={() => setSelectedAssunto(ramo.id)} 
+                    className={`text-xs font-semibold px-3 py-2 rounded-xl border transition-all whitespace-nowrap ${selectedAssunto === ramo.id ? 'border-blue-500 bg-blue-600 text-white shadow-lg' : 'border-zinc-800 bg-zinc-900 text-zinc-300 hover:text-white'}`}
+                  >
+                    {ramo.titulo.replace(/^[0-9]+\.\s*/, '')}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Main Container */}
+        <div className="bg-zinc-950 rounded-3xl border border-zinc-800 shadow-2xl relative overflow-hidden flex flex-col p-6 min-h-[650px]">
+          <div className="absolute inset-0 bg-[radial-gradient(#1E293B_1px,transparent_1px)] [background-size:20px_20px] opacity-20 pointer-events-none"></div>
+
+          <div className="z-10 text-center mb-4 bg-zinc-900/95 backdrop-blur-md border border-zinc-800 py-3 px-4 rounded-2xl shadow-lg flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <i className="fa-solid fa-sitemap text-blue-400 text-lg"></i>
+              <span className="text-sm font-bold tracking-wide text-zinc-200">
+                {selectedDisciplina !== "Todas as Matérias" ? selectedDisciplina : "CPC / VUNESP"} - Visão Sistêmica
+              </span>
+            </div>
+            <span className="text-xs text-zinc-400 hidden sm:inline"><i className="fa-regular fa-hand-pointer mr-1"></i>Clique em um bloco para ver o <b>Exemplo Prático</b></span>
+          </div>
+
+          <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-6 z-10 overflow-y-auto pr-1">
+            {selectedDisciplina === "Todas as Matérias" ? (
+              <div className="col-span-3 flex flex-col items-center justify-center text-center p-12 space-y-3">
+                <i className="fa-solid fa-folder-open text-5xl text-zinc-700"></i>
+                <p className="text-sm text-zinc-400 font-medium">Selecione uma disciplina no filtro acima.</p>
+              </div>
+            ) : !mapaAtual ? (
+              <div className="col-span-3 flex flex-col items-center justify-center text-center p-12 space-y-3">
+                <i className="fa-solid fa-code text-5xl text-blue-500/60"></i>
+                <p className="text-sm text-zinc-300 font-medium">Nenhum dado cadastrado para <b>{selectedDisciplina}</b>.</p>
+                <button 
+                  onClick={() => { setModalDisciplinaAlvo(selectedDisciplina); setShowJsonModal(true); }}
+                  className="px-4 py-2.5 bg-blue-600 text-white rounded-xl text-xs font-semibold shadow-md hover:bg-blue-500 transition-all"
+                >
+                  Colar JSON Agora
+                </button>
+              </div>
+            ) : ramosExibir.length === 0 ? (
+              <div className="col-span-3 flex items-center justify-center p-12 text-zinc-500 text-xs">
+                Nenhum assunto encontrado.
+              </div>
+            ) : (
+              ramosExibir.map((ramo: any) => (
+                <div 
+                  key={ramo.id}
+                  className={`bg-zinc-900/90 rounded-2xl p-5 border ${ramo.corBorda} transition-all flex flex-col justify-between shadow-xl group`}
+                >
+                  <div>
+                    <div className="flex items-center justify-between pb-3 border-b border-zinc-800 mb-4">
+                      <span className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 text-zinc-300">
+                        <i className={`fa-solid ${ramo.headerIcon}`}></i> {ramo.artigos}
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-md border ${ramo.tagClasses}`}>
+                          {ramo.tag}
+                        </span>
+                        <button
+                          onClick={() => excluirRamo(ramo.id)}
+                          className="text-zinc-500 hover:text-rose-400 bg-zinc-950/80 hover:bg-rose-950/40 p-1.5 rounded-lg border border-zinc-800 hover:border-rose-500/40 transition-all text-xs"
+                          title="Apagar este assunto"
+                        >
+                          <i className="fa-solid fa-trash-can"></i>
+                        </button>
+                      </div>
+                    </div>
+
+                    <h3 className="text-sm font-bold text-white mb-4">{ramo.titulo}</h3>
+
+                    <div className="space-y-3 text-xs">
+                      {ramo.subnos.map((sub: any, idx: number) => (
+                        <div key={idx} className="p-3.5 rounded-xl bg-zinc-950/80 border border-zinc-800/80 shadow-sm">
+                          <span className={`font-bold block mb-1.5 text-xs sm:text-[13px] ${sub.corTitulo || 'text-amber-300'} flex items-center gap-1.5`}>
+                            <i className={`fa-solid ${sub.icone || 'fa-bookmark'} text-amber-400`}></i> {sub.titulo}
+                          </span>
+                          {sub.descricao && (
+                            <p className="text-zinc-300 text-xs leading-relaxed">{sub.descricao}</p>
+                          )}
+                          {sub.itens && sub.itens.length > 0 && (
+                            <ul className="text-[11px] text-zinc-400 mt-2 space-y-1.5 list-disc list-inside">
+                              {sub.itens.map((item: string, iIdx: number) => (
+                                <li key={iIdx}>{item}</li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <button 
+                    onClick={() => setActiveModal(ramo.id)} 
+                    className="mt-5 w-full py-3 bg-rose-600/20 hover:bg-rose-600/40 text-rose-300 text-xs font-semibold rounded-xl border border-rose-500/40 transition-all flex items-center justify-center gap-1.5 shadow-md"
+                  >
+                    <i className="fa-solid fa-lightbulb text-rose-400"></i> Exemplo Prático & Pegadinha
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="mt-6 pt-4 border-t border-zinc-800/60 flex items-center justify-between text-xs text-zinc-500 z-10">
+            <span><i className="fa-solid fa-graduation-cap text-blue-400 mr-1"></i> TJSP Escrevente VUNESP</span>
+            <span>Fixação rápida garantida</span>
+          </div>
+        </div>
+
+        {/* Prompt Mestre Card */}
+        <div className="bg-zinc-950 p-6 rounded-2xl border border-zinc-800 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="bg-blue-500/20 text-blue-400 text-xs font-bold px-2.5 py-0.5 rounded-full border border-blue-500/30">Automação de Conteúdo</span>
+              <h2 className="text-sm font-bold text-white">Prompt Mestre com Ícones & Cores</h2>
+            </div>
+            <p className="text-xs text-zinc-400 max-w-2xl">
+              Gera resumos estruturados com destaque em amarelo para pontos críticos e ícones visuais para melhor assimilação.
+            </p>
+          </div>
+
+          <button
+            onClick={copiarPromptMestre}
+            className={`px-4 py-2.5 rounded-xl font-semibold text-xs transition-all flex items-center gap-2 whitespace-nowrap shadow-md ${
+              copiadoPrompt 
+                ? 'bg-emerald-600 text-white border border-emerald-500' 
+                : 'bg-blue-600 hover:bg-blue-500 text-white border border-blue-500/40'
+            }`}
           >
-            <Plus className="w-4 h-4" />
-            Novo Mapa Mental
+            <i className={`fa-solid ${copiadoPrompt ? 'fa-check' : 'fa-copy'}`}></i>
+            {copiadoPrompt ? 'Prompt Copiado!' : 'Copiar Prompt Mestre'}
           </button>
         </div>
 
-        {/* Filtros e Busca */}
-        <div className="bg-zinc-950 border border-zinc-800/80 rounded-2xl p-4 space-y-4">
-          <div className="flex items-center gap-2 overflow-x-auto w-full pb-2 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
-            {MATERIAS_TJSP.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setFiltroMateria(cat)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
-                  filtroMateria === cat
-                    ? 'bg-red-600 text-white shadow-md shadow-red-600/20'
-                    : 'bg-zinc-900 text-zinc-400 hover:text-white hover:bg-zinc-800 border border-zinc-800/80'
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div className="relative">
-              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
-              <input 
-                type="text"
-                placeholder="Filtrar por assunto (ex: Art. 5º, Crase)..."
-                value={filtroAssunto}
-                onChange={(e) => setFiltroAssunto(e.target.value)}
-                className="w-full bg-zinc-900 border border-zinc-800 rounded-xl pl-9 pr-4 py-2 text-xs text-zinc-100 focus:outline-none focus:border-red-600 transition-colors"
-              />
-            </div>
-
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
-              <input 
-                type="text"
-                placeholder="Buscar mapa pelo título..."
-                value={busca}
-                onChange={(e) => setBusca(e.target.value)}
-                className="w-full bg-zinc-900 border border-zinc-800 rounded-xl pl-9 pr-4 py-2 text-xs text-zinc-100 focus:outline-none focus:border-red-600 transition-colors"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Listagem / Loading */}
-        {loading ? (
-          <div className="py-20 text-center flex flex-col items-center justify-center space-y-3">
-            <Loader2 className="w-8 h-8 text-red-600 animate-spin" />
-            <p className="text-xs text-zinc-400">Carregando mapas mentais...</p>
-          </div>
-        ) : mapasFiltrados.length === 0 ? (
-          <div className="bg-zinc-950 border border-zinc-800/80 rounded-2xl p-16 text-center space-y-4">
-            <div className="w-12 h-12 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center mx-auto text-zinc-500">
-              <Network className="w-6 h-6" />
-            </div>
-            <div className="space-y-1">
-              <h3 className="text-sm font-bold text-white">Nenhum mapa mental encontrado</h3>
-              <p className="text-xs text-zinc-500 max-w-sm mx-auto">
-                Adicione o seu primeiro print gerado pelo prompt com os filtros selecionados.
-              </p>
-            </div>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {mapasFiltrados.map((item) => (
-              <div 
-                key={item.id}
-                className="bg-[#fefefe] text-zinc-950 border border-zinc-300 rounded-2xl p-6 shadow-2xl flex flex-col justify-between transition-all duration-200 group relative my-2"
-              >
-                {/* Grampo Metálico Superior (Estilo Caderno) */}
-                <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-zinc-300 via-zinc-100 to-zinc-400 border border-zinc-400 w-12 h-6 rounded-t-lg shadow-md flex items-center justify-center text-zinc-700 z-10">
-                  <Paperclip className="w-4 h-4 rotate-90 text-zinc-600" />
-                </div>
-
-                {/* Pequeno Adesivo Decorativo Lateral Esquerdo */}
-                <div className="absolute -left-3 top-24 bg-red-600 text-white p-1 rounded-r-md shadow-md rotate-[-5deg] flex items-center justify-center">
-                  <Bookmark className="w-3 h-3" />
-                </div>
-
-                {/* Topo do Card: Matéria, Assunto e Ações */}
-                <div className="flex justify-between items-center mb-3 mt-1 flex-wrap gap-2">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-red-700 bg-red-100/80 border border-red-200 px-3 py-1 rounded-md">
-                      {item.materia}
-                    </span>
-                    {item.assunto && (
-                      <span className="text-[11px] font-medium text-zinc-700 bg-zinc-200/80 border border-zinc-300 px-2.5 py-1 rounded-md">
-                        {item.assunto}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-1.5 opacity-80 group-hover:opacity-100 transition-opacity">
-                    <button 
-                      onClick={() => setMapaEmEdicao(item)}
-                      title="Editar"
-                      className="p-1.5 rounded-lg bg-zinc-200/80 hover:bg-zinc-300 text-zinc-700 transition-colors cursor-pointer"
-                    >
-                      <Edit3 className="w-4 h-4" />
-                    </button>
-                    <button 
-                      onClick={() => handleRemover(item.id)}
-                      title="Excluir"
-                      className="p-1.5 rounded-lg bg-zinc-200/80 hover:bg-rose-200 text-zinc-700 hover:text-rose-700 transition-colors cursor-pointer"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Título do Mapa */}
-                <div className="mb-4">
-                  <h3 className="text-xl font-black tracking-tight text-zinc-900 leading-snug">
-                    {item.titulo}
-                  </h3>
-                </div>
-
-                {/* Imagem com Ação de Pré-visualização Interna (Zoom) */}
-                {item.imagem_url && (
-                  <div className="relative rounded-xl overflow-hidden border border-zinc-300 bg-white shadow-inner group/img cursor-pointer" onClick={() => setImagemAmpliada({ url: item.imagem_url!, titulo: item.titulo })}>
-                    <img 
-                      src={item.imagem_url} 
-                      alt={item.titulo} 
-                      className="w-full h-auto max-h-[550px] object-contain group-hover/img:scale-[1.01] transition-transform duration-300 mx-auto bg-white p-1"
-                    />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center text-white gap-2 font-semibold text-xs">
-                      <Maximize2 className="w-4 h-4" /> Ampliar Mapa Mental
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-
       </main>
 
-      {/* MODAL: Pré-visualização (Zoom da Imagem) em Tela Cheia */}
-      {imagemAmpliada && (
-        <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex flex-col items-center justify-center p-4">
-          <div className="w-full max-w-6xl flex justify-between items-center mb-4 px-4">
-            <h3 className="text-sm font-bold text-zinc-200 truncate max-w-xl">
-              {imagemAmpliada.titulo}
-            </h3>
-            <button 
-              onClick={() => setImagemAmpliada(null)}
-              className="bg-zinc-800 hover:bg-zinc-700 text-white p-2 rounded-xl transition-colors cursor-pointer flex items-center gap-1.5 text-xs font-semibold"
-            >
-              <X className="w-4 h-4" /> Fechar Visualização
-            </button>
-          </div>
-          <div className="relative max-w-full max-h-[85vh] overflow-auto bg-white rounded-2xl p-2 border border-zinc-700 shadow-2xl">
-            <img 
-              src={imagemAmpliada.url} 
-              alt={imagemAmpliada.titulo} 
-              className="max-w-full max-h-[80vh] object-contain mx-auto"
-            />
-          </div>
-        </div>
-      )}
+      {/* MODAL DE EXEMPLOS PRÁTICOS */}
+      {activeModal && mapaAtual && (
+        (() => {
+          const ramoModal = mapaAtual.ramos.find((r: any) => r.id === activeModal);
+          if (!ramoModal || !ramoModal.modalInfo) return null;
+          const info = ramoModal.modalInfo;
+          return (
+            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+              <div className="bg-zinc-950 border border-zinc-800 rounded-3xl max-w-xl w-full p-6 shadow-2xl relative space-y-4">
+                
+                <button 
+                  onClick={() => setActiveModal(null)} 
+                  className="absolute top-4 right-4 text-zinc-400 hover:text-white bg-zinc-900 p-2 rounded-full border border-zinc-800 transition-all"
+                >
+                  <i className="fa-solid fa-xmark text-lg"></i>
+                </button>
 
-      {/* MODAL: Adicionar Novo Mapa */}
-      {modalOpen && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-zinc-950 border border-zinc-800 rounded-2xl w-full max-w-lg p-6 space-y-6 shadow-2xl">
-            <div className="flex justify-between items-center">
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
-                <Network className="w-5 h-5 text-red-500" />
-                Adicionar Novo Mapa Mental
-              </h3>
-              <button 
-                onClick={() => setModalOpen(false)}
-                className="text-zinc-400 hover:text-white p-1 rounded-lg hover:bg-zinc-900 transition-colors cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleAdicionarMapa} className="space-y-4 text-xs">
-              <div className="space-y-1.5">
-                <label className="text-zinc-400 font-semibold">Título do Mapa</label>
-                <input 
-                  type="text"
-                  value={novoTitulo}
-                  onChange={(e) => setNovoTitulo(e.target.value)}
-                  placeholder="Ex: Regra Geral de Crase"
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-zinc-100 focus:outline-none focus:border-red-600"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <label className="text-zinc-400 font-semibold">Matéria</label>
-                  <select 
-                    value={novaMateria}
-                    onChange={(e) => setNovaMateria(e.target.value)}
-                    className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-zinc-100 focus:outline-none focus:border-red-600"
-                  >
-                    {MATERIAS_TJSP.filter(m => m !== 'TODAS AS MATÉRIAS').map(m => (
-                      <option key={m} value={m}>{m}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-zinc-400 font-semibold">Assunto / Tópico</label>
-                  <input 
-                    type="text"
-                    value={novoAssunto}
-                    onChange={(e) => setNovoAssunto(e.target.value)}
-                    placeholder="Ex: Art. 5º, Crase obrigatória..."
-                    className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-zinc-100 focus:outline-none focus:border-red-600"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2 pt-2">
-                <label className="text-zinc-400 font-semibold block">Print do Mapa Mental (JPG, PNG, JPEG)</label>
-                <label className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 text-xs px-4 py-3 rounded-xl font-semibold flex items-center gap-2 cursor-pointer transition-all w-full justify-center">
-                  <Upload className="w-4 h-4 text-red-500" />
-                  {uploadingImage ? 'Enviando imagem...' : 'Selecionar Print do Computador'}
-                  <input type="file" accept=".jpg, .jpeg, .png" onChange={(e) => handleImageUpload(e, false)} className="hidden" />
-                </label>
-                {imagemUrlTemp && (
-                  <div className="mt-2 space-y-1">
-                    <span className="text-xs text-emerald-400 font-semibold flex items-center gap-1">
-                      ✓ Imagem carregada com sucesso!
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text-xl font-bold ${info.iconBg || 'bg-rose-500/20 text-rose-400 border border-rose-500/40'}`}>
+                    <i className={`fa-solid ${info.icon || 'fa-gavel'}`}></i>
+                  </div>
+                  <div>
+                    <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full border ${info.tagBg || 'bg-rose-500/20 text-rose-300 border-rose-500/30'}`}>
+                      {info.tag}
                     </span>
-                    <img src={imagemUrlTemp} alt="Pré-visualização" className="w-full h-40 object-contain bg-white rounded-lg border border-zinc-800 p-1" />
+                    <h2 className="text-lg font-bold text-white mt-1">{info.title}</h2>
                   </div>
-                )}
-              </div>
+                </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t border-zinc-900">
-                <button 
-                  type="button"
-                  onClick={() => setModalOpen(false)}
-                  className="px-4 py-2 rounded-xl bg-zinc-900 text-zinc-300 hover:bg-zinc-800 font-semibold cursor-pointer transition-all"
-                >
-                  Cancelar
-                </button>
-                <button 
-                  type="submit"
-                  className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold shadow-lg shadow-red-600/20 flex items-center gap-2 cursor-pointer transition-all"
-                >
-                  <Plus className="w-4 h-4" /> Salvar Mapa
-                </button>
+                <div className="space-y-3 text-xs text-zinc-300 max-h-[60vh] overflow-y-auto pr-1">
+                  {info.casosPraticos && info.casosPraticos.map((caso: any, idx: number) => (
+                    <div key={idx} className="p-4 bg-zinc-900 rounded-2xl border border-zinc-800 space-y-2 shadow-inner">
+                      <p className="font-bold text-amber-300 uppercase tracking-wide flex items-center gap-1.5">
+                        <i className="fa-solid fa-masks-theater text-amber-400"></i> {caso.titulo}
+                      </p>
+                      <p className="text-zinc-200 text-xs sm:text-[13px] leading-relaxed">{caso.texto}</p>
+                      
+                      {info.conclusoes && info.conclusoes[idx] && (
+                        <p className="text-zinc-300 text-xs sm:text-[13px] leading-relaxed font-medium pt-2 border-t border-zinc-800/80">
+                          <i className="fa-solid fa-arrow-right text-amber-400 mr-1"></i> {info.conclusoes[idx]}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+
+                  {info.pegadinha && (
+                    <div className="p-4 bg-[#1b151b] rounded-2xl border border-rose-500/40 text-rose-200 space-y-1.5 shadow-lg">
+                      <p className="font-bold uppercase tracking-wider text-rose-400 flex items-center gap-1.5">
+                        <i className="fa-solid fa-triangle-exclamation text-rose-500"></i> PEGADINHA VUNESP:
+                      </p>
+                      <p className="leading-relaxed text-zinc-300 text-xs sm:text-[13px]">{info.pegadinha}</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="pt-2 border-t border-zinc-800 flex justify-end">
+                  <button 
+                    onClick={() => setActiveModal(null)} 
+                    className="w-full sm:w-auto px-6 py-2.5 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-bold rounded-xl text-xs transition-all shadow-lg shadow-rose-900/30 flex items-center justify-center gap-2"
+                  >
+                    Entendi! Voltar ao Mapa
+                  </button>
+                </div>
+
               </div>
-            </form>
-          </div>
-        </div>
+            </div>
+          );
+        })()
       )}
 
-      {/* MODAL: Edição */}
-      {mapaEmEdicao && (
+      {/* Modal de Injeção de JSON */}
+      {showJsonModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-zinc-950 border border-zinc-800 rounded-2xl w-full max-w-lg p-6 space-y-6 shadow-2xl">
-            <div className="flex justify-between items-center">
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
-                <Network className="w-5 h-5 text-red-500" />
-                Editar Mapa Mental
-              </h3>
-              <button 
-                onClick={() => setMapaEmEdicao(null)}
-                className="text-zinc-400 hover:text-white p-1 rounded-lg hover:bg-zinc-900 transition-colors cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
+          <div className="bg-zinc-950 border border-zinc-800 rounded-3xl max-w-2xl w-full p-6 shadow-2xl relative space-y-4">
+            <button 
+              onClick={() => setShowJsonModal(false)} 
+              className="absolute top-4 right-4 text-zinc-400 hover:text-white bg-zinc-900 p-2 rounded-full border border-zinc-800 transition-all"
+            >
+              <i className="fa-solid fa-xmark text-lg"></i>
+            </button>
+
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl flex items-center justify-center text-xl font-bold bg-blue-500/20 text-blue-400 border border-blue-500/40">
+                <i className="fa-solid fa-code"></i>
+              </div>
+              <div>
+                <span className="text-xs font-bold px-2.5 py-0.5 rounded-full border bg-blue-500/20 text-blue-300 border-blue-500/30">Injeção por Matéria</span>
+                <h2 className="text-lg font-bold text-white mt-1">Adicionar / Atualizar JSON</h2>
+              </div>
             </div>
 
-            <form onSubmit={handleSalvarEdicao} className="space-y-4 text-xs">
-              <div className="space-y-1.5">
-                <label className="text-zinc-400 font-semibold">Título</label>
-                <input 
-                  type="text"
-                  value={mapaEmEdicao.titulo}
-                  onChange={(e) => setMapaEmEdicao({...mapaEmEdicao, titulo: e.target.value})}
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-zinc-100 focus:outline-none focus:border-red-600"
-                  required
-                />
-              </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-zinc-300 flex items-center gap-1">
+                <i className="fa-solid fa-book text-blue-400"></i> Disciplina Alvo:
+              </label>
+              <select 
+                value={modalDisciplinaAlvo}
+                onChange={(e) => setModalDisciplinaAlvo(e.target.value)}
+                className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 text-xs rounded-xl px-3 py-2.5 outline-none focus:border-blue-500"
+              >
+                {DISCIPLINAS_TJSP.map((disc) => (
+                  <option key={disc} value={disc}>{disc}</option>
+                ))}
+              </select>
+            </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <label className="text-zinc-400 font-semibold">Matéria</label>
-                  <select 
-                    value={mapaEmEdicao.materia}
-                    onChange={(e) => setMapaEmEdicao({...mapaEmEdicao, materia: e.target.value})}
-                    className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-zinc-100 focus:outline-none focus:border-red-600"
-                  >
-                    {MATERIAS_TJSP.filter(m => m !== 'TODAS AS MATÉRIAS').map(m => (
-                      <option key={m} value={m}>{m}</option>
-                    ))}
-                  </select>
-                </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-zinc-300 flex items-center gap-1">
+                <i className="fa-solid fa-code text-blue-400"></i> Cole o JSON do Prompt Mestre:
+              </label>
+              <textarea
+                value={jsonInputText}
+                onChange={(e) => setJsonInputText(e.target.value)}
+                className="w-full h-40 bg-zinc-900 text-blue-300 p-3 rounded-2xl border border-zinc-800 font-mono text-xs outline-none focus:border-blue-500 resize-none"
+                placeholder="Cole o JSON aqui..."
+              />
+            </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-zinc-400 font-semibold">Assunto / Tópico</label>
-                  <input 
-                    type="text"
-                    value={mapaEmEdicao.assunto || ''}
-                    onChange={(e) => setMapaEmEdicao({...mapaEmEdicao, assunto: e.target.value})}
-                    placeholder="Ex: Art. 5º..."
-                    className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-zinc-100 focus:outline-none focus:border-red-600"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2 pt-2">
-                <label className="text-zinc-400 font-semibold block">Alterar Print (JPG, PNG, JPEG)</label>
-                <label className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 text-xs px-4 py-3 rounded-xl font-semibold flex items-center gap-2 cursor-pointer transition-all w-full justify-center">
-                  <Upload className="w-4 h-4 text-red-500" />
-                  {uploadingImage ? 'Enviando...' : 'Escolher Novo Print'}
-                  <input type="file" accept=".jpg, .jpeg, .png" onChange={(e) => handleImageUpload(e, true)} className="hidden" />
-                </label>
-                {mapaEmEdicao.imagem_url && (
-                  <div className="mt-2">
-                    <img src={mapaEmEdicao.imagem_url} alt="Atual" className="w-full h-40 object-contain bg-white rounded-lg border border-zinc-800 p-1" />
-                  </div>
-                )}
-              </div>
-
-              <div className="flex justify-end gap-3 pt-4 border-t border-zinc-900">
-                <button 
-                  type="button"
-                  onClick={() => setMapaEmEdicao(null)}
-                  className="px-4 py-2 rounded-xl bg-zinc-900 text-zinc-300 hover:bg-zinc-800 font-semibold cursor-pointer transition-all"
-                >
-                  Cancelar
-                </button>
-                <button 
-                  type="submit"
-                  className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold shadow-lg shadow-red-600/20 flex items-center gap-2 cursor-pointer transition-all"
-                >
-                  <Save className="w-4 h-4" /> Salvar Alterações
-                </button>
-              </div>
-            </form>
+            <div className="pt-2 border-t border-zinc-800 flex items-center justify-between">
+              <span className="text-[11px] text-zinc-500">Salva direto no armazenamento local.</span>
+              <button 
+                onClick={handleCarregarJson} 
+                className="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl text-xs transition-all flex items-center gap-1.5 shadow-md"
+              >
+                <i className="fa-solid fa-check"></i> Salvar na Disciplina
+              </button>
+            </div>
           </div>
         </div>
       )}

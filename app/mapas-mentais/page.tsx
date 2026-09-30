@@ -23,7 +23,7 @@ const DISCIPLINAS_TJSP = [
 
 const mapaInicialExemplo = {
   disciplina: "Direito Processual Civil",
-  titulo: "Mapa Mental: D. Processual Civil & Normas",
+  titulo: "Mapa Mental: D. Processual Civil e Normas",
   banca: "VUNESP",
   ramos: [
     {
@@ -467,7 +467,7 @@ export default function MapaMentalPage() {
                     onClick={() => setActiveModal(ramo.id)} 
                     className="mt-5 w-full py-3 bg-rose-600/20 hover:bg-rose-600/40 text-rose-300 text-xs font-semibold rounded-xl border border-rose-500/40 transition-all flex items-center justify-center gap-1.5 shadow-md"
                   >
-                    <i className="fa-solid fa-lightbulb text-rose-400"></i> Exemplo Prático & Pegadinha
+                    <i className="fa-solid fa-lightbulb text-rose-400"></i> Exemplo Prático e Pegadinha
                   </button>
                 </div>
               ))
@@ -485,7 +485,7 @@ export default function MapaMentalPage() {
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <span className="bg-blue-500/20 text-blue-400 text-xs font-bold px-2.5 py-0.5 rounded-full border border-blue-500/30">Automação de Conteúdo</span>
-              <h2 className="text-sm font-bold text-white">Prompt Mestre com Ícones & Cores</h2>
+              <h2 className="text-sm font-bold text-white">Prompt Mestre com Ícones e Cores</h2>
             </div>
             <p className="text-xs text-zinc-400 max-w-2xl">
               Gera resumos estruturados com destaque em amarelo para pontos críticos e ícones visuais para melhor assimilação.

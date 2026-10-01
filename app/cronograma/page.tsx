@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Navbar from '../components/Navbar';
+import { createClient } from '@supabase/supabase-js';
 import { 
   BookOpen, 
   Briefcase, 
@@ -21,9 +22,11 @@ import {
   Plus
 } from 'lucide-react';
 
-// ============================================================================
-// CRONOGRAMA PADRÃO (SEGUNDA A DOMINGO)
-// ============================================================================
+// Inicialização do Cliente Supabase
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
 const cronogramaPadrao = [
   {
     dia: "Segunda-feira",
@@ -114,6 +117,7 @@ const PROMPT_CRONOGRAMA_JSON = `Gere estritamente um array JSON válido contendo
 export default function CronogramaPage() {
   const [diasSemana, setDiasSemana] = useState<any[]>(cronogramaPadrao);
   const [diaAtualIndex, setDiaAtualIndex] = useState<number>(0);
+  const [carregando, setCarregando] = useState<boolean>(true);
   
   // Modais
   const [showJsonModal, setShowJsonModal] = useState<boolean>(false);
@@ -133,19 +137,63 @@ export default function CronogramaPage() {
     let indexMapeado = hojeJs === 0 ? 6 : hojeJs - 1;
     setDiaAtualIndex(indexMapeado);
 
-    const saved = localStorage.getItem('upquest_cronograma_semanal');
-    if (saved) {
-      try {
-        setDiasSemana(JSON.parse(saved));
-      } catch (e) {
-        console.error("Erro ao carregar cronograma salvo", e);
-      }
-    }
+    carregarCronogramaSupabase();
+
+    const channel = supabase
+      .channel('public:cronograma')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'cronograma' }, () => {
+        carregarCronogramaSupabase();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
-  const salvarStorage = (novoCronograma: any[]) => {
-    setDiasSemana(novoCronograma);
-    localStorage.setItem('upquest_cronograma_semanal', JSON.stringify(novoCronograma));
+  const carregarCronogramaSupabase = async () => {
+    try {
+      setCarregando(true);
+      const { data, error } = await supabase.from('cronograma').select('*');
+      
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        const registroUnico = data.find((item: any) => item.id === 'semana' || item.id === 'cronograma_geral');
+        if (registroUnico && registroUnico.dias) {
+          setDiasSemana(registroUnico.dias);
+        } else {
+          setDiasSemana(data);
+        }
+      } else {
+        await supabase.from('cronograma').upsert({
+          id: 'semana',
+          dias: cronogramaPadrao,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'id' });
+        setDiasSemana(cronogramaPadrao);
+      }
+    } catch (e) {
+      console.error("Erro ao carregar cronograma do Supabase:", e);
+    } finally {
+      setCarregando(false);
+    }
+  };
+
+  const salvarNoSupabase = async (novoCronograma: any[]) => {
+    try {
+      setDiasSemana(novoCronograma);
+      const { error } = await supabase.from('cronograma').upsert({
+        id: 'semana',
+        dias: novoCronograma,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'id' });
+
+      if (error) throw error;
+    } catch (e: any) {
+      console.error("Erro ao salvar no Supabase:", e);
+      alert("Erro ao salvar na nuvem: " + e.message);
+    }
   };
 
   const toggleTarefa = (diaId: string, tarefaId: string) => {
@@ -161,24 +209,24 @@ export default function CronogramaPage() {
       }
       return dia;
     });
-    salvarStorage(atualizado);
+    salvarNoSupabase(atualizado);
   };
 
-  const handleRemoverCronograma = () => {
-    if (confirm("Tem certeza que deseja remover o cronograma personalizado e voltar ao padrão?")) {
-      salvarStorage(cronogramaPadrao);
+  const handleRemoverCronograma = async () => {
+    if (confirm("Tem certeza que deseja restaurar o cronograma para o padrão na nuvem?")) {
+      await salvarNoSupabase(cronogramaPadrao);
       alert("Cronograma restaurado para o padrão!");
     }
   };
 
-  const handleSalvarNovoJson = () => {
+  const handleSalvarNovoJson = async () => {
     try {
       const parsed = JSON.parse(jsonInputText);
       if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].dia && parsed[0].tarefas) {
-        salvarStorage(parsed);
+        await salvarNoSupabase(parsed);
         setShowJsonModal(false);
         setJsonInputText('');
-        alert("Novo cronograma carregado com sucesso!");
+        alert("Novo cronograma salvo com sucesso na nuvem!");
       } else {
         alert("O JSON precisa ser um array válido contendo os dias e tarefas.");
       }
@@ -215,7 +263,7 @@ export default function CronogramaPage() {
       }
       return dia;
     });
-    salvarStorage(atualizado);
+    salvarNoSupabase(atualizado);
     setShowEditModal(false);
   };
 
@@ -233,7 +281,7 @@ export default function CronogramaPage() {
       }
       return dia;
     });
-    salvarStorage(atualizado);
+    salvarNoSupabase(atualizado);
   };
 
   const removerTarefa = (diaId: string, tarefaId: string) => {
@@ -247,7 +295,7 @@ export default function CronogramaPage() {
         }
         return dia;
       });
-      salvarStorage(atualizado);
+      salvarNoSupabase(atualizado);
     }
   };
 
@@ -276,8 +324,8 @@ export default function CronogramaPage() {
               <span className="bg-red-600/20 text-red-400 text-xs font-bold px-2.5 py-0.5 rounded-full border border-red-500/30 flex items-center gap-1">
                 <Sparkles className="w-3 h-3" /> Alta Performance
               </span>
-              <span className="bg-zinc-800 text-zinc-300 text-xs font-bold px-2.5 py-0.5 rounded-full border border-zinc-700">
-                Rotina Semanal
+              <span className="bg-emerald-500/20 text-emerald-400 text-xs font-bold px-2.5 py-0.5 rounded-full border border-emerald-500/30">
+                Sincronizado Supabase 🟢
               </span>
             </div>
             <h1 className="text-2xl font-bold text-white mt-1.5">
@@ -303,7 +351,7 @@ export default function CronogramaPage() {
               onClick={handleRemoverCronograma}
               className="text-xs font-semibold px-4 py-2.5 rounded-xl border border-rose-500/40 bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 transition-all flex items-center gap-2 shadow-md"
             >
-              <Trash2 className="w-4 h-4 text-rose-400" /> Remover / Restaurar Padrão
+              <Trash2 className="w-4 h-4 text-rose-400" /> Restaurar Padrão
             </button>
           </div>
         </div>
@@ -334,147 +382,146 @@ export default function CronogramaPage() {
         </div>
 
         {/* Grid de Cards dos Dias da Semana */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {diasSemana.map((diaObj, index) => {
-            const isHoje = index === diaAtualIndex;
-            const totalTarefas = diaObj.tarefas.length;
-            const tarefasConcluidas = diaObj.tarefas.filter((t: any) => t.concluida).length;
-            const progresso = totalTarefas > 0 ? Math.round((tarefasConcluidas / totalTarefas) * 100) : 0;
+        {carregando ? (
+          <div className="flex items-center justify-center p-12 text-zinc-400 text-xs">
+            Sincronizando cronograma com o Supabase...
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {diasSemana.map((diaObj, index) => {
+              const isHoje = index === diaAtualIndex;
+              const totalTarefas = diaObj.tarefas.length;
+              const tarefasConcluidas = diaObj.tarefas.filter((t: any) => t.concluida).length;
+              const progresso = totalTarefas > 0 ? Math.round((tarefasConcluidas / totalTarefas) * 100) : 0;
 
-            return (
-              <div 
-                key={diaObj.id}
-                className={`bg-zinc-950 rounded-2xl p-5 border transition-all flex flex-col justify-between shadow-xl relative overflow-hidden group hover:border-zinc-700 ${
-                  isHoje 
-                    ? 'border-red-500/80 shadow-red-950/20 ring-1 ring-red-500/50' 
-                    : 'border-zinc-800/90'
-                }`}
-              >
-                {/* Indicador de "Hoje" */}
-                {isHoje && (
-                  <div className="absolute top-0 right-0 bg-gradient-to-l from-red-600 to-rose-600 text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl shadow-md uppercase tracking-wider flex items-center gap-1">
-                    <Sparkles className="w-3 h-3" /> Hoje
-                  </div>
-                )}
-
-                <div>
-                  {/* Cabeçalho do Card */}
-                  <div className="flex items-center justify-between pb-3 border-b border-zinc-800/80 mb-4 pr-12">
-                    <h3 className="text-base font-bold text-white flex items-center gap-2">
-                      <Calendar className={`w-4 h-4 ${isHoje ? 'text-red-500' : 'text-blue-400'}`} />
-                      {diaObj.dia}
-                    </h3>
-                  </div>
-
-                  {/* Barra de Progresso Global e Contador */}
-                  <div className="mb-4 space-y-1.5">
-                    <div className="flex justify-between text-[11px] font-semibold text-zinc-400">
-                      <span>Progresso do dia</span>
-                      <span className={progresso === 100 ? 'text-emerald-400' : 'text-zinc-300'}>{progresso}%</span>
+              return (
+                <div 
+                  key={diaObj.id}
+                  className={`bg-zinc-950 rounded-2xl p-5 border transition-all flex flex-col justify-between shadow-xl relative overflow-hidden group hover:border-zinc-700 ${
+                    isHoje 
+                      ? 'border-red-500/80 shadow-red-950/20 ring-1 ring-red-500/50' 
+                      : 'border-zinc-800/90'
+                  }`}
+                >
+                  {isHoje && (
+                    <div className="absolute top-0 right-0 bg-gradient-to-l from-red-600 to-rose-600 text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl shadow-md uppercase tracking-wider flex items-center gap-1">
+                      <Sparkles className="w-3 h-3" /> Hoje
                     </div>
-                    <div className="w-full h-1.5 bg-zinc-900 rounded-full overflow-hidden border border-zinc-800">
-                      <div 
-                        className={`h-full transition-all duration-500 ${progresso === 100 ? 'bg-emerald-500' : 'bg-gradient-to-r from-red-600 to-rose-600'}`}
-                        style={{ width: `${progresso}%` }}
-                      ></div>
+                  )}
+
+                  <div>
+                    <div className="flex items-center justify-between pb-3 border-b border-zinc-800/80 mb-4 pr-12">
+                      <h3 className="text-base font-bold text-white flex items-center gap-2">
+                        <Calendar className={`w-4 h-4 ${isHoje ? 'text-red-500' : 'text-blue-400'}`} />
+                        {diaObj.dia}
+                      </h3>
                     </div>
-                  </div>
 
-                  {/* Lista de Tarefas com Botões Organizados Internamente */}
-                  <div className="space-y-3">
-                    {diaObj.tarefas.map((tarefa: any) => (
-                      <div 
-                        key={tarefa.id}
-                        className={`p-3.5 rounded-xl border transition-all flex flex-col gap-3 group/item ${
-                          tarefa.concluida 
-                            ? 'bg-zinc-900/40 border-zinc-900/80 opacity-60' 
-                            : 'bg-zinc-900/80 border-zinc-800/80 hover:border-zinc-700 hover:bg-zinc-900 shadow-sm'
-                        }`}
-                      >
-                        {/* Conteúdo Principal da Tarefa */}
-                        <div 
-                          onClick={() => toggleTarefa(diaObj.id, tarefa.id)}
-                          className="flex items-start gap-2.5 cursor-pointer min-w-0"
-                        >
-                          <div className="mt-0.5 shrink-0">
-                            {tarefa.concluida ? (
-                              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                            ) : (
-                              <Circle className="w-4 h-4 text-zinc-600 group-hover/item:text-zinc-400 transition-colors" />
-                            )}
-                          </div>
-
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-amber-400 mb-1">
-                              {renderIcone(tarefa.icone, "w-3.5 h-3.5")}
-                              <span>{tarefa.horario}</span>
-                            </div>
-                            <p className={`text-xs leading-relaxed transition-colors ${tarefa.concluida ? 'text-zinc-500 line-through' : 'text-zinc-200'}`}>
-                              {tarefa.titulo}
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* Botões de Ação Inferiores (Dentro do Card, sem quebrar layout) */}
-                        <div className="flex items-center justify-end gap-1.5 pt-2 border-t border-zinc-800/60">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              abrirEdicaoTarefa(diaObj.id, tarefa);
-                            }}
-                            className="px-2.5 py-1 rounded-lg bg-zinc-800/90 text-zinc-300 hover:text-white hover:bg-blue-600/30 border border-zinc-700/80 transition-all text-[11px] font-medium flex items-center gap-1"
-                            title="Editar Tarefa"
-                          >
-                            <Pencil className="w-3 h-3 text-blue-400" /> Editar
-                          </button>
-
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              toggleTarefa(diaObj.id, tarefa.id);
-                            }}
-                            className={`px-2.5 py-1 rounded-lg border transition-all text-[11px] font-medium ${
-                              tarefa.concluida
-                                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/30'
-                                : 'bg-zinc-800 text-zinc-300 border-zinc-700 hover:bg-red-600/20 hover:text-red-300 hover:border-red-500/40'
-                            }`}
-                          >
-                            {tarefa.concluida ? 'Feito' : 'Não feito'}
-                          </button>
-
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              removerTarefa(diaObj.id, tarefa.id);
-                            }}
-                            className="px-2.5 py-1 rounded-lg bg-zinc-800/90 text-zinc-400 hover:text-rose-400 hover:bg-rose-600/20 border border-zinc-700/80 transition-all text-[11px] font-medium flex items-center gap-1"
-                            title="Excluir Tarefa"
-                          >
-                            <Trash2 className="w-3 h-3 text-rose-400" /> Apagar
-                          </button>
-                        </div>
+                    <div className="mb-4 space-y-1.5">
+                      <div className="flex justify-between text-[11px] font-semibold text-zinc-400">
+                        <span>Progresso do dia</span>
+                        <span className={progresso === 100 ? 'text-emerald-400' : 'text-zinc-300'}>{progresso}%</span>
                       </div>
-                    ))}
+                      <div className="w-full h-1.5 bg-zinc-900 rounded-full overflow-hidden border border-zinc-800">
+                        <div 
+                          className={`h-full transition-all duration-500 ${progresso === 100 ? 'bg-emerald-500' : 'bg-gradient-to-r from-red-600 to-rose-600'}`}
+                          style={{ width: `${progresso}%` }}
+                        ></div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      {diaObj.tarefas.map((tarefa: any) => (
+                        <div 
+                          key={tarefa.id}
+                          className={`p-3.5 rounded-xl border transition-all flex flex-col gap-3 group/item ${
+                            tarefa.concluida 
+                              ? 'bg-zinc-900/40 border-zinc-900/80 opacity-60' 
+                              : 'bg-zinc-900/80 border-zinc-800/80 hover:border-zinc-700 hover:bg-zinc-900 shadow-sm'
+                          }`}
+                        >
+                          <div 
+                            onClick={() => toggleTarefa(diaObj.id, tarefa.id)}
+                            className="flex items-start gap-2.5 cursor-pointer min-w-0"
+                          >
+                            <div className="mt-0.5 shrink-0">
+                              {tarefa.concluida ? (
+                                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                              ) : (
+                                <Circle className="w-4 h-4 text-zinc-600 group-hover/item:text-zinc-400 transition-colors" />
+                              )}
+                            </div>
+
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-amber-400 mb-1">
+                                {renderIcone(tarefa.icone, "w-3.5 h-3.5")}
+                                <span>{tarefa.horario}</span>
+                              </div>
+                              <p className={`text-xs leading-relaxed transition-colors ${tarefa.concluida ? 'text-zinc-500 line-through' : 'text-zinc-200'}`}>
+                                {tarefa.titulo}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-end gap-1.5 pt-2 border-t border-zinc-800/60">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                abrirEdicaoTarefa(diaObj.id, tarefa);
+                              }}
+                              className="px-2.5 py-1 rounded-lg bg-zinc-800/90 text-zinc-300 hover:text-white hover:bg-blue-600/30 border border-zinc-700/85 transition-all text-[11px] font-medium flex items-center gap-1"
+                              title="Editar Tarefa"
+                            >
+                              <Pencil className="w-3 h-3 text-blue-400" /> Editar
+                            </button>
+
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleTarefa(diaObj.id, tarefa.id);
+                              }}
+                              className={`px-2.5 py-1 rounded-lg border transition-all text-[11px] font-medium ${
+                                tarefa.concluida
+                                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/30'
+                                  : 'bg-zinc-800 text-zinc-300 border-zinc-700 hover:bg-red-600/20 hover:text-red-300 hover:border-red-500/40'
+                              }`}
+                            >
+                              {tarefa.concluida ? 'Feito' : 'Não feito'}
+                            </button>
+
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                removerTarefa(diaObj.id, tarefa.id);
+                              }}
+                              className="px-2.5 py-1 rounded-lg bg-zinc-800/90 text-zinc-400 hover:text-rose-400 hover:bg-rose-600/20 border border-zinc-700/85 transition-all text-[11px] font-medium flex items-center gap-1"
+                              title="Excluir Tarefa"
+                            >
+                              <Trash2 className="w-3 h-3 text-rose-400" /> Apagar
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <button
+                      onClick={() => adicionarNovaTarefa(diaObj.id)}
+                      className="w-full mt-3 py-2 bg-zinc-900/60 hover:bg-zinc-900 border border-dashed border-zinc-800 hover:border-zinc-700 text-zinc-400 hover:text-white text-xs font-semibold rounded-xl transition-all flex items-center justify-center gap-1.5"
+                    >
+                      <Plus className="w-3.5 h-3.5 text-red-500" /> Adicionar Tarefa
+                    </button>
                   </div>
 
-                  {/* Botão Adicionar Tarefa neste dia */}
-                  <button
-                    onClick={() => adicionarNovaTarefa(diaObj.id)}
-                    className="w-full mt-3 py-2 bg-zinc-900/60 hover:bg-zinc-900 border border-dashed border-zinc-800 hover:border-zinc-700 text-zinc-400 hover:text-white text-xs font-semibold rounded-xl transition-all flex items-center justify-center gap-1.5"
-                  >
-                    <Plus className="w-3.5 h-3.5 text-red-500" /> Adicionar Tarefa
-                  </button>
+                  <div className="mt-4 pt-3 border-t border-zinc-900 text-right">
+                    <span className="text-[10px] text-zinc-500 font-medium">
+                      {tarefasConcluidas} de {totalTarefas} concluídas
+                    </span>
+                  </div>
                 </div>
-
-                <div className="mt-4 pt-3 border-t border-zinc-900 text-right">
-                  <span className="text-[10px] text-zinc-500 font-medium">
-                    {tarefasConcluidas} de {totalTarefas} concluídas
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
 
       </main>
 
@@ -578,7 +625,7 @@ export default function CronogramaPage() {
               </div>
               <div>
                 <h2 className="text-base font-bold text-white">Subir Novo Cronograma em JSON</h2>
-                <p className="text-xs text-zinc-400">Cole a estrutura JSON formatada para atualizar instantaneamente o seu cronograma.</p>
+                <p className="text-xs text-zinc-400">Cole a estrutura JSON formatada para atualizar instantaneamente o seu cronograma na nuvem.</p>
               </div>
             </div>
 
@@ -618,7 +665,7 @@ export default function CronogramaPage() {
                 onClick={handleSalvarNovoJson}
                 className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-xs transition-all shadow-lg shadow-blue-900/30 flex items-center gap-2"
               >
-                <Upload className="w-4 h-4" /> Salvar Novo Cronograma
+                <Upload className="w-4 h-4" /> Salvar na Nuvem
               </button>
             </div>
 

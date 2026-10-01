@@ -2,6 +2,12 @@
 
 import React, { useState, useEffect } from 'react';
 import Navbar from '../components/Navbar';
+import { createClient } from '@supabase/supabase-js';
+
+// Inicialização do Cliente Supabase
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // ============================================================================
 // MATÉRIAS OFICIAIS DO EDITAL TJSP - VUNESP
@@ -87,50 +93,93 @@ export default function CadernoRevisaoPage() {
   const [copiadoPrompt, setCopiadoPrompt] = useState<boolean>(false);
   const [copiadoModalPrompt, setCopiadoModalPrompt] = useState<boolean>(false);
   const [modalFeedback, setModalFeedback] = useState<{ tipo: 'erro' | 'sucesso'; mensagem: string } | null>(null);
+  const [carregando, setCarregando] = useState<boolean>(true);
 
+  // Carrega do Supabase ao iniciar e ativa sincronização em tempo real (Realtime)
   useEffect(() => {
-    const savedDecks = localStorage.getItem('upquest_flashcards');
-    if (savedDecks) {
-      try {
-        setDecksPorDisciplina(JSON.parse(savedDecks));
-      } catch (e) {
-        console.error("Erro ao carregar flashcards", e);
-      }
-    } else {
-      const inicial = { "Língua Portuguesa": flashcardsInicialExemplo };
-      setDecksPorDisciplina(inicial);
-      localStorage.setItem('upquest_flashcards', JSON.stringify(inicial));
-    }
+    carregarDecksDoSupabase();
 
-    const savedProgresso = localStorage.getItem('upquest_flashcards_progresso');
-    if (savedProgresso) {
-      try {
-        setProgressoCards(JSON.parse(savedProgresso));
-      } catch (e) {
-        console.error("Erro ao carregar progresso", e);
-      }
-    }
+    const channel = supabase
+      .channel('public:caderno_revisao')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'caderno_revisao' }, () => {
+        carregarDecksDoSupabase();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
-  const salvarStorage = (novoEstado: Record<string, any>) => {
-    setDecksPorDisciplina(novoEstado);
-    localStorage.setItem('upquest_flashcards', JSON.stringify(novoEstado));
+  const carregarDecksDoSupabase = async () => {
+    try {
+      setCarregando(true);
+      const { data, error } = await supabase.from('caderno_revisao').select('*');
+      
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        const formatoObj: Record<string, any> = {};
+        data.forEach((item: any) => {
+          formatoObj[item.disciplina] = {
+            disciplina: item.disciplina,
+            titulo: item.titulo,
+            banca: item.banca,
+            cards: item.cards
+          };
+        });
+        setDecksPorDisciplina(formatoObj);
+      } else {
+        // Insere o exemplo inicial se a tabela estiver vazia
+        await supabase.from('caderno_revisao').upsert({
+          disciplina: flashcardsInicialExemplo.disciplina,
+          titulo: flashcardsInicialExemplo.titulo,
+          banca: flashcardsInicialExemplo.banca,
+          cards: flashcardsInicialExemplo.cards
+        }, { onConflict: 'disciplina' });
+
+        setDecksPorDisciplina({ [flashcardsInicialExemplo.disciplina]: flashcardsInicialExemplo });
+      }
+    } catch (e) {
+      console.error("Erro ao carregar do Supabase:", e);
+    } finally {
+      setCarregando(false);
+    }
   };
 
-  const handleCarregarJson = () => {
+  const salvarNoSupabase = async (disciplinaAlvo: string, deckData: any) => {
+    try {
+      const { error } = await supabase.from('caderno_revisao').upsert({
+        disciplina: disciplinaAlvo,
+        titulo: deckData.titulo,
+        banca: deckData.banca || 'VUNESP',
+        cards: deckData.cards,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'disciplina' });
+
+      if (error) throw error;
+
+      setDecksPorDisciplina(prev => ({
+        ...prev,
+        [disciplinaAlvo]: deckData
+      }));
+    } catch (e: any) {
+      console.error("Erro ao salvar no Supabase:", e);
+      setModalFeedback({ tipo: 'erro', mensagem: `Erro ao salvar na nuvem: ${e.message}` });
+    }
+  };
+
+  const handleCarregarJson = async () => {
     setModalFeedback(null);
     try {
       const parsed = JSON.parse(jsonInputText);
       if (parsed && parsed.cards && Array.isArray(parsed.cards)) {
-        const atualizado = {
-          ...decksPorDisciplina,
-          [modalDisciplinaAlvo]: {
-            ...parsed,
-            disciplina: modalDisciplinaAlvo
-          }
+        const deckFinal = {
+          ...parsed,
+          disciplina: modalDisciplinaAlvo
         };
-        salvarStorage(atualizado);
-        setModalFeedback({ tipo: 'sucesso', mensagem: `Deck salvo com sucesso para ${modalDisciplinaAlvo}!` });
+        await salvarNoSupabase(modalDisciplinaAlvo, deckFinal);
+        setModalFeedback({ tipo: 'sucesso', mensagem: `Deck salvo na nuvem para ${modalDisciplinaAlvo}!` });
         setTimeout(() => {
           setShowJsonModal(false);
           setModalFeedback(null);
@@ -147,17 +196,20 @@ export default function CadernoRevisaoPage() {
     }
   };
 
-  const excluirCard = (cardId: string) => {
+  const excluirCard = async (cardId: string) => {
     if (!deckAtual) return;
-    if (confirm("Deseja apagar este flashcard específico?")) {
+    if (confirm("Deseja apagar este flashcard da nuvem?")) {
       const novosCards = deckAtual.cards.filter((c: any) => c.id !== cardId);
-      let novoEstado = { ...decksPorDisciplina };
+      
       if (novosCards.length === 0) {
+        await supabase.from('caderno_revisao').delete().eq('disciplina', selectedDisciplina);
+        const novoEstado = { ...decksPorDisciplina };
         delete novoEstado[selectedDisciplina];
+        setDecksPorDisciplina(novoEstado);
       } else {
-        novoEstado[selectedDisciplina] = { ...deckAtual, cards: novosCards };
+        const deckAtualizado = { ...deckAtual, cards: novosCards };
+        await salvarNoSupabase(selectedDisciplina, deckAtualizado);
       }
-      salvarStorage(novoEstado);
       setCardIndex(0);
       setIsFlipped(false);
     }
@@ -206,7 +258,6 @@ export default function CadernoRevisaoPage() {
       [cardAtual.id]: avaliacao
     };
     setProgressoCards(novoProgresso);
-    localStorage.setItem('upquest_flashcards_progresso', JSON.stringify(novoProgresso));
     
     setTimeout(() => {
       proximoCard();
@@ -225,7 +276,7 @@ export default function CadernoRevisaoPage() {
           <div>
             <div className="flex items-center gap-2">
               <span className="bg-amber-500/20 text-amber-300 text-xs font-bold px-2.5 py-0.5 rounded-full border border-amber-500/30">TJSP - VUNESP</span>
-              <span className="bg-blue-500/20 text-blue-400 text-xs font-bold px-2.5 py-0.5 rounded-full border border-blue-500/30">Caderno de Revisão e Flashcards</span>
+              <span className="bg-emerald-500/20 text-emerald-400 text-xs font-bold px-2.5 py-0.5 rounded-full border border-emerald-500/30">Sincronizado Supabase 🟢</span>
             </div>
             <h1 className="text-2xl font-bold text-white mt-1">
               {deckAtual ? deckAtual.titulo : "Flashcards de Memorização Ativa"}
@@ -328,14 +379,14 @@ export default function CadernoRevisaoPage() {
           </div>
 
           <div className="z-10 my-6 flex-1 flex flex-col items-center justify-center">
-            {selectedDisciplina === "Todas as Matérias" ? (
+            {carregando ? (
+              <div className="text-center p-12 text-zinc-400 text-xs">Sincronizando com o Supabase...</div>
+            ) : selectedDisciplina === "Todas as Matérias" ? (
               <div className="text-center p-12 space-y-3">
-                <svg className="w-12 h-12 mx-auto text-zinc-700" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23-.693L5 14.5m14.8.8l1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0112 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.611L5 14.5"/></svg>
                 <p className="text-sm text-zinc-400 font-medium">Selecione uma disciplina no filtro acima para iniciar os estudos.</p>
               </div>
             ) : !deckAtual || cardsExibir.length === 0 ? (
               <div className="text-center p-12 space-y-3">
-                <svg className="w-12 h-12 mx-auto text-amber-500/60" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
                 <p className="text-sm text-zinc-300 font-medium">Nenhum flashcard encontrado para esta seleção.</p>
                 <button 
                   onClick={() => { 
@@ -382,40 +433,12 @@ export default function CadernoRevisaoPage() {
                         </p>
                       )}
 
-                      {/* Botões com Fixação de Cor Baseada no Estado Armazenado */}
                       <div className="pt-3 border-t border-zinc-800/80 space-y-2">
                         <p className="text-xs font-semibold text-zinc-400">Sua revisão sobre o assunto é:</p>
                         <div className="grid grid-cols-3 gap-2">
-                          <button
-                            onClick={() => avaliarDesempenho('ruim')}
-                            className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all shadow ${
-                              progressoCards[cardAtual.id] === 'ruim'
-                                ? 'bg-rose-600 text-white border-2 border-rose-400 shadow-rose-900/50 scale-[1.02]'
-                                : 'bg-rose-950/40 hover:bg-rose-900/50 text-rose-400 border border-rose-600/30'
-                            }`}
-                          >
-                            Ruim
-                          </button>
-                          <button
-                            onClick={() => avaliarDesempenho('medio')}
-                            className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all shadow ${
-                              progressoCards[cardAtual.id] === 'medio'
-                                ? 'bg-amber-600 text-white border-2 border-amber-400 shadow-amber-900/50 scale-[1.02]'
-                                : 'bg-amber-950/40 hover:bg-amber-900/50 text-amber-400 border border-amber-600/30'
-                            }`}
-                          >
-                            Médio
-                          </button>
-                          <button
-                            onClick={() => avaliarDesempenho('bom')}
-                            className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all shadow ${
-                              progressoCards[cardAtual.id] === 'bom'
-                                ? 'bg-emerald-600 text-white border-2 border-emerald-400 shadow-emerald-900/50 scale-[1.02]'
-                                : 'bg-emerald-950/40 hover:bg-emerald-900/50 text-emerald-400 border border-emerald-600/30'
-                            }`}
-                          >
-                            Bom
-                          </button>
+                          <button onClick={() => avaliarDesempenho('ruim')} className="py-2.5 px-3 rounded-xl text-xs font-bold bg-rose-950/40 hover:bg-rose-900/50 text-rose-400 border border-rose-600/30">Ruim</button>
+                          <button onClick={() => avaliarDesempenho('medio')} className="py-2.5 px-3 rounded-xl text-xs font-bold bg-amber-950/40 hover:bg-amber-900/50 text-amber-400 border border-amber-600/30">Médio</button>
+                          <button onClick={() => avaliarDesempenho('bom')} className="py-2.5 px-3 rounded-xl text-xs font-bold bg-emerald-950/40 hover:bg-emerald-900/50 text-emerald-400 border border-emerald-600/30">Bom</button>
                         </div>
                       </div>
                     </div>
@@ -439,146 +462,64 @@ export default function CadernoRevisaoPage() {
 
           {cardsExibir.length > 0 && (
             <div className="z-10 flex items-center justify-between pt-4 border-t border-zinc-800">
-              <button
-                onClick={cardAnterior}
-                className="px-4 py-2.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 font-semibold rounded-xl text-xs border border-zinc-800 transition-all flex items-center gap-2"
-              >
-                Anterior
-              </button>
-
-              <span className="text-xs text-zinc-500 font-medium">
-                TJSP Escrevente VUNESP
-              </span>
-
-              <button
-                onClick={proximoCard}
-                className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl text-xs border border-blue-500/40 transition-all flex items-center gap-2 shadow-md"
-              >
-                Próximo Card
-              </button>
+              <button onClick={cardAnterior} className="px-4 py-2.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 font-semibold rounded-xl text-xs border border-zinc-800">Anterior</button>
+              <span className="text-xs text-zinc-500 font-medium">Sincronizado na Nuvem</span>
+              <button onClick={proximoCard} className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl text-xs border border-blue-500/40 shadow-md">Próximo Card</button>
             </div>
           )}
         </div>
 
-        {/* Prompt Mestre Card no Final da Página */}
+        {/* Prompt Mestre Card */}
         <div className="bg-zinc-950 p-6 rounded-2xl border border-zinc-800 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <span className="bg-amber-500/25 text-amber-300 text-xs font-bold px-2.5 py-0.5 rounded-full border border-amber-500/40">Automação de Repetição</span>
-              <h2 className="text-sm font-bold text-white">Prompt Mestre para Flashcards</h2>
-            </div>
-            <p className="text-xs text-zinc-400 max-w-xl">
-              Gera perguntas diretas de memorização ativa e macetes VUNESP para adicionar direto no seu Caderno de Revisão.
-            </p>
+            <h2 className="text-sm font-bold text-white">Prompt Mestre para Flashcards</h2>
+            <p className="text-xs text-zinc-400 max-w-xl">Gera perguntas diretas de memorização ativa e macetes VUNESP.</p>
           </div>
-
-          <button
-            onClick={copiarPromptMestre}
-            className={`px-4 py-2.5 rounded-xl font-semibold text-xs transition-all flex items-center gap-2 whitespace-nowrap shadow-md ${
-              copiadoPrompt 
-                ? 'bg-emerald-600 text-white border border-emerald-500' 
-                : 'bg-amber-500 hover:bg-amber-400 text-black font-bold border border-amber-400'
-            }`}
-          >
+          <button onClick={copiarPromptMestre} className="px-4 py-2.5 rounded-xl font-semibold text-xs bg-amber-500 hover:bg-amber-400 text-black font-bold shadow-md">
             {copiadoPrompt ? 'Prompt Copiado!' : 'Copiar Prompt Mestre'}
           </button>
         </div>
 
       </main>
 
-      {/* Modal de Injeção de JSON */}
+      {/* Modal JSON */}
       {showJsonModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-zinc-950 border border-zinc-800 rounded-3xl max-w-2xl w-full p-6 shadow-2xl relative space-y-4">
-            
-            {/* Botão X Vermelho de Fechar Ajustado e Visível */}
-            <button 
-              onClick={() => { setShowJsonModal(false); setModalFeedback(null); }} 
-              className="absolute top-4 right-4 z-20 text-rose-400 hover:text-white bg-rose-950/40 hover:bg-rose-600 p-2 rounded-xl border border-rose-500/40 transition-all shadow-md flex items-center justify-center w-9 h-9"
-              title="Fechar"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-            </button>
+            <button onClick={() => { setShowJsonModal(false); setModalFeedback(null); }} className="absolute top-4 right-4 z-20 text-rose-400 hover:text-white bg-rose-950/40 hover:bg-rose-600 p-2 rounded-xl border border-rose-500/40 w-9 h-9 flex items-center justify-center">✕</button>
 
             <div className="flex items-center justify-between pr-12">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl flex items-center justify-center text-xl font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 shrink-0">
-                  <svg className="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
-                </div>
-                <div>
-                  <span className="text-xs font-bold px-2.5 py-0.5 rounded-full border bg-amber-500/20 text-amber-300 border-amber-500/30">Gerenciador de Decks</span>
-                  <h2 className="text-lg font-bold text-white mt-1">Colar Novo JSON de Flashcards</h2>
-                </div>
-              </div>
-
-              {/* Botão de Copiar Prompt dentro do Modal */}
-              <button
-                onClick={copiarPromptModal}
-                className={`text-xs font-semibold px-3 py-2 rounded-xl border transition-all flex items-center gap-1.5 shadow-md ${
-                  copiadoModalPrompt 
-                    ? 'bg-emerald-600 text-white border-emerald-500' 
-                    : 'bg-zinc-900 hover:bg-zinc-800 text-amber-300 border-amber-500/40'
-                }`}
-                title="Copiar Prompt Mestre para gerar novos cards"
-              >
-                {copiadoModalPrompt ? 'Prompt Copiado!' : 'Copiar Prompt Mestre'}
+              <h2 className="text-lg font-bold text-white">Enviar Deck para a Nuvem</h2>
+              <button onClick={copiarPromptModal} className="text-xs font-semibold px-3 py-2 rounded-xl border bg-zinc-900 text-amber-300 border-amber-500/40">
+                {copiadoModalPrompt ? 'Copiado!' : 'Copiar Prompt Mestre'}
               </button>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-zinc-300 flex items-center gap-1">
-                Disciplina Alvo:
-              </label>
-              <select 
-                value={modalDisciplinaAlvo}
-                onChange={(e) => setModalDisciplinaAlvo(e.target.value)}
-                className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 text-xs rounded-xl px-3 py-2.5 outline-none focus:border-amber-500"
-              >
-                {DISCIPLINAS_TJSP.map((disc) => (
-                  <option key={disc} value={disc}>{disc}</option>
-                ))}
+              <label className="text-xs font-bold text-zinc-300">Disciplina Alvo:</label>
+              <select value={modalDisciplinaAlvo} onChange={(e) => setModalDisciplinaAlvo(e.target.value)} className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 text-xs rounded-xl px-3 py-2.5 outline-none focus:border-amber-500">
+                {DISCIPLINAS_TJSP.map((disc) => (<option key={disc} value={disc}>{disc}</option>))}
               </select>
             </div>
 
             <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-bold text-zinc-300 flex items-center gap-1">
-                  Cole o JSON gerado pelo Prompt Mestre:
-                </label>
-                <span className="text-[11px] text-amber-400/90 font-medium italic">
-                  O prompt vai manter a estrutura atual e adicionar o que foi solicitado.
-                </span>
-              </div>
+              <label className="text-xs font-bold text-zinc-300">Cole o JSON gerado:</label>
               <textarea
                 value={jsonInputText}
-                onChange={(e) => {
-                  setJsonInputText(e.target.value);
-                  if (modalFeedback) setModalFeedback(null);
-                }}
+                onChange={(e) => { setJsonInputText(e.target.value); if (modalFeedback) setModalFeedback(null); }}
                 className="w-full h-36 bg-zinc-900 text-amber-300 p-3 rounded-2xl border border-zinc-800 font-mono text-xs outline-none focus:border-amber-500 resize-none"
-                placeholder="Cole o JSON dos flashcards aqui..."
               />
             </div>
 
-            {/* CAIXA DE FEEDBACK VISUAL NA TELA */}
             {modalFeedback && (
-              <div className={`p-3 rounded-xl border text-xs font-semibold flex items-center gap-2 ${
-                modalFeedback.tipo === 'sucesso' 
-                  ? 'bg-emerald-950/40 text-emerald-300 border-emerald-500/40' 
-                  : 'bg-rose-950/50 text-rose-300 border-rose-500/40'
-              }`}>
-                <span>{modalFeedback.mensagem}</span>
+              <div className={`p-3 rounded-xl border text-xs font-semibold ${modalFeedback.tipo === 'sucesso' ? 'bg-emerald-950/40 text-emerald-300 border-emerald-500/40' : 'bg-rose-950/50 text-rose-300 border-rose-500/40'}`}>
+                {modalFeedback.mensagem}
               </div>
             )}
 
             <div className="pt-2 border-t border-zinc-800 flex items-center justify-between">
-              <span className="text-[11px] text-zinc-500">Salva automaticamente no armazenamento local.</span>
-              <button 
-                onClick={handleCarregarJson} 
-                className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-black font-bold rounded-xl text-xs transition-all flex items-center gap-1.5 shadow-md"
-              >
-                Salvar Deck de Flashcards
-              </button>
+              <span className="text-[11px] text-zinc-500">Sincroniza automaticamente entre PC e Celular.</span>
+              <button onClick={handleCarregarJson} className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-black font-bold rounded-xl text-xs shadow-md">Salvar na Nuvem</button>
             </div>
           </div>
         </div>

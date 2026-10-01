@@ -2,6 +2,12 @@
 
 import React, { useState, useEffect } from 'react';
 import Navbar from '../components/Navbar';
+import { createClient } from '@supabase/supabase-js';
+
+// Inicialização do Cliente Supabase (Certifique-se de ter as variáveis no seu .env.local)
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // ============================================================================
 // MATÉRIAS OFICIAIS DO EDITAL TJSP - VUNESP
@@ -73,102 +79,6 @@ const mapaInicialExemplo = {
         ],
         pegadinha: "A VUNESP costuma inventar que a ausência de confirmação da citação eletrônica gera revelia automática. Cuidado: ela apenas obriga o uso dos meios tradicionais (correio/oficial), salvo se houver justificativa indevida passível de multa por ato atentatório à dignidade da justiça."
       }
-    },
-    {
-      id: "citacao-ficta",
-      titulo: "2. Citação Ficta: Hora Certa e Edital",
-      artigos: "ARTS. 252 - 259",
-      tag: "Presunção Legal",
-      corBorda: "border-amber-500/40 hover:border-amber-400",
-      tagClasses: "bg-amber-500/20 text-amber-300 border-amber-500/30",
-      headerIcon: "fa-triangle-exclamation text-amber-400",
-      subnos: [
-        {
-          titulo: "Citação por Hora Certa (Art. 252)",
-          descricao: "Modalidade executada exclusivamente por Oficial de Justiça em caso de ocultação.",
-          corTitulo: "text-amber-300",
-          icone: "fa-clock",
-          itens: [
-            "Requisito: Suspeita de OCULTAÇÃO do citando após o oficial procurar por 2 (duas) vezes sem sucesso.",
-            "Procedimento: Intimação de familiar ou vizinho informando o dia e horário em que retornará no dia útil imediato."
-          ]
-        },
-        {
-          titulo: "Citação por Edital (Art. 256)",
-          descricao: "Medida excepcionalíssima quando desconhecido ou incerto o citando, ou inacessível o lugar.",
-          corTitulo: "text-amber-300",
-          icone: "fa-newspaper",
-          itens: [
-            "Aplica-se quando ignorado, incerto ou inacessível o lugar em que se encontrar o citando.",
-            "Fixação do prazo de publicação do edital pelo juiz entre 20 e 60 dias."
-          ]
-        }
-      ],
-      modalInfo: {
-        title: "Exemplo Prático: Citação por Hora Certa e Edital",
-        tag: "Art. 252 a 259 CPC",
-        tagBg: "bg-amber-500/20 text-amber-300 border-amber-500/30",
-        iconBg: "bg-amber-500/20 text-amber-400 border border-amber-500/40",
-        icon: "fa-triangle-exclamation",
-        casosPraticos: [
-          {
-            titulo: "CASO PRÁTICO — HORA CERTA:",
-            texto: "O oficial vai à casa do réu duas vezes e percebe que ele se esconde para não receber o mandado."
-          }
-        ],
-        conclusoes: [
-          "Conclusão: O oficial avisa a pessoa da família que retornará no dia útil seguinte em horário certo, realizando a citação na hora marcada mesmo com a ausência intencional."
-        ],
-        pegadinha: "A VUNESP adora trocar o número de tentativas para a Hora Certa: são necessárias exatamente 2 (duas) tentativas frustradas por suspeita de ocultação."
-      }
-    },
-    {
-      id: "intimacoes",
-      titulo: "3. Intimações e Cartas Processuais",
-      artigos: "ARTS. 260 - 275",
-      tag: "Atos de Cientificação",
-      corBorda: "border-emerald-500/40 hover:border-emerald-400",
-      tagClasses: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
-      headerIcon: "fa-file-lines text-emerald-400",
-      subnos: [
-        {
-          titulo: "Intimação (Arts. 269 - 275)",
-          descricao: "Ato pelo qual se dá ciência a alguém dos atos e dos termos do processo.",
-          corTitulo: "text-amber-300",
-          icone: "fa-bell",
-          itens: [
-            "Regra: Realizada via Diário da Justiça Eletrônico (DJE) em nome do advogado constituído.",
-            "Nulidade da intimação: Ocorre quando realizada sem observar o pedido expresso de publicação em nome de advogado indicado."
-          ]
-        },
-        {
-          titulo: "Espécies de Cartas (Arts. 260 - 268)",
-          descricao: "Instrumentos de cooperação interjurisdicional.",
-          corTitulo: "text-amber-300",
-          icone: "fa-signs-post",
-          itens: [
-            "Carta Precatória: Solicitada por juízo estadual/federal a outro juízo de jurisdição diversa no território nacional.",
-            "Carta Rogatória: Solicitada a autoridade judiciária estrangeira."
-          ]
-        }
-      ],
-      modalInfo: {
-        title: "Exemplo Prático: Cartas e Intimações",
-        tag: "Art. 260 a 275 CPC",
-        tagBg: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
-        iconBg: "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40",
-        icon: "fa-file-lines",
-        casosPraticos: [
-          {
-            titulo: "CASO PRÁTICO — CARTA PRECATÓRIA:",
-            texto: "Um juiz de São Paulo precisa ouvir uma testemunha que mora em Campinas."
-          }
-        ],
-        conclusoes: [
-          "Conclusão: Emite-se uma Carta Precatória direcionada ao juízo de Campinas para a prática do ato processual fora da comarca de origem."
-        ],
-        pegadinha: "Lembre-se: atos fora da comarca dentro do Brasil utilizam Precatória. Para atos fora do país, usa-se a Rogatória."
-      }
     }
   ]
 };
@@ -229,63 +139,119 @@ export default function MapaMentalPage() {
   const [modalDisciplinaAlvo, setModalDisciplinaAlvo] = useState<string>("Direito Processual Civil");
   const [jsonInputText, setJsonInputText] = useState<string>('');
   const [copiadoPrompt, setCopiadoPrompt] = useState<boolean>(false);
+  const [carregando, setCarregando] = useState<boolean>(true);
 
+  // Carrega do Supabase ao iniciar e configura o Realtime
   useEffect(() => {
-    const saved = localStorage.getItem('upquest_mapas_mentais');
-    if (saved) {
-      try {
-        setMapasPorDisciplina(JSON.parse(saved));
-      } catch (e) {
-        console.error("Erro ao carregar mapas", e);
-      }
-    } else {
-      const inicial = { "Direito Processual Civil": mapaInicialExemplo };
-      setMapasPorDisciplina(inicial);
-      localStorage.setItem('upquest_mapas_mentais', JSON.stringify(inicial));
-    }
+    carregarDadosSupabase();
+
+    const channel = supabase
+      .channel('public:mapas_mentais')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'mapas_mentais' }, () => {
+        carregarDadosSupabase();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
-  const salvarMapasStorage = (novoEstado: Record<string, any>) => {
-    setMapasPorDisciplina(novoEstado);
-    localStorage.setItem('upquest_mapas_mentais', JSON.stringify(novoEstado));
+  const carregarDadosSupabase = async () => {
+    try {
+      setCarregando(true);
+      const { data, error } = await supabase.from('mapas_mentais').select('*');
+      
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        const mapaFormatado: Record<string, any> = {};
+        data.forEach((item: any) => {
+          mapaFormatado[item.disciplina] = {
+            disciplina: item.disciplina,
+            titulo: item.titulo,
+            banca: item.banca,
+            ramos: item.ramos
+          };
+        });
+        setMapasPorDisciplina(mapaFormatado);
+      } else {
+        // Insere o exemplo inicial se a tabela estiver vazia
+        await supabase.from('mapas_mentais').upsert({
+          disciplina: mapaInicialExemplo.disciplina,
+          titulo: mapaInicialExemplo.titulo,
+          banca: mapaInicialExemplo.banca,
+          ramos: mapaInicialExemplo.ramos
+        }, { onConflict: 'disciplina' });
+
+        setMapasPorDisciplina({ [mapaInicialExemplo.disciplina]: mapaInicialExemplo });
+      }
+    } catch (e) {
+      console.error("Erro ao carregar mapas do Supabase:", e);
+    } finally {
+      setCarregando(false);
+    }
   };
 
-  const handleCarregarJson = () => {
+  const salvarNoSupabase = async (disciplinaAlvo: string, payloadMapa: any) => {
+    try {
+      const { error } = await supabase.from('mapas_mentais').upsert({
+        disciplina: disciplinaAlvo,
+        titulo: payloadMapa.titulo,
+        banca: payloadMapa.banca || 'VUNESP',
+        ramos: payloadMapa.ramos,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'disciplina' });
+
+      if (error) throw error;
+
+      setMapasPorDisciplina(prev => ({
+        ...prev,
+        [disciplinaAlvo]: payloadMapa
+      }));
+    } catch (e) {
+      console.error("Erro ao salvar no Supabase:", e);
+      alert("Erro ao salvar no banco de dados em nuvem. Verifique a conexão.");
+    }
+  };
+
+  const handleCarregarJson = async () => {
     try {
       const parsed = JSON.parse(jsonInputText);
       if (parsed && parsed.ramos && Array.isArray(parsed.ramos)) {
-        const atualizado = {
-          ...mapasPorDisciplina,
-          [modalDisciplinaAlvo]: {
-            ...parsed,
-            disciplina: modalDisciplinaAlvo
-          }
+        const payloadFinal = {
+          ...parsed,
+          disciplina: modalDisciplinaAlvo
         };
-        salvarMapasStorage(atualizado);
+        await salvarNoSupabase(modalDisciplinaAlvo, payloadFinal);
         setShowJsonModal(false);
         setJsonInputText('');
         setSelectedDisciplina(modalDisciplinaAlvo);
         setSelectedAssunto('all');
-        alert(`Mapa mental salvo com sucesso para ${modalDisciplinaAlvo}!`);
+        alert(`Mapa mental salvo com sucesso no Supabase para ${modalDisciplinaAlvo}!`);
       } else {
         alert('O JSON precisa conter obrigatoriamente a chave "ramos".');
       }
     } catch (e) {
-      alert('Erro de sintaxe no JSON.');
+      alert('Erro de sintaxe no JSON. Verifique se aspas e chaves estão corretas.');
     }
   };
 
-  const excluirRamo = (ramoId: string) => {
+  const excluirRamo = async (ramoId: string) => {
     if (!mapaAtual) return;
     if (confirm("Deseja apagar este assunto?")) {
       const novosRamos = mapaAtual.ramos.filter((r: any) => r.id !== ramoId);
-      let novoEstado = { ...mapasPorDisciplina };
+      
       if (novosRamos.length === 0) {
+        // Se ficar vazio, remove do banco
+        await supabase.from('mapas_mentais').delete().eq('disciplina', selectedDisciplina);
+        const novoEstado = { ...mapasPorDisciplina };
         delete novoEstado[selectedDisciplina];
+        setMapasPorDisciplina(novoEstado);
       } else {
-        novoEstado[selectedDisciplina] = { ...mapaAtual, ramos: novosRamos };
+        const novoMapa = { ...mapaAtual, ramos: novosRamos };
+        await salvarNoSupabase(selectedDisciplina, novoMapa);
       }
-      salvarMapasStorage(novoEstado);
       setSelectedAssunto('all');
     }
   };
@@ -310,7 +276,7 @@ export default function MapaMentalPage() {
           <div>
             <div className="flex items-center gap-2">
               <span className="bg-blue-500/20 text-blue-400 text-xs font-bold px-2.5 py-0.5 rounded-full border border-blue-500/30">TJSP - VUNESP</span>
-              <span className="bg-amber-500/20 text-amber-300 text-xs font-bold px-2.5 py-0.5 rounded-full border border-amber-500/30">Visão Sistêmica Ampla</span>
+              <span className="bg-amber-500/20 text-amber-300 text-xs font-bold px-2.5 py-0.5 rounded-full border border-amber-500/30">Sincronizado Supabase 🟢</span>
             </div>
             <h1 className="text-2xl font-bold text-white mt-1">
               {mapaAtual ? mapaAtual.titulo : "Mapa Mental • Edital TJSP"}
@@ -394,7 +360,11 @@ export default function MapaMentalPage() {
           </div>
 
           <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-6 z-10 overflow-y-auto pr-1">
-            {selectedDisciplina === "Todas as Matérias" ? (
+            {carregando ? (
+              <div className="col-span-3 flex items-center justify-center p-12 text-zinc-400 text-xs">
+                Sincronizando com o Supabase...
+              </div>
+            ) : selectedDisciplina === "Todas as Matérias" ? (
               <div className="col-span-3 flex flex-col items-center justify-center text-center p-12 space-y-3">
                 <p className="text-sm text-zinc-400 font-medium">Selecione uma disciplina no filtro acima.</p>
               </div>
@@ -473,7 +443,7 @@ export default function MapaMentalPage() {
 
           <div className="mt-6 pt-4 border-t border-zinc-800/60 flex items-center justify-between text-xs text-zinc-500 z-10">
             <span>TJSP Escrevente VUNESP</span>
-            <span>Fixação rápida garantida</span>
+            <span>Sincronizado em Nuvem</span>
           </div>
         </div>
 
@@ -570,12 +540,11 @@ export default function MapaMentalPage() {
         })()
       )}
 
-      {/* MODAL DE INJEÇÃO DE JSON COM O CABEÇALHO PADRONIZADO E SVG NATIVO */}
+      {/* MODAL DE INJEÇÃO DE JSON */}
       {showJsonModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-zinc-950 border border-zinc-800 rounded-3xl max-w-2xl w-full p-6 shadow-2xl relative space-y-4">
             
-            {/* Botão de Fechar Estilizado */}
             <button 
               onClick={() => setShowJsonModal(false)} 
               className="absolute top-4 right-4 text-[#ff7575] hover:text-white bg-[#2a1215] hover:bg-[#3d1a1e] w-9 h-9 flex items-center justify-center rounded-full border border-red-500/40 transition-all shadow-md"
@@ -583,7 +552,6 @@ export default function MapaMentalPage() {
               ✕
             </button>
 
-            {/* Cabeçalho com Ícone SVG Nativo Dourado */}
             <div className="flex items-center gap-3 pr-10">
               <div className="w-12 h-12 rounded-2xl flex items-center justify-center bg-amber-500/10 text-amber-400 border border-amber-500/40 shadow-inner flex-shrink-0">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -592,9 +560,9 @@ export default function MapaMentalPage() {
               </div>
               <div>
                 <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full border bg-amber-500/20 text-amber-300 border-amber-500/30">
-                  Gerenciador de Decks
+                  Gerenciador em Nuvem
                 </span>
-                <h2 className="text-lg font-bold text-white mt-1">Colar Novo JSON de Flashcards</h2>
+                <h2 className="text-lg font-bold text-white mt-1">Colar Novo JSON de Mapas Mentais</h2>
               </div>
             </div>
 
@@ -626,12 +594,12 @@ export default function MapaMentalPage() {
             </div>
 
             <div className="pt-2 border-t border-zinc-800 flex items-center justify-between">
-              <span className="text-[11px] text-zinc-500">Salva direto no armazenamento local.</span>
+              <span className="text-[11px] text-zinc-500">Salva direto no Supabase (PC e Celular sincronizados).</span>
               <button 
                 onClick={handleCarregarJson} 
                 className="px-5 py-2.5 bg-amber-600 hover:bg-amber-500 text-white font-semibold rounded-xl text-xs transition-all flex items-center gap-1.5 shadow-md"
               >
-                Salvar na Disciplina
+                Salvar na Nuvem
               </button>
             </div>
           </div>

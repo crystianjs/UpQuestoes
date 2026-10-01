@@ -219,16 +219,34 @@ export default function MapaMentalPage() {
     try {
       const parsed = JSON.parse(jsonInputText);
       if (parsed && parsed.ramos && Array.isArray(parsed.ramos)) {
+        // Pega o mapa/deck existente na disciplina alvo para fazer o merge inteligente por ID
+        const mapaExistente = mapasPorDisciplina[modalDisciplinaAlvo];
+        let ramosFinais = [...parsed.ramos];
+
+        if (mapaExistente && mapaExistente.ramos) {
+          // Cria um Set com os IDs dos ramos novos que estão sendo enviados
+          const idsNovos = new Set(parsed.ramos.map((r: any) => r.id));
+          
+          // Preserva os ramos antigos cujos IDs NÃO estão presentes no novo lote
+          const ramosAntigosPreservados = mapaExistente.ramos.filter((r: any) => !idsNovos.has(r.id));
+          
+          // Une os antigos preservados com os novos ramos (ou atualizados por ID)
+          ramosFinais = [...ramosAntigosPreservados, ...parsed.ramos];
+        }
+
         const payloadFinal = {
-          ...parsed,
-          disciplina: modalDisciplinaAlvo
+          disciplina: modalDisciplinaAlvo,
+          titulo: parsed.titulo || mapaExistente?.titulo || `Mapa Mental: ${modalDisciplinaAlvo}`,
+          banca: parsed.banca || 'VUNESP',
+          ramos: ramosFinais
         };
+
         await salvarNoSupabase(modalDisciplinaAlvo, payloadFinal);
         setShowJsonModal(false);
         setJsonInputText('');
         setSelectedDisciplina(modalDisciplinaAlvo);
         setSelectedAssunto('all');
-        alert(`Mapa mental salvo com sucesso no Supabase para ${modalDisciplinaAlvo}!`);
+        alert(`Mapa mental atualizado com sucesso na nuvem para ${modalDisciplinaAlvo} (${ramosFinais.length} blocos no total, sem perder os anteriores)!`);
       } else {
         alert('O JSON precisa conter obrigatoriamente a chave "ramos".');
       }
@@ -292,7 +310,7 @@ export default function MapaMentalPage() {
               }}
               className="text-xs font-semibold px-4 py-2.5 rounded-xl border border-amber-500/40 bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 transition-all flex items-center gap-1.5 shadow-md"
             >
-              <svg className="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg> Gerenciar / Colar Novo JSON
+              <svg className="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg> Gerenciar / Adicionar Novos Blocos (JSON)
             </button>
           </div>
         </div>
@@ -375,7 +393,7 @@ export default function MapaMentalPage() {
                   onClick={() => { setModalDisciplinaAlvo(selectedDisciplina); setShowJsonModal(true); }}
                   className="px-4 py-2.5 bg-amber-600 text-white rounded-xl text-xs font-semibold shadow-md hover:bg-amber-500 transition-all"
                 >
-                  Colar JSON Agora
+                  Adicionar Blocos via JSON
                 </button>
               </div>
             ) : ramosExibir.length === 0 ? (
@@ -443,7 +461,7 @@ export default function MapaMentalPage() {
 
           <div className="mt-6 pt-4 border-t border-zinc-800/60 flex items-center justify-between text-xs text-zinc-500 z-10">
             <span>TJSP Escrevente VUNESP</span>
-            <span>Sincronizado em Nuvem</span>
+            <span>Sincronizado em Nuvem (Merge por ID)</span>
           </div>
         </div>
 
@@ -455,7 +473,7 @@ export default function MapaMentalPage() {
               <h2 className="text-sm font-bold text-white">Prompt Mestre com Ícones e Cores</h2>
             </div>
             <p className="text-xs text-zinc-400 max-w-2xl">
-              Gera resumos estruturados com destaque em amarelo para pontos críticos e ícones visuais para melhor assimilação.
+              Gera resumos estruturados com destaque em amarelo para pontos críticos e IDs únicos para união sem perdas.
             </p>
           </div>
 
@@ -560,9 +578,9 @@ export default function MapaMentalPage() {
               </div>
               <div>
                 <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full border bg-amber-500/20 text-amber-300 border-amber-500/30">
-                  Gerenciador em Nuvem
+                  Gerenciador em Nuvem (Merge por ID)
                 </span>
-                <h2 className="text-lg font-bold text-white mt-1">Colar Novo JSON de Mapas Mentais</h2>
+                <h2 className="text-lg font-bold text-white mt-1">Adicionar / Atualizar Blocos do Mapa Mental</h2>
               </div>
             </div>
 
@@ -583,7 +601,7 @@ export default function MapaMentalPage() {
 
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-zinc-300 flex items-center gap-1">
-                Cole o JSON do Prompt Mestre:
+                Cole o JSON do Prompt Mestre (os novos IDs somam-se aos antigos):
               </label>
               <textarea
                 value={jsonInputText}
@@ -594,7 +612,7 @@ export default function MapaMentalPage() {
             </div>
 
             <div className="pt-2 border-t border-zinc-800 flex items-center justify-between">
-              <span className="text-[11px] text-zinc-500">Salva direto no Supabase (PC e Celular sincronizados).</span>
+              <span className="text-[11px] text-zinc-500">Une os novos blocos com os anteriores na nuvem.</span>
               <button 
                 onClick={handleCarregarJson} 
                 className="px-5 py-2.5 bg-amber-600 hover:bg-amber-500 text-white font-semibold rounded-xl text-xs transition-all flex items-center gap-1.5 shadow-md"

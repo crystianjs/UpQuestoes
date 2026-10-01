@@ -189,12 +189,34 @@ export default function CadernoRevisaoPage() {
     try {
       const parsed = JSON.parse(jsonInputText);
       if (parsed && parsed.cards && Array.isArray(parsed.cards)) {
+        // Pega os cards que já existem na disciplina alvo (se houver) para fazer o merge inteligente
+        const deckExistente = decksPorDisciplina[modalDisciplinaAlvo];
+        let cardsFinais = [...parsed.cards];
+
+        if (deckExistente && deckExistente.cards) {
+          // Cria um mapa dos IDs dos cards novos que estão sendo inseridos
+          const idsNovos = new Set(parsed.cards.map((c: any) => c.id));
+          
+          // Mantém os cards antigos cujos IDs NÃO estão no novo lote enviado
+          const cardsAntigosPreservados = deckExistente.cards.filter((c: any) => !idsNovos.has(c.id));
+          
+          // Une os antigos preservados com os novos cards
+          cardsFinais = [...cardsAntigosPreservados, ...parsed.cards];
+        }
+
         const deckFinal = {
-          ...parsed,
-          disciplina: modalDisciplinaAlvo
+          disciplina: modalDisciplinaAlvo,
+          titulo: parsed.titulo || deckExistente?.titulo || `Flashcards: ${modalDisciplinaAlvo}`,
+          banca: parsed.banca || 'VUNESP',
+          cards: cardsFinais
         };
+
         await salvarNoSupabase(modalDisciplinaAlvo, deckFinal);
-        setModalFeedback({ tipo: 'sucesso', mensagem: `Deck salvo na nuvem para ${modalDisciplinaAlvo}!` });
+        setModalFeedback({ 
+          tipo: 'sucesso', 
+          mensagem: `Deck atualizado! Total de ${cardsFinais.length} cards na nuvem para ${modalDisciplinaAlvo} (sem perder os anteriores).` 
+        });
+
         setTimeout(() => {
           setShowJsonModal(false);
           setModalFeedback(null);
@@ -202,7 +224,7 @@ export default function CadernoRevisaoPage() {
           setSelectedAssunto('all');
           setCardIndex(0);
           setIsFlipped(false);
-        }, 1200);
+        }, 1500);
       } else {
         setModalFeedback({ tipo: 'erro', mensagem: 'O JSON precisa conter obrigatoriamente a chave "cards" em formato de array ([...]).' });
       }
@@ -346,7 +368,7 @@ export default function CadernoRevisaoPage() {
               className="text-xs font-semibold px-4 py-2.5 rounded-xl border border-amber-500/40 bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 transition-all flex items-center gap-1.5 shadow-md"
             >
               <svg className="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
-              Gerenciar / Colar Novo JSON
+              Gerenciar / Adicionar Novos Cards (JSON)
             </button>
           </div>
         </div>
@@ -449,7 +471,7 @@ export default function CadernoRevisaoPage() {
                   }}
                   className="px-4 py-2.5 bg-amber-500 text-black font-bold rounded-xl text-xs shadow-md hover:bg-amber-400 transition-all"
                 >
-                  Gerar Flashcards por JSON
+                  Adicionar Flashcards por JSON
                 </button>
               </div>
             ) : (
@@ -534,7 +556,7 @@ export default function CadernoRevisaoPage() {
         <div className="bg-zinc-950 p-6 rounded-2xl border border-zinc-800 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div className="space-y-1">
             <h2 className="text-sm font-bold text-white">Prompt Mestre para Flashcards</h2>
-            <p className="text-xs text-zinc-400 max-w-xl">Gera perguntas diretas de memorização ativa e macetes VUNESP.</p>
+            <p className="text-xs text-zinc-400 max-w-xl">Gera perguntas diretas de memorização ativa e macetes VUNESP com IDs únicos.</p>
           </div>
           <button onClick={copiarPromptMestre} className="px-4 py-2.5 rounded-xl font-semibold text-xs bg-amber-500 hover:bg-amber-400 text-black font-bold shadow-md">
             {copiadoPrompt ? 'Prompt Copiado!' : 'Copiar Prompt Mestre'}
@@ -550,7 +572,7 @@ export default function CadernoRevisaoPage() {
             <button onClick={() => { setShowJsonModal(false); setModalFeedback(null); }} className="absolute top-4 right-4 z-20 text-rose-400 hover:text-white bg-rose-950/40 hover:bg-rose-600 p-2 rounded-xl border border-rose-500/40 w-9 h-9 flex items-center justify-center">✕</button>
 
             <div className="flex items-center justify-between pr-12">
-              <h2 className="text-lg font-bold text-white">Enviar Deck para a Nuvem</h2>
+              <h2 className="text-lg font-bold text-white">Adicionar / Atualizar Flashcards na Nuvem</h2>
               <button onClick={copiarPromptModal} className="text-xs font-semibold px-3 py-2 rounded-xl border bg-zinc-900 text-amber-300 border-amber-500/40">
                 {copiadoModalPrompt ? 'Copiado!' : 'Copiar Prompt Mestre'}
               </button>
@@ -564,7 +586,7 @@ export default function CadernoRevisaoPage() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-zinc-300">Cole o JSON gerado:</label>
+              <label className="text-xs font-bold text-zinc-300">Cole o JSON gerado (os novos IDs serão somados aos anteriores):</label>
               <textarea
                 value={jsonInputText}
                 onChange={(e) => { setJsonInputText(e.target.value); if (modalFeedback) setModalFeedback(null); }}
@@ -579,7 +601,7 @@ export default function CadernoRevisaoPage() {
             )}
 
             <div className="pt-2 border-t border-zinc-800 flex items-center justify-between">
-              <span className="text-[11px] text-zinc-500">Sincroniza automaticamente entre PC e Celular.</span>
+              <span className="text-[11px] text-zinc-500">Faz merge automático por ID sem perder os antigos.</span>
               <button onClick={handleCarregarJson} className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-black font-bold rounded-xl text-xs shadow-md">Salvar na Nuvem</button>
             </div>
           </div>

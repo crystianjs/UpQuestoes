@@ -28,49 +28,51 @@ const DISCIPLINAS_TJSP = [
 ];
 
 const flashcardsInicialExemplo = {
-  disciplina: "Língua Portuguesa",
-  titulo: "Flashcards: Morfologia e Classes de Palavras",
+  disciplina: "Direito Processual Civil",
+  titulo: "Flashcards: Atos Processuais e Prazos (Padrão VUNESP)",
   banca: "VUNESP",
   cards: [
     {
-      id: "fc-1",
-      assunto: "Morfologia",
-      tag: "Classes Gramaticais",
+      id: "fc-tjsp-01",
+      assunto: "📌 Atos Processuais",
+      tag: "Contagem de Prazos",
       tagClasses: "bg-amber-500/20 text-amber-300 border-amber-500/30",
-      pergunta: "Quais são as 10 classes gramaticais da Língua Portuguesa?",
-      respostaResumida: "Substantivo, Artigo, Adjetivo, Pronome, Numeral, Verbo, Advérbio, Preposição, Conjunção e Interjeição.",
-      detalhes: "Dica VUNESP: As 6 primeiras são variáveis em gênero, número e/ou grau; as 4 últimas são invariáveis. Cuidado com o Numeral, que pode ser variável.",
-      icone: "fa-book-open"
-    },
-    {
-      id: "fc-2",
-      assunto: "Morfologia",
-      tag: "Verbos",
-      tagClasses: "bg-blue-500/20 text-blue-300 border-blue-500/30",
-      pergunta: "Qual é a diferença fundamental entre Verbos Transitivos Diretos e Indiretos?",
-      respostaResumida: "O VTD exige objeto direto sem preposição obrigatória. O VTI exige objeto indireto regido por preposição obrigatória.",
-      detalhes: "A VUNESP adora cobrar verbos que mudam de regência ou que aceitam os dois tipos (bitransitivos). Atente-se à regência do verbo 'aspirar' e 'visar'.",
-      icone: "fa-bolt"
+      pergunta: "🧠 (TJSP / VUNESP) De acordo com o CPC, na contagem de prazo em dias, estabelecida para o processo civil, computar-se-ão apenas:",
+      respostaResumida: "✅ Apenas os dias úteis (Art. 219 do CPC). Exclui-se o dia do começo e inclui-se o dia do vencimento.",
+      detalhes: "⚠️ Pegadinha VUNESP: A banca costuma tentar confundir dizendo que contam-se todos os dias corridos (regra antiga do CPC/73). No CPC atual, prazos processuais contam-se estritamente em dias úteis!",
+      icone: "fa-brain"
     }
   ]
 };
 
-const PROMPT_MESTRE_FLASHCARDS = `Com base no assunto de estudo fornecido, transforme-o estritamente no seguinte formato JSON válido (sem markdown extra fora das chaves). 
-IMPORTANTE: Gere cartões focados em memorização ativa para concurso público (padrão VUNESP), contendo ID único, assunto, tag curta, classes de estilo para a tag, pergunta, respostaResumida, macete de detalhes e icone (ex: fa-brain, fa-book, fa-bolt).
+const PROMPT_MESTRE_FLASHCARDS = `Com base estritamente no assunto de estudo fornecido (de qualquer disciplina do edital do TJSP), transforme-o em um JSON válido estruturado para flashcards de memorização ativa (sem nenhum texto ou markdown fora das chaves).
+
+REGRAS OBRIGATÓRIAS PARA OS FLASHCARDS (PADRÃO PROVA VUNESP):
+1. IDs ÚNICOS E INÉDITOS: Cada item dentro do array 'cards' DEVE ter um campo 'id' único, descritivo e inédito (ex: 'penal-crime-fc01', 'portuguesa-crase-fc02'). NUNCA repita IDs anteriores para garantir o funcionamento correto do merge na nuvem.
+2. PERGUNTAS IGUAL A PROVA: As perguntas ('pergunta') DEVEM ser formuladas exatamente no estilo de cobrança de concurso público da banca VUNESP (ex: envolvendo situações-problema, "Nos termos do Código...", "Assinale a alternativa correta...", ou casos práticos cobrados de Escrevente).
+3. ESTRUTURA DOS CARDS: Cada flashcard DEVE conter obrigatoriamente:
+   - 'assunto' com emoji visual (ex: '📌 Direito Penal').
+   - 'tag' curta e 'tagClasses' (cores padrão Tailwind).
+   - 'pergunta' desafiadora no padrão de prova.
+   - 'respostaResumida' direta, objetiva e fundamentada na lei seca.
+   - 'detalhes' com macetes, prazos e pegadinhas clássicas da VUNESP.
+4. PADRÃO VISUAL E EMOJIS: Utilize emojis estratégicos (🧠, ✅, ⚠️, 📌) para facilitar a retenção visual.
+
+Siga exatamente esta estrutura JSON de exemplo:
 
 {
   "disciplina": "Nome exato da Disciplina do Edital TJSP",
-  "titulo": "Título descritivo do Deck de Flashcards",
+  "titulo": "Flashcards: [Nome do Assunto]",
   "banca": "VUNESP",
   "cards": [
     {
-      "id": "fc-identificador-unico",
-      "assunto": "Subtema ou Tópico",
-      "tag": "Palavra Chave",
+      "id": "identificador-unico-e-inedito",
+      "assunto": "📌 [Subtema ou Tópico]",
+      "tag": "Palavra-Chave",
       "tagClasses": "bg-amber-500/20 text-amber-300 border-amber-500/30",
-      "pergunta": "Pergunta direta e desafiadora estimulando a lembrança ativa?",
-      "respostaResumida": "Resposta clara, objetiva e direta que aparece ao virar o cartão.",
-      "detalhes": "Detalhe complementar, macete ou pegadinha clássica da banca VUNESP sobre o tema.",
+      "pergunta": "🧠 (TJSP / VUNESP) Pergunta elaborada exatamente no estilo de cobrança de prova de concurso público?",
+      "respostaResumida": "✅ Resposta clara, objetiva e fundamentada na lei seca que aparece ao virar o cartão.",
+      "detalhes": "⚠️ Macete VUNESP / Base Legal: Detalhe complementar, prazo ou pegadinha clássica sobre o tema.",
       "icone": "fa-brain"
     }
   ]
@@ -88,7 +90,7 @@ export default function CadernoRevisaoPage() {
 
   // Estados dos Modais
   const [showJsonModal, setShowJsonModal] = useState<boolean>(false);
-  const [modalDisciplinaAlvo, setModalDisciplinaAlvo] = useState<string>("Língua Portuguesa");
+  const [modalDisciplinaAlvo, setModalDisciplinaAlvo] = useState<string>("Direito Processual Civil");
   const [jsonInputText, setJsonInputText] = useState<string>('');
   const [copiadoPrompt, setCopiadoPrompt] = useState<boolean>(false);
   const [copiadoModalPrompt, setCopiadoModalPrompt] = useState<boolean>(false);
@@ -416,7 +418,7 @@ export default function CadernoRevisaoPage() {
                     onClick={() => { setSelectedAssunto(assunto); setCardIndex(0); setIsFlipped(false); }} 
                     className={`text-xs font-semibold px-3 py-2 rounded-xl border transition-all whitespace-nowrap ${selectedAssunto === assunto ? 'border-amber-500 bg-amber-500 text-black font-bold shadow-lg' : 'border-zinc-800 bg-zinc-900 text-zinc-300 hover:text-white'}`}
                   >
-                    {assunto}
+                    {assunto.replace(/^[📌⚖️⏱️0-9]+\.\s*/, '')}
                   </button>
                 ))}
               </div>
@@ -505,14 +507,14 @@ export default function CadernoRevisaoPage() {
                   ) : (
                     <div className="space-y-4">
                       <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
-                        Resposta Correta:
+                        ✅ Resposta Correta:
                       </span>
                       <p className="text-sm sm:text-base font-semibold text-zinc-100 leading-relaxed bg-zinc-950/80 p-4 rounded-2xl border border-zinc-800">
                         {cardAtual.respostaResumida}
                       </p>
                       {cardAtual.detalhes && (
                         <p className="text-xs text-amber-300 bg-amber-950/20 p-3 rounded-xl border border-amber-500/30">
-                          <b>Macete VUNESP:</b> {cardAtual.detalhes}
+                          {cardAtual.detalhes}
                         </p>
                       )}
 
@@ -555,8 +557,8 @@ export default function CadernoRevisaoPage() {
         {/* Prompt Mestre Card */}
         <div className="bg-zinc-950 p-6 rounded-2xl border border-zinc-800 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div className="space-y-1">
-            <h2 className="text-sm font-bold text-white">Prompt Mestre para Flashcards</h2>
-            <p className="text-xs text-zinc-400 max-w-xl">Gera perguntas diretas de memorização ativa e macetes VUNESP com IDs únicos.</p>
+            <h2 className="text-sm font-bold text-white">Prompt Mestre para Flashcards (Padrão Prova VUNESP)</h2>
+            <p className="text-xs text-zinc-400 max-w-xl">Gera perguntas no estilo exato de concurso público, com IDs únicos e macetes VUNESP.</p>
           </div>
           <button onClick={copiarPromptMestre} className="px-4 py-2.5 rounded-xl font-semibold text-xs bg-amber-500 hover:bg-amber-400 text-black font-bold shadow-md">
             {copiadoPrompt ? 'Prompt Copiado!' : 'Copiar Prompt Mestre'}
@@ -586,7 +588,7 @@ export default function CadernoRevisaoPage() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-zinc-300">Cole o JSON gerado (os novos IDs serão somados aos anteriores):</label>
+              <label className="text-xs font-bold text-zinc-300">Cole o JSON gerado (os novos IDs somam-se aos antigos):</label>
               <textarea
                 value={jsonInputText}
                 onChange={(e) => { setJsonInputText(e.target.value); if (modalFeedback) setModalFeedback(null); }}

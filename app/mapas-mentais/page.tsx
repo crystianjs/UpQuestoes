@@ -34,7 +34,7 @@ const mapaInicialExemplo = {
   ramos: [
     {
       id: "citacao-conceito",
-      titulo: "1. Citação: Conceito e Formas de Realização",
+      titulo: "📌 1. Citação: Conceito e Formas de Realização",
       artigos: "ARTS. 238 - 259",
       tag: "Triangulação",
       corBorda: "border-rose-500/40 hover:border-rose-400",
@@ -42,7 +42,7 @@ const mapaInicialExemplo = {
       headerIcon: "fa-envelope text-rose-400",
       subnos: [
         {
-          titulo: "Regra Geral e Meio Eletrônico (Art. 246)",
+          titulo: "⚖️ Regra Geral e Meio Eletrônico (Art. 246)",
           descricao: "Convocação do réu, executado ou interessado para integrar a relação processual.",
           corTitulo: "text-amber-300",
           icone: "fa-bolt",
@@ -52,7 +52,7 @@ const mapaInicialExemplo = {
           ]
         },
         {
-          titulo: "Demais Formas Reais (Correio, Oficial, Cartório)",
+          titulo: "🏛️ Demais Formas Reais (Correio, Oficial, Cartório)",
           descricao: "Modalidades diretas de comunicação ao citando.",
           corTitulo: "text-amber-300",
           icone: "fa-user-tie",
@@ -63,67 +63,80 @@ const mapaInicialExemplo = {
         }
       ],
       modalInfo: {
-        title: "Exemplo Prático: Formas de Citação",
+        title: "💡 Exemplo Prático: Formas de Citação",
         tag: "Art. 238 a 259 CPC",
         tagBg: "bg-rose-500/20 text-rose-300 border-rose-500/30",
         iconBg: "bg-rose-500/20 text-rose-400 border border-rose-500/40",
         icon: "fa-envelope",
         casosPraticos: [
           {
-            titulo: "CASO PRÁTICO — CITAÇÃO ELETRÔNICA:",
+            titulo: "📌 CASO PRÁTICO — CITAÇÃO ELETRÔNICA:",
             texto: "A empresa ré é intimada por meio eletrônico cadastrado, mas deixa passar o prazo de 3 dias úteis sem acusar o recebimento."
           }
         ],
         conclusoes: [
-          "Conclusão: Frustrada a via eletrônica sem confirmação, o processo prossegue com a expedição de mandado por correio ou oficial de justiça."
+          "✅ Conclusão: Frustrada a via eletrônica sem confirmação, o processo prossegue com a expedição de mandado por correio ou oficial de justiça."
         ],
-        pegadinha: "A VUNESP costuma inventar que a ausência de confirmação da citação eletrônica gera revelia automática. Cuidado: ela apenas obriga o uso dos meios tradicionais (correio/oficial), salvo se houver justificativa indevida passível de multa por ato atentatório à dignidade da justiça."
+        pegadinha: "⚠️ A VUNESP costuma inventar que a ausência de confirmação da citação eletrônica gera revelia automática. Cuidado: ela apenas obriga o uso dos meios tradicionais (correio/oficial), salvo se houver justificativa indevida passível de multa por ato atentatório à dignidade da justiça."
       }
     }
   ]
 };
 
-const PROMPT_MESTRE_TEXTO = `Com base no resumo de estudo fornecido, transforme-o estritamente no seguinte formato JSON válido (sem markdown extra fora das chaves). 
-IMPORTANTE: Cada objeto dentro de 'ramos' deve conter obrigatoriamente o seu próprio objeto 'modalInfo' detalhado com arrays 'casosPraticos' (com titulo e texto) e 'conclusoes', além da string 'pegadinha' focada na banca VUNESP. Cada subnó deve conter o campo 'icone' (ex: fa-bolt, fa-bell, fa-user, etc).
+const PROMPT_MESTRE_TEXTO = `Com base estritamente no assunto de estudo fornecido (de qualquer disciplina do edital do TJSP), transforme-o em um JSON válido estruturado para mapa mental (sem nenhum texto ou markdown fora das chaves).
+
+REGRAS OBRIGATÓRIAS PARA QUALQUER ASSUNTO:
+1. IDs ÚNICOS E INÉDITOS: Cada item dentro de 'ramos' DEVE ter um campo 'id' único, descritivo e inédito (ex: 'penal-crimes-01', 'adm-licitacoes-02'). NUNCA repita IDs anteriores para garantir o funcionamento correto do merge na nuvem.
+2. RIGOR VUNESP & TJSP: Foque na lei seca, jurisprudência pacificada e pegadinhas clássicas da VUNESP para o concurso de Escrevente do TJSP.
+3. 4 TÓPICOS OBRIGATÓRIOS POR RAMO: Cada ramo principal DEVE conter estritamente:
+   - Um título esquematizado com emojis visuais (📌, ⚖️, ⏱️).
+   - O campo 'subnos' detalhando a base legal/conceito com ícones.
+   - O objeto 'modalInfo' contendo obrigatoriamente: 'casosPraticos' (situação concreta simulando prova), 'conclusoes' (desfecho jurídico) e 'pegadinha' (armadilha clássica da banca).
+4. PADRÃO VISUAL E EMOJIS: Use emojis estratégicos em todos os títulos para facilitar a memorização visual.
+
+Siga exatamente esta estrutura JSON de exemplo:
 
 {
-  "disciplina": "Nome da Disciplina do Edital TJSP",
-  "titulo": "Título curto do Mapa Mental",
+  "disciplina": "Nome exato da Disciplina do Edital TJSP",
+  "titulo": "Mapa Mental: [Nome do Assunto]",
   "banca": "VUNESP",
   "ramos": [
     {
-      "id": "identificador-unico",
-      "titulo": "Título do Bloco",
-      "artigos": "ARTS. X - Y",
-      "tag": "Palavra Chave",
+      "id": "identificador-unico-e-inedito",
+      "titulo": "📌 1. [Título Principal do Tópico]",
+      "artigos": "ARTS. X - Y / SÚMULA Z",
+      "tag": "Palavra-Chave",
       "corBorda": "border-rose-500/40 hover:border-rose-400",
       "tagClasses": "bg-rose-500/20 text-rose-300 border-rose-500/30",
       "headerIcon": "fa-gavel text-rose-400",
       "subnos": [
         {
-          "titulo": "Título da Subseção",
-          "descricao": "Explicação objetiva.",
+          "titulo": "⚖️ Regra Principal e Conceito",
+          "descricao": "Explicação objetiva e direta focada no que a VUNESP cobra.",
           "corTitulo": "text-amber-300",
           "icone": "fa-bolt",
-          "itens": ["Ponto 1"]
+          "itens": [
+            "Primeiro ponto fundamental com base legal.",
+            "Segundo ponto cobrado em provas anteriores."
+          ]
         }
       ],
       "modalInfo": {
-        "title": "Exemplo Prático Específico deste Assunto",
+        "title": "💡 Aplicação Prática: [Assunto]",
         "tag": "Referência Legal",
         "tagBg": "bg-rose-500/20 text-rose-300 border-rose-500/30",
         "iconBg": "bg-rose-500/20 text-rose-400 border border-rose-500/40",
         "icon": "fa-gavel",
         "casosPraticos": [
           {
-            "titulo": "CASO PRÁTICO — TEMA:",
-            "texto": "Descrição detalhada do caso prático..."
+            "titulo": "🏛️️ CASO PRÁTICO — SITUAÇÃO EM PROVA:",
+            "texto": "Descrição de uma situação hipotética simulando uma questão de múltipla escolha da VUNESP..."
           }
         ],
         "conclusoes": [
-          "Conclusão direta relacionada ao caso..."
+          "✅ Conclusão jurídica direta fundamentada na legislação ou jurisprudência..."
         ],
-        "pegadinha": "Descreva a pegadinha clássica da banca VUNESP..."
+        "pegadinha": "⚠️ Cuidado! A VUNESP costuma tentar induzir o candidato ao erro afirmando que [insira a pegadinha clássica da banca sobre o tema]..."
       }
     }
   ]
@@ -356,7 +369,7 @@ export default function MapaMentalPage() {
                     onClick={() => setSelectedAssunto(ramo.id)} 
                     className={`text-xs font-semibold px-3 py-2 rounded-xl border transition-all whitespace-nowrap ${selectedAssunto === ramo.id ? 'border-amber-500 bg-amber-600 text-white shadow-lg' : 'border-zinc-800 bg-zinc-900 text-zinc-300 hover:text-white'}`}
                   >
-                    {ramo.titulo.replace(/^[0-9]+\.\s*/, '')}
+                    {ramo.titulo.replace(/^[📌⚖️⏱️0-9]+\.\s*/, '')}
                   </button>
                 ))}
               </div>
@@ -371,10 +384,10 @@ export default function MapaMentalPage() {
           <div className="z-10 text-center mb-4 bg-zinc-900/95 backdrop-blur-md border border-zinc-800 py-3 px-4 rounded-2xl shadow-lg flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="text-sm font-bold tracking-wide text-zinc-200">
-                {selectedDisciplina !== "Todas as Matérias" ? selectedDisciplina : "CPC / VUNESP"} - Visão Sistêmica
+                {selectedDisciplina !== "Todas as Matérias" ? selectedDisciplina : "Edital TJSP"} - Visão Sistêmica
               </span>
             </div>
-            <span className="text-xs text-zinc-400 hidden sm:inline">Clique em um bloco para ver o <b>Exemplo Prático</b></span>
+            <span className="text-xs text-zinc-400 hidden sm:inline">Clique em um bloco para ver o <b>Exemplo Prático e Pegadinha</b></span>
           </div>
 
           <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-6 z-10 overflow-y-auto pr-1">
@@ -452,7 +465,7 @@ export default function MapaMentalPage() {
                     onClick={() => setActiveModal(ramo.id)} 
                     className="mt-5 w-full py-3 bg-amber-600/20 hover:bg-amber-600/40 text-amber-300 text-xs font-semibold rounded-xl border border-amber-500/40 transition-all flex items-center justify-center gap-1.5 shadow-md"
                   >
-                    Exemplo Prático e Pegadinha
+                    💡 Exemplo Prático e Pegadinha VUNESP
                   </button>
                 </div>
               ))
@@ -469,11 +482,11 @@ export default function MapaMentalPage() {
         <div className="bg-zinc-950 p-6 rounded-2xl border border-zinc-800 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <span className="bg-amber-500/20 text-amber-300 text-xs font-bold px-2.5 py-0.5 rounded-full border border-amber-500/30">Automação de Conteúdo</span>
-              <h2 className="text-sm font-bold text-white">Prompt Mestre com Ícones e Cores</h2>
+              <span className="bg-amber-500/20 text-amber-300 text-xs font-bold px-2.5 py-0.5 rounded-full border border-amber-500/30">Automação Definitiva</span>
+              <h2 className="text-sm font-bold text-white">Prompt Mestre com Casos Práticos e Emojis</h2>
             </div>
             <p className="text-xs text-zinc-400 max-w-2xl">
-              Gera resumos estruturados com destaque em amarelo para pontos críticos e IDs únicos para união sem perdas.
+              Gera mapas mentais com 4 tópicos obrigatórios (Resumo, Subnós, Casos Práticos e Pegadinhas) e IDs únicos.
             </p>
           </div>
 
@@ -536,7 +549,7 @@ export default function MapaMentalPage() {
                   {info.pegadinha && (
                     <div className="p-4 bg-[#1b151b] rounded-2xl border border-amber-500/40 text-amber-200 space-y-1.5 shadow-lg">
                       <p className="font-bold uppercase tracking-wider text-amber-400">
-                        PEGADINHA VUNESP:
+                        ⚠️ PEGADINHA VUNESP:
                       </p>
                       <p className="leading-relaxed text-zinc-300 text-xs sm:text-[13px]">{info.pegadinha}</p>
                     </div>

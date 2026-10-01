@@ -120,6 +120,8 @@ export default function CadernoRevisaoPage() {
 
       if (data && data.length > 0) {
         const formatoObj: Record<string, any> = {};
+        const progressoGeral: Record<string, string> = {};
+
         data.forEach((item: any) => {
           formatoObj[item.disciplina] = {
             disciplina: item.disciplina,
@@ -127,8 +129,21 @@ export default function CadernoRevisaoPage() {
             banca: item.banca,
             cards: item.cards
           };
+
+          // Extrai o status/avaliação salvo em cada card
+          if (item.cards && Array.isArray(item.cards)) {
+            item.cards.forEach((c: any) => {
+              if (c.statusAvaliacao) {
+                progressoGeral[c.id] = c.statusAvaliacao;
+              }
+            });
+          }
         });
+
         setDecksPorDisciplina(formatoObj);
+        if (Object.keys(progressoGeral).length > 0) {
+          setProgressoCards(progressoGeral);
+        }
       } else {
         // Insere o exemplo inicial se a tabela estiver vazia
         await supabase.from('caderno_revisao').upsert({
@@ -251,18 +266,35 @@ export default function CadernoRevisaoPage() {
     }
   };
 
-  const avaliarDesempenho = (avaliacao: 'ruim' | 'medio' | 'bom') => {
-    if (!cardAtual) return;
+  const avaliarDesempenho = async (avaliacao: 'ruim' | 'medio' | 'bom') => {
+    if (!cardAtual || !deckAtual) return;
+    
     const novoProgresso = {
       ...progressoCards,
       [cardAtual.id]: avaliacao
     };
     setProgressoCards(novoProgresso);
     
+    // Atualiza o statusAvaliacao dentro do card e salva na nuvem
+    const cardsAtualizados = deckAtual.cards.map((c: any) => {
+      if (c.id === cardAtual.id) {
+        return { ...c, statusAvaliacao: avaliacao };
+      }
+      return c;
+    });
+
+    const deckAtualizado = { ...deckAtual, cards: cardsAtualizados };
+    await salvarNoSupabase(selectedDisciplina, deckAtualizado);
+
     setTimeout(() => {
       proximoCard();
     }, 350);
   };
+
+  // Contadores para o resumo superior
+  const totalBons = Object.values(progressoCards).filter(v => v === 'bom').length;
+  const totalMedios = Object.values(progressoCards).filter(v => v === 'medio').length;
+  const totalRuins = Object.values(progressoCards).filter(v => v === 'ruim').length;
 
   return (
     <div className="min-h-screen bg-black text-zinc-100 font-sans selection:bg-red-600 selection:text-white">
@@ -271,6 +303,26 @@ export default function CadernoRevisaoPage() {
 
       <main className="max-w-6xl mx-auto px-6 py-8 space-y-6">
         
+        {/* Painel de Status Detalhado por Assunto (Sincronizado) */}
+        <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-bold text-white flex items-center gap-2">
+              🧠 Caderno de Revisão: Status Detalhado por Assunto
+            </span>
+          </div>
+          <div className="flex items-center gap-2 text-xs font-bold">
+            <span className="bg-emerald-950/60 text-emerald-300 border border-emerald-500/40 px-3 py-1 rounded-xl flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-400"></span> Bom: {totalBons}
+            </span>
+            <span className="bg-amber-950/60 text-amber-300 border border-amber-500/40 px-3 py-1 rounded-xl flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-amber-400"></span> Médio: {totalMedios}
+            </span>
+            <span className="bg-rose-950/60 text-rose-300 border border-rose-500/40 px-3 py-1 rounded-xl flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-rose-400"></span> Ruim: {totalRuins}
+            </span>
+          </div>
+        </div>
+
         {/* Header da Página */}
         <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4">
           <div>
@@ -403,7 +455,16 @@ export default function CadernoRevisaoPage() {
             ) : (
               <div className="w-full max-w-2xl bg-zinc-900/95 border border-zinc-800 rounded-3xl p-6 sm:p-8 shadow-2xl flex flex-col justify-between min-h-[320px] relative transition-all">
                 
-                <div className="absolute top-4 right-4">
+                <div className="absolute top-4 right-4 flex items-center gap-2">
+                  {progressoCards[cardAtual.id] && (
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${
+                      progressoCards[cardAtual.id] === 'bom' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' :
+                      progressoCards[cardAtual.id] === 'medio' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' :
+                      'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                    }`}>
+                      {progressoCards[cardAtual.id].toUpperCase()}
+                    </span>
+                  )}
                   <span className={`text-[10px] font-bold px-2.5 py-1 rounded-md uppercase tracking-wider ${isFlipped ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-blue-500/20 text-blue-300 border border-blue-500/30'}`}>
                     {isFlipped ? 'Verso (Resposta)' : 'Frente (Pergunta)'}
                   </span>
@@ -434,11 +495,11 @@ export default function CadernoRevisaoPage() {
                       )}
 
                       <div className="pt-3 border-t border-zinc-800/80 space-y-2">
-                        <p className="text-xs font-semibold text-zinc-400">Sua revisão sobre o assunto é:</p>
+                        <p className="text-xs font-semibold text-zinc-400">Sua revisão sobre o assunto é (salvo na nuvem):</p>
                         <div className="grid grid-cols-3 gap-2">
-                          <button onClick={() => avaliarDesempenho('ruim')} className="py-2.5 px-3 rounded-xl text-xs font-bold bg-rose-950/40 hover:bg-rose-900/50 text-rose-400 border border-rose-600/30">Ruim</button>
-                          <button onClick={() => avaliarDesempenho('medio')} className="py-2.5 px-3 rounded-xl text-xs font-bold bg-amber-950/40 hover:bg-amber-900/50 text-amber-400 border border-amber-600/30">Médio</button>
-                          <button onClick={() => avaliarDesempenho('bom')} className="py-2.5 px-3 rounded-xl text-xs font-bold bg-emerald-950/40 hover:bg-emerald-900/50 text-emerald-400 border border-emerald-600/30">Bom</button>
+                          <button onClick={() => avaliarDesempenho('ruim')} className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all ${progressoCards[cardAtual.id] === 'ruim' ? 'bg-rose-600 text-white border-2 border-rose-400' : 'bg-rose-950/40 text-rose-400 border border-rose-600/30'}`}>Ruim</button>
+                          <button onClick={() => avaliarDesempenho('medio')} className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all ${progressoCards[cardAtual.id] === 'medio' ? 'bg-amber-600 text-white border-2 border-amber-400' : 'bg-amber-950/40 text-amber-400 border border-amber-600/30'}`}>Médio</button>
+                          <button onClick={() => avaliarDesempenho('bom')} className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all ${progressoCards[cardAtual.id] === 'bom' ? 'bg-emerald-600 text-white border-2 border-emerald-400' : 'bg-emerald-950/40 text-emerald-400 border border-emerald-600/30'}`}>Bom</button>
                         </div>
                       </div>
                     </div>

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { ShieldAlert, LogOut, Sparkles } from 'lucide-react';
+import { ShieldAlert, LogOut, Sparkles, CalendarDays } from 'lucide-react';
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -63,13 +63,26 @@ export default function Navbar() {
           Mapas Mentais
         </Link>
         <Link 
-        href="/simulados" 
-        className={`px-3 py-2 rounded-xl transition-all ${isActive('/simulados') ? 'bg-red-600 text-white font-bold shadow-lg shadow-red-600/20' : 'text-zinc-400 hover:text-white hover:bg-zinc-900'}`}
-    >
-        Simulados
-      </Link>
+          href="/simulados" 
+          className={`px-3 py-2 rounded-xl transition-all ${isActive('/simulados') ? 'bg-red-600 text-white font-bold shadow-lg shadow-red-600/20' : 'text-zinc-400 hover:text-white hover:bg-zinc-900'}`}
+        >
+          Simulados
+        </Link>
 
-        {/* Novo Link do Chat IA (Destaque NVIDIA) */}
+        {/* Novo Link de Cronograma */}
+        <Link 
+          href="/cronograma" 
+          className={`px-3 py-2 rounded-xl transition-all flex items-center gap-1.5 ${
+            isActive('/cronograma') 
+              ? 'bg-red-600 text-white font-bold shadow-lg shadow-red-600/20' 
+              : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
+          }`}
+        >
+          <CalendarDays className="w-3.5 h-3.5" />
+          Cronograma
+        </Link>
+
+        {/* Link do Chat IA (Destaque NVIDIA) */}
         <Link 
           href="/chat" 
           className={`px-3 py-2 rounded-xl transition-all flex items-center gap-1.5 ${

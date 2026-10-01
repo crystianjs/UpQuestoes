@@ -27,7 +27,7 @@ const cronogramaPadrao = [
     dia: "Segunda-feira",
     id: "segunda",
     tarefas: [
-      { id: "s1", horario: "05h00 - 07h00", titulo: "Bloco de Ouro 1 (Video aula)", icone: "BookOpen", concluida: false },
+      { id: "s1", horario: "05h00 - 07h00", titulo: "Bloco de Ouro 1 ( 1 Video aula + 5 exercícios )", icone: "BookOpen", concluida: false },
       { id: "s2", horario: "07h45 - 19h00", titulo: "Período de Trabalho (incluindo transporte)", icone: "Briefcase", concluida: false },
       { id: "s3", horario: "19h00 - 20h00", titulo: "Chegada em casa, banho e jantar", icone: "Utensils", concluida: false },
       { id: "s4", horario: "20h00 - 21h40", titulo: "Bloco de Ouro 2 (Questões e Revisões)", icone: "BookOpen", concluida: false },
@@ -38,7 +38,7 @@ const cronogramaPadrao = [
     dia: "Terça-feira",
     id: "terca",
     tarefas: [
-      { id: "t1", horario: "05h00 - 07h00", titulo: "Bloco de Ouro 1 (Video aula)", icone: "BookOpen", concluida: false },
+      { id: "t1", horario: "05h00 - 07h00", titulo: "Bloco de Ouro 1 ( 1 Video aula + 5 exercícios )", icone: "BookOpen", concluida: false },
       { id: "t2", horario: "07h45 - 19h00", titulo: "Período de Trabalho (incluindo transporte)", icone: "Briefcase", concluida: false },
       { id: "t3", horario: "19h00 - 20h00", titulo: "Chegada em casa, banho e jantar", icone: "Utensils", concluida: false },
       { id: "t4", horario: "20h00 - 21h40", titulo: "Bloco de Ouro 2 (Questões e Revisões)", icone: "BookOpen", concluida: false },
@@ -49,7 +49,7 @@ const cronogramaPadrao = [
     dia: "Quarta-feira",
     id: "quarta",
     tarefas: [
-      { id: "q1", horario: "05h00 - 07h00", titulo: "Bloco de Ouro 1 (Video aula)", icone: "BookOpen", concluida: false },
+      { id: "q1", horario: "05h00 - 07h00", titulo: "Bloco de Ouro 1 ( 1 Video aula + 5 exercícios )", icone: "BookOpen", concluida: false },
       { id: "q2", horario: "07h45 - 19h00", titulo: "Período de Trabalho (incluindo transporte)", icone: "Briefcase", concluida: false },
       { id: "q3", horario: "19h00 - 20h00", titulo: "Chegada em casa, banho e jantar", icone: "Utensils", concluida: false },
       { id: "q4", horario: "20h00 - 21h40", titulo: "Bloco de Ouro 2 (Questões e Revisões)", icone: "BookOpen", concluida: false },
@@ -60,7 +60,7 @@ const cronogramaPadrao = [
     dia: "Quinta-feira",
     id: "quinta",
     tarefas: [
-      { id: "qu1", horario: "05h00 - 07h00", titulo: "Bloco de Ouro 1 (Video aula)", icone: "BookOpen", concluida: false },
+      { id: "qu1", horario: "05h00 - 07h00", titulo: "Bloco de Ouro 1 ( 1 Video aula + 5 exercícios )", icone: "BookOpen", concluida: false },
       { id: "qu2", horario: "07h45 - 19h00", titulo: "Período de Trabalho (incluindo transporte)", icone: "Briefcase", concluida: false },
       { id: "qu3", horario: "19h00 - 20h00", titulo: "Chegada em casa, banho e jantar", icone: "Utensils", concluida: false },
       { id: "qu4", horario: "20h00 - 21h40", titulo: "Bloco de Ouro 2 (Questões e Revisões)", icone: "BookOpen", concluida: false },
@@ -71,7 +71,7 @@ const cronogramaPadrao = [
     dia: "Sexta-feira",
     id: "sexta",
     tarefas: [
-      { id: "sex1", horario: "05h00 - 07h00", titulo: "Bloco de Ouro 1 (Video aula)", icone: "BookOpen", concluida: false },
+      { id: "sex1", horario: "05h00 - 07h00", titulo: "Bloco de Ouro 1 ( 1 Video aula + 5 exercícios )", icone: "BookOpen", concluida: false },
       { id: "sex2", horario: "07h45 - 19h00", titulo: "Período de Trabalho (incluindo transporte)", icone: "Briefcase", concluida: false },
       { id: "sex3", horario: "19h00 - 20h00", titulo: "Chegada em casa, banho e jantar", icone: "Utensils", concluida: false },
       { id: "sex4", horario: "20h00 - 21h40", titulo: "Bloco de Ouro 2 (Questões e Revisões)", icone: "BookOpen", concluida: false },

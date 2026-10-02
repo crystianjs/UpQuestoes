@@ -47,8 +47,8 @@ const mapaInicialExemplo = {
           corTitulo: "text-amber-300",
           icone: "fa-bolt",
           itens: [
-            "Regra PREFERENCIAL: Meio eletrônico (prazo de até 3 dias úteis para confirmação de recebimento após envio).",
-            "Ausência de confirmação em 3 dias úteis exige citação por correio, oficial, escrivão/chefe ou edital."
+            "☑ Regra PREFERENCIAL: Meio eletrônico (prazo de até 3 dias úteis para confirmação de recebimento após envio).",
+            "☑ Ausência de confirmação em 3 dias úteis exige citação por correio, oficial, escrivão/chefe ou edital."
           ]
         },
         {
@@ -57,8 +57,8 @@ const mapaInicialExemplo = {
           corTitulo: "text-amber-300",
           icone: "fa-user-tie",
           itens: [
-            "Correio (AR): Regra subsidiária padrão. Entregue ao citando ou ao encarregado da recepção em condomínios/loteamentos.",
-            "Oficial de Justiça: Utilizada quando frustrado o meio eletrônico/correio, em ações de estado, réu incapaz ou pessoa de direito público."
+            "☑ Correio (AR): Regra subsidiária padrão. Entregue ao citando ou ao encarregado da recepção em condomínios/loteamentos.",
+            "☑ Oficial de Justiça: Utilizada quando frustrado o meio eletrônico/correio, em ações de estado, réu incapaz ou pessoa de direito público."
           ]
         }
       ],
@@ -70,12 +70,12 @@ const mapaInicialExemplo = {
         icon: "fa-envelope",
         casosPraticos: [
           {
-            titulo: "📌 CASO PRÁTICO — CITAÇÃO ELETRÔNICA:",
+            titulo: "🏛 CASO PRÁTICO 1 — CITAÇÃO ELETRÔNICA:",
             texto: "A empresa ré é intimada por meio eletrônico cadastrado, mas deixa passar o prazo de 3 dias úteis sem acusar o recebimento."
           }
         ],
         conclusoes: [
-          "✅ Conclusão: Frustrada a via eletrônica sem confirmação, o processo prossegue com a expedição de mandado por correio ou oficial de justiça."
+          "✅ Caso 1: Frustrada a via eletrônica sem confirmação, o processo prossegue com a expedição de mandado por correio ou oficial de justiça."
         ],
         pegadinha: "⚠️ A VUNESP costuma inventar que a ausência de confirmação da citação eletrônica gera revelia automática. Cuidado: ela apenas obriga o uso dos meios tradicionais (correio/oficial), salvo se houver justificativa indevida passível de multa por ato atentatório à dignidade da justiça."
       }
@@ -83,64 +83,106 @@ const mapaInicialExemplo = {
   ]
 };
 
-const PROMPT_MESTRE_TEXTO = `Com base estritamente no assunto de estudo fornecido (de qualquer disciplina do edital do TJSP), transforme-o em um JSON válido estruturado para mapa mental (sem nenhum texto ou markdown fora das chaves).
+const PROMPT_MESTRE_TEXTO = `Atue como um Especialista em Concursos Públicos e Mentor para o concurso de Escrevente Técnico Judiciário do TJSP (Banca VUNESP). 
 
-REGRAS OBRIGATÓRIAS PARA QUALQUER ASSUNTO:
-1. IDs ÚNICOS E INÉDITOS: Cada item dentro de 'ramos' DEVE ter um campo 'id' único, descritivo e inédito (ex: 'penal-crimes-01', 'adm-licitacoes-02'). NUNCA repita IDs anteriores para garantir o funcionamento correto do merge na nuvem.
-2. RIGOR VUNESP & TJSP: Foque na lei seca, jurisprudência pacificada e pegadinhas clássicas da VUNESP para o concurso de Escrevente do TJSP.
-3. 4 TÓPICOS OBRIGATÓRIOS POR RAMO: Cada ramo principal DEVE conter estritamente:
-   - Um título esquematizado com emojis visuais (📌, ⚖️, ⏱️).
-   - O campo 'subnos' detalhando a base legal/conceito com ícones.
-   - O objeto 'modalInfo' contendo obrigatoriamente: 'casosPraticos' (situação concreta simulando prova), 'conclusoes' (desfecho jurídico) e 'pegadinha' (armadilha clássica da banca).
-4. PADRÃO VISUAL E EMOJIS: Use emojis estratégicos em todos os títulos para facilitar a memorização visual.
+Sua tarefa é transformar o assunto de estudo fornecido no final desta instrução em um JSON VÁLIDO e ESTRUTURADO para Mapa Mental Interativo. 
 
-Siga exatamente esta estrutura JSON de exemplo:
+RESPOSTA RESTRITA AO JSON: Retorne EXCLUSIVAMENTE o código JSON válido (sem nenhum texto explicativo, introdução ou markdown fora das chaves).
+
+=====================================================
+REGRAS OBRIGATÓRIAS DE CONTEÚDO E ESTRUTURA
+=====================================================
+
+1. IDs ÚNICOS E INÉDITOS:
+   - Cada item dentro do array 'ramos' DEVE conter um campo 'id' único, descritivo e inédito (ex: 'dpc-tjsp-citação-v1', 'penal-tjsp-peculato-v1').
+
+2. RIGOR VUNESP & TJSP:
+   - Foque 100% na lei seca, jurisprudência pacificada e nas pegadinhas clássicas da VUNESP para o TJSP.
+   - NÃO RESUMA DEMAIS. Traga a matéria completa do assunto com profundidade jurídica para caderno de revisão.
+
+3. CHECKBOXES SEM COLCHETES:
+   - Dentro de 'itens' em 'subnos', utilize a caixa de seleção simbólica "☑ " ou "☐ " diretamente no texto.
+   - NUNCA utilize colchetes como "[ ]" ou "[x]" nos itens.
+   - NUNCA utilize a palavra "Checklist" nos títulos das seções ou ramos.
+
+4. COBERTURA TOTAL DE EXEMPLOS PRÁTICOS (SEM DÓ):
+   - No objeto 'modalInfo', dentro do array 'casosPraticos', você DEVE trazer exemplos práticos para CADA UM dos sub-assuntos abordados no ramo.
+   - Se o ramo abordar 5 pontos/sub-assuntos, o array 'casosPraticos' DEVE conter 5 casos práticos numerados (ex: "🏛 CASO PRÁTICO 1 — ...", "🏛 CASO PRÁTICO 2 — ..."), detalhando exatamente como a VUNESP cobra em formato de situação-problema de prova.
+   - O array 'conclusoes' deve trazer o desfecho jurídico direto de cada caso prático correspondente.
+
+5. PADRÃO VISUAL E EMOJIS:
+   - Use emojis estratégicos em todos os títulos e tópicos (📌, ⚖️, ⏱️, 🏛, ⚠️, ✅, 💡) para facilitar a memorização visual.
+   - Mantenha classes Tailwind vibrantes e alternadas para cores de borda, badges e ícones do FontAwesome.
+
+=====================================================
+ESTRUTURA EXATA DO JSON A SER GERADO:
+=====================================================
 
 {
-  "disciplina": "Nome exato da Disciplina do Edital TJSP",
-  "titulo": "Mapa Mental: [Nome do Assunto]",
+  "disciplina": "[Nome Exato da Disciplina do Edital]",
+  "titulo": "Mapa Mental: [Nome do Assunto Completo]",
   "banca": "VUNESP",
   "ramos": [
     {
       "id": "identificador-unico-e-inedito",
-      "titulo": "📌 1. [Título Principal do Tópico]",
-      "artigos": "ARTS. X - Y / SÚMULA Z",
-      "tag": "Palavra-Chave",
+      "titulo": "📌 1. [Título do Tópico 1]",
+      "artigos": "ARTS. X - Y DO [CÓDIGO/LEI]",
+      "tag": "[Palavra-Chave]",
       "corBorda": "border-rose-500/40 hover:border-rose-400",
       "tagClasses": "bg-rose-500/20 text-rose-300 border-rose-500/30",
       "headerIcon": "fa-gavel text-rose-400",
       "subnos": [
         {
-          "titulo": "⚖️ Regra Principal e Conceito",
-          "descricao": "Explicação objetiva e direta focada no que a VUNESP cobra.",
-          "corTitulo": "text-amber-300",
-          "icone": "fa-bolt",
+          "titulo": "⚖️ [Nome do Subtopico 1.1]",
+          "descricao": "[Descrição sucinta da regra/natureza jurídica]",
+          "corTitulo": "text-rose-300",
+          "icone": "fa-shield-halved",
           "itens": [
-            "Primeiro ponto fundamental com base legal.",
-            "Segundo ponto cobrado em provas anteriores."
+            "☑ Regra 1 e base legal completa.",
+            "☑ Regra 2 com detalhe cobrado em prova."
+          ]
+        },
+        {
+          "titulo": "⚖️ [Nome do Subtopico 1.2]",
+          "descricao": "[Descrição sucinta]",
+          "corTitulo": "text-amber-300",
+          "icone": "fa-user-ninja",
+          "itens": [
+            "☑ Ponto legal de destaque.",
+            "☑ Outro ponto fundamental."
           ]
         }
       ],
       "modalInfo": {
-        "title": "💡 Aplicação Prática: [Assunto]",
-        "tag": "Referência Legal",
+        "title": "💡 Aplicação Prática: [Nome do Tópico]",
+        "tag": "[Referência Legal]",
         "tagBg": "bg-rose-500/20 text-rose-300 border-rose-500/30",
         "iconBg": "bg-rose-500/20 text-rose-400 border border-rose-500/40",
         "icon": "fa-gavel",
         "casosPraticos": [
           {
-            "titulo": "🏛️️ CASO PRÁTICO — SITUAÇÃO EM PROVA:",
-            "texto": "Descrição de uma situação hipotética simulando uma questão de múltipla escolha da VUNESP..."
+            "titulo": "🏛 CASO PRÁTICO 1 — [Sub-assunto 1.1]:",
+            "texto": "Situação-problema hipotética no estilo exato da VUNESP..."
+          },
+          {
+            "titulo": "🏛 CASO PRÁTICO 2 — [Sub-assunto 1.2]:",
+            "texto": "Outra situação-problema simulando a prova para o segundo sub-assunto..."
           }
         ],
         "conclusoes": [
-          "✅ Conclusão jurídica direta fundamentada na legislação ou jurisprudência..."
+          "✅ Caso 1: Desfecho jurídico fundamentado no artigo X...",
+          "✅ Caso 2: Desfecho jurídico fundamentado no artigo Y..."
         ],
-        "pegadinha": "⚠️ Cuidado! A VUNESP costuma tentar induzir o candidato ao erro afirmando que [insira a pegadinha clássica da banca sobre o tema]..."
+        "pegadinha": "⚠️ Cuidado! A VUNESP costuma tentar induzir o candidato ao erro afirmando que [descrever detalhadamente a armadilha clássica da banca sobre o assunto]..."
       }
     }
   ]
-}`;
+}
+
+=====================================================
+ASSUNTO A SER TRANSFORMADO EM JSON:
+=====================================================
+[COLE AQUI A MATÉRIA OU OS ARTIGOS DA LEI QUE VOCÊ QUER GERAR]`;
 
 export default function MapaMentalPage() {
   const [mapasPorDisciplina, setMapasPorDisciplina] = useState<Record<string, any>>({});
@@ -482,11 +524,11 @@ export default function MapaMentalPage() {
         <div className="bg-zinc-950 p-6 rounded-2xl border border-zinc-800 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <span className="bg-amber-500/20 text-amber-300 text-xs font-bold px-2.5 py-0.5 rounded-full border border-amber-500/30">Automação Definitiva</span>
-              <h2 className="text-sm font-bold text-white">Prompt Mestre com Casos Práticos e Emojis</h2>
+              <span className="bg-amber-500/20 text-amber-300 text-xs font-bold px-2.5 py-0.5 rounded-full border border-amber-500/30">Mentor TJSP / VUNESP</span>
+              <h2 className="text-sm font-bold text-white">Prompt Mestre Definitivo com Casos Práticos Mapeados</h2>
             </div>
             <p className="text-xs text-zinc-400 max-w-2xl">
-              Gera mapas mentais com 4 tópicos obrigatórios (Resumo, Subnós, Casos Práticos e Pegadinhas) e IDs únicos.
+              Gera mapas mentais com profundidade jurídica completa, checkboxes e casos práticos detalhados por sub-assunto.
             </p>
           </div>
 

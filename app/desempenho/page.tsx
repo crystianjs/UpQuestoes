@@ -32,6 +32,14 @@ interface SimuladoRegistro {
   created_at: string;
 }
 
+interface FlashcardItem {
+  id: string;
+  assunto: string;
+  disciplina: string;
+  status: string;
+  pergunta: string;
+}
+
 const PROMPT_MESTRE_FLASHCARDS = `Com base no assunto de estudo fornecido, transforme-o estritamente no seguinte formato JSON válido (sem markdown extra fora das chaves). 
 IMPORTANTE: Gere cartões focados em memorização ativa para concurso público (padrão VUNESP), contendo ID único, assunto, tag curta, classes de estilo para a tag, pergunta, respostaResumida, macete de detalhes e icone (ex: fa-brain, fa-book, fa-bolt).
 
@@ -59,8 +67,8 @@ export default function DesempenhoPage() {
   const [redacoes, setRedacoes] = useState<RedacaoRegistro[]>([]);
   const [simulados, setSimulados] = useState<SimuladoRegistro[]>([]);
   
-  // Estado para armazenar os flashcards e o progresso vindos do localStorage
-  const [flashcardsListados, setFlashcardsListados] = useState<Array<{ id: string; assunto: string; disciplina: string; status: string; pergunta: string }>>([]);
+  // Estado para armazenar os flashcards e o progresso vindos do Supabase
+  const [flashcardsListados, setFlashcardsListados] = useState<FlashcardItem[]>([]);
   const [flashcardsStats, setFlashcardsStats] = useState({ bom: 0, medio: 0, ruim: 0, total: 0 });
 
   const [loading, setLoading] = useState(true);
@@ -99,23 +107,21 @@ export default function DesempenhoPage() {
       if (rData) setRedacoes(rData);
       if (sData) setSimulados(sData);
 
-      // Leitura robusta do localStorage para os Flashcards e Progresso
+      // Leitura robusta do Supabase para o Caderno de Revisão (Sem dependência de cache volátil)
       try {
-        const savedDecks = localStorage.getItem('upquest_flashcards');
-        const savedProgresso = localStorage.getItem('upquest_flashcards_progresso');
+        const { data: cadernoData, error: cadernoError } = await supabase
+          .from('caderno_revisao')
+          .select('*');
 
-        let listaCards: Array<{ id: string; assunto: string; disciplina: string; status: string; pergunta: string }> = [];
-        let b = 0, m = 0, r = 0;
+        if (!cadernoError && cadernoData) {
+          let listaCards: FlashcardItem[] = [];
+          let b = 0, m = 0, r = 0;
 
-        if (savedDecks) {
-          const decksObj = JSON.parse(savedDecks);
-          const progressoObj = savedProgresso ? JSON.parse(savedProgresso) : {};
-
-          Object.keys(decksObj).forEach((discKey) => {
-            const deck = decksObj[discKey];
-            if (deck && deck.cards && Array.isArray(deck.cards)) {
-              deck.cards.forEach((card: any) => {
-                const statusCard = progressoObj[card.id] || 'pendente';
+          cadernoData.forEach((item: any) => {
+            const disciplinaNome = item.disciplina;
+            if (item.cards && Array.isArray(item.cards)) {
+              item.cards.forEach((card: any) => {
+                const statusCard = card.statusAvaliacao || 'pendente';
                 if (statusCard === 'bom') b++;
                 if (statusCard === 'medio') m++;
                 if (statusCard === 'ruim') r++;
@@ -123,19 +129,19 @@ export default function DesempenhoPage() {
                 listaCards.push({
                   id: card.id,
                   assunto: card.assunto || 'Assunto Geral',
-                  disciplina: deck.disciplina || discKey,
+                  disciplina: disciplinaNome,
                   status: statusCard,
                   pergunta: card.pergunta
                 });
               });
             }
           });
-        }
 
-        setFlashcardsListados(listaCards);
-        setFlashcardsStats({ bom: b, medio: m, ruim: r, total: b + m + r });
+          setFlashcardsListados(listaCards);
+          setFlashcardsStats({ bom: b, medio: m, ruim: r, total: b + m + r });
+        }
       } catch (e) {
-        console.error("Erro ao carregar flashcards do localStorage", e);
+        console.error("Erro ao carregar flashcards do Supabase", e);
       }
 
       setLoading(false);
@@ -181,7 +187,6 @@ export default function DesempenhoPage() {
     return `${segundos}s`;
   };
 
-  // Função para renderizar a nota da redação com cores dinâmicas (0-5 Vermelho, 5-7 Azul, 7-10 Verde)
   const renderizarBadgeNota = (nota?: number | null) => {
     if (nota === null || nota === undefined) {
       return <span className="text-zinc-600 italic text-[11px]">Sem nota</span>;
@@ -255,7 +260,7 @@ export default function DesempenhoPage() {
           <div className="text-center py-20 text-zinc-500 text-sm">A carregar métricas...</div>
         ) : (
           <>
-            {/* Cards de Métricas Principais (5 colunas) */}
+            {/* Cards de Métricas Principais */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
               
               <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-5 shadow-xl relative overflow-hidden">
@@ -295,7 +300,7 @@ export default function DesempenhoPage() {
 
             </div>
 
-            {/* SEÇÃO DEDICADA E EXCLUSIVA PARA OS FLASHCARDS (RUIM, MÉDIO, BOM) */}
+            {/* SEÇÃO DEDICADA E EXCLUSIVA PARA OS FLASHCARDS (COM DISCIPLINA E ASSUNTO JUNTOS) */}
             <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 shadow-xl space-y-4">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-3 border-b border-zinc-800">
                 <div className="flex items-center gap-2">
@@ -312,7 +317,7 @@ export default function DesempenhoPage() {
               {flashcardsListados.length === 0 ? (
                 <div className="text-center py-10 space-y-2">
                   <HelpCircle className="w-10 h-10 text-zinc-700 mx-auto" />
-                  <p className="text-xs text-zinc-400">Nenhum flashcard gerado ou avaliado no Caderno de Revisão ainda.</p>
+                  <p className="text-xs text-zinc-400">Nenhum flashcard gerado ou avaliado no Caderno de Revisão na nuvem ainda.</p>
                   <button 
                     onClick={() => router.push('/caderno-revisao')}
                     className="px-4 py-2 bg-amber-500 text-black font-bold text-xs rounded-xl hover:bg-amber-400 transition-all shadow"
@@ -324,18 +329,22 @@ export default function DesempenhoPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[450px] overflow-y-auto pr-1">
                   {flashcardsListados.map((fc) => (
                     <div key={fc.id} className="bg-zinc-900/80 border border-zinc-800 rounded-2xl p-4 flex flex-col justify-between gap-3 shadow-inner">
-                      <div className="space-y-1.5">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-blue-500/20 text-blue-300 border border-blue-500/30 truncate max-w-[140px]">
+                      <div className="space-y-2">
+                        {/* Disciplina e Assunto Juntos */}
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-blue-500/20 text-blue-300 border border-blue-500/30">
                             {fc.disciplina}
                           </span>
-                          <span className="text-xs font-bold text-amber-300 truncate max-w-[150px]">{fc.assunto}</span>
+                          <span className="text-[10px] text-zinc-500">•</span>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                            {fc.assunto}
+                          </span>
                         </div>
                         <p className="text-xs text-zinc-300 line-clamp-2 leading-relaxed">{fc.pergunta}</p>
                       </div>
 
                       <div className="pt-2 border-t border-zinc-800/80 flex items-center justify-between">
-                        <span className="text-[11px] text-zinc-500">Sua avaliação:</span>
+                        <span className="text-[11px] text-zinc-500">Status na Nuvem:</span>
                         <div>
                           {fc.status === 'bom' && (
                             <span className="px-3 py-1 bg-emerald-950/80 border border-emerald-600/40 text-emerald-300 text-xs font-bold rounded-xl flex items-center gap-1 shadow">
@@ -365,7 +374,7 @@ export default function DesempenhoPage() {
               )}
             </div>
 
-            {/* Secção de Listagens Detalhadas (Questões, Simulados e Redações) */}
+            {/* Secção de Listagens Detalhadas */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               
               {/* Histórico de Questões */}
@@ -445,7 +454,6 @@ export default function DesempenhoPage() {
                     <FileText className="w-5 h-5 text-blue-500" />
                     Redações VUNESP
                   </h2>
-                  {/* Legenda de Desempenho da Nota */}
                   <div className="flex items-center gap-2 text-[10px] text-zinc-400 bg-zinc-900 px-2 py-1 rounded-lg border border-zinc-800">
                     <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>0-5</span>
                     <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>5-7</span>

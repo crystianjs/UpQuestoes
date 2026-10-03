@@ -4,11 +4,12 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Navbar from '../components/Navbar';
 import { supabase } from '@/lib/supabase';
-import { BarChart3, Award, CheckCircle2, XCircle, Clock, Calendar, Filter, Brain, HelpCircle, FileText } from 'lucide-react';
+import { BarChart3, Award, CheckCircle2, XCircle, Clock, Calendar, Filter, Brain, HelpCircle, FileText, Tag } from 'lucide-react';
 
 interface QuestaoRegistro {
   id: string;
   materia: string;
+  assunto?: string; // Adicionado para exibir o assunto da questão
   total_feitas: number;
   acertos: number;
   erros: number;
@@ -30,14 +31,6 @@ interface SimuladoRegistro {
   total_questoes: number;
   nota: number;
   created_at: string;
-}
-
-interface FlashcardItem {
-  id: string;
-  assunto: string;
-  disciplina: string;
-  status: string;
-  pergunta: string;
 }
 
 const PROMPT_MESTRE_FLASHCARDS = `Com base no assunto de estudo fornecido, transforme-o estritamente no seguinte formato JSON válido (sem markdown extra fora das chaves). 
@@ -67,8 +60,8 @@ export default function DesempenhoPage() {
   const [redacoes, setRedacoes] = useState<RedacaoRegistro[]>([]);
   const [simulados, setSimulados] = useState<SimuladoRegistro[]>([]);
   
-  // Estado para armazenar os flashcards e o progresso vindos do Supabase
-  const [flashcardsListados, setFlashcardsListados] = useState<FlashcardItem[]>([]);
+  // Estado para armazenar os flashcards sincronizados com o Supabase (com fallback seguro para localStorage)
+  const [flashcardsListados, setFlashcardsListados] = useState<Array<{ id: string; assunto: string; disciplina: string; status: string; pergunta: string }>>([]);
   const [flashcardsStats, setFlashcardsStats] = useState({ bom: 0, medio: 0, ruim: 0, total: 0 });
 
   const [loading, setLoading] = useState(true);
@@ -85,6 +78,7 @@ export default function DesempenhoPage() {
 
       const userId = session.user.id;
 
+      // Buscar questões (garantindo seleção do campo de assunto, se houver)
       const { data: qData } = await supabase
         .from('user_questions')
         .select('*')
@@ -107,21 +101,39 @@ export default function DesempenhoPage() {
       if (rData) setRedacoes(rData);
       if (sData) setSimulados(sData);
 
-      // Leitura robusta do Supabase para o Caderno de Revisão (Sem dependência de cache volátil)
+      // Carregamento de Flashcards: Busca primária no Supabase para persistência real na nuvem
       try {
-        const { data: cadernoData, error: cadernoError } = await supabase
-          .from('caderno_revisao')
-          .select('*');
+        let progressoObj: Record<string, string> = {};
 
-        if (!cadernoError && cadernoData) {
-          let listaCards: FlashcardItem[] = [];
-          let b = 0, m = 0, r = 0;
+        const { data: progressoSupabase } = await supabase
+          .from('user_flashcard_progress')
+          .select('card_id, status')
+          .eq('user_id', userId);
 
-          cadernoData.forEach((item: any) => {
-            const disciplinaNome = item.disciplina;
-            if (item.cards && Array.isArray(item.cards)) {
-              item.cards.forEach((card: any) => {
-                const statusCard = card.statusAvaliacao || 'pendente';
+        if (progressoSupabase && progressoSupabase.length > 0) {
+          progressoSupabase.forEach((item: any) => {
+            progressoObj[item.card_id] = item.status;
+          });
+        } else {
+          // Fallback para o localStorage se ainda não houver tabela na nuvem
+          const savedProgresso = localStorage.getItem('upquest_flashcards_progresso');
+          if (savedProgresso) {
+            progressoObj = JSON.parse(savedProgresso);
+          }
+        }
+
+        const savedDecks = localStorage.getItem('upquest_flashcards');
+        let listaCards: Array<{ id: string; assunto: string; disciplina: string; status: string; pergunta: string }> = [];
+        let b = 0, m = 0, r = 0;
+
+        if (savedDecks) {
+          const decksObj = JSON.parse(savedDecks);
+
+          Object.keys(decksObj).forEach((discKey) => {
+            const deck = decksObj[discKey];
+            if (deck && deck.cards && Array.isArray(deck.cards)) {
+              deck.cards.forEach((card: any) => {
+                const statusCard = progressoObj[card.id] || 'pendente';
                 if (statusCard === 'bom') b++;
                 if (statusCard === 'medio') m++;
                 if (statusCard === 'ruim') r++;
@@ -129,19 +141,25 @@ export default function DesempenhoPage() {
                 listaCards.push({
                   id: card.id,
                   assunto: card.assunto || 'Assunto Geral',
-                  disciplina: disciplinaNome,
+                  disciplina: deck.disciplina || discKey,
                   status: statusCard,
                   pergunta: card.pergunta
                 });
               });
             }
           });
-
-          setFlashcardsListados(listaCards);
-          setFlashcardsStats({ bom: b, medio: m, ruim: r, total: b + m + r });
         }
+
+        // Ordenação inteligente priorizando os cards que precisam de revisão (ruim -> medio -> bom -> pendente)
+        listaCards.sort((a, b) => {
+          const peso: Record<string, number> = { ruim: 1, medio: 2, bom: 3, pendente: 4 };
+          return (peso[a.status] || 5) - (peso[b.status] || 5);
+        });
+
+        setFlashcardsListados(listaCards);
+        setFlashcardsStats({ bom: b, medio: m, ruim: r, total: b + m + r });
       } catch (e) {
-        console.error("Erro ao carregar flashcards do Supabase", e);
+        console.error("Erro ao carregar flashcards", e);
       }
 
       setLoading(false);
@@ -150,31 +168,36 @@ export default function DesempenhoPage() {
     carregarDados();
   }, [router]);
 
-  const questoesFiltradas = useMemo(() => {
+  // Função utilitária centralizada para aplicar o filtro de período
+  const filtrarPorPeriodo = <T extends { created_at: string }>(itens: T[]) => {
     const agora = new Date();
-    return questoes.filter((q) => {
-      const dataQ = new Date(q.created_at);
+    return itens.filter((item) => {
+      const dataItem = new Date(item.created_at);
       if (filtroPeriodo === 'semana') {
         const umaSemanaAtras = new Date();
         umaSemanaAtras.setDate(agora.getDate() - 7);
-        return dataQ >= umaSemanaAtras;
+        return dataItem >= umaSemanaAtras;
       } else if (filtroPeriodo === 'mes') {
         return (
-          dataQ.getMonth() === agora.getMonth() &&
-          dataQ.getFullYear() === agora.getFullYear()
+          dataItem.getMonth() === agora.getMonth() &&
+          dataItem.getFullYear() === agora.getFullYear()
         );
       }
       return true;
     });
-  }, [questoes, filtroPeriodo]);
+  };
+
+  const questoesFiltradas = useMemo(() => filtrarPorPeriodo(questoes), [questoes, filtroPeriodo]);
+  const redacoesFiltradas = useMemo(() => filtrarPorPeriodo(redacoes), [redacoes, filtroPeriodo]);
+  const simuladosFiltrados = useMemo(() => filtrarPorPeriodo(simulados), [simulados, filtroPeriodo]);
 
   const totalFeitas = questoesFiltradas.reduce((acc, q) => acc + q.total_feitas, 0);
   const totalAcertos = questoesFiltradas.reduce((acc, q) => acc + q.acertos, 0);
   const totalErros = questoesFiltradas.reduce((acc, q) => acc + q.erros, 0);
   const aproveitamento = totalFeitas > 0 ? ((totalAcertos / totalFeitas) * 100).toFixed(1) : '0';
 
-  const mediaSimulados = simulados.length > 0
-    ? (simulados.reduce((acc, s) => acc + Number(s.nota), 0) / simulados.length).toFixed(1)
+  const mediaSimulados = simuladosFiltrados.length > 0
+    ? (simuladosFiltrados.reduce((acc, s) => acc + Number(s.nota), 0) / simuladosFiltrados.length).toFixed(1)
     : '0.0';
 
   const formatarTempoRedacao = (segundosTotais: number) => {
@@ -193,7 +216,6 @@ export default function DesempenhoPage() {
     }
 
     let estilos = 'bg-zinc-900/60 border-zinc-700/40 text-zinc-300';
-
     if (nota >= 0 && nota < 5) {
       estilos = 'bg-rose-950/60 border-rose-600/40 text-rose-400';
     } else if (nota >= 5 && nota < 7) {
@@ -207,12 +229,6 @@ export default function DesempenhoPage() {
         {nota.toFixed(1)}
       </span>
     );
-  };
-
-  const copiarPromptMestre = () => {
-    navigator.clipboard.writeText(PROMPT_MESTRE_FLASHCARDS);
-    setCopiadoPrompt(true);
-    setTimeout(() => setCopiadoPrompt(false), 3000);
   };
 
   return (
@@ -262,7 +278,6 @@ export default function DesempenhoPage() {
           <>
             {/* Cards de Métricas Principais */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-              
               <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-5 shadow-xl relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-1.5 h-full bg-red-600"></div>
                 <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">Questões no Período</p>
@@ -280,7 +295,7 @@ export default function DesempenhoPage() {
               <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-5 shadow-xl relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-1.5 h-full bg-blue-600"></div>
                 <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">Total de Redações</p>
-                <h3 className="text-2xl font-black text-white mt-1.5">{redacoes.length}</h3>
+                <h3 className="text-2xl font-black text-white mt-1.5">{redacoesFiltradas.length}</h3>
                 <span className="text-[11px] text-zinc-500 mt-1 block">Treinos cronometrados</span>
               </div>
 
@@ -288,7 +303,7 @@ export default function DesempenhoPage() {
                 <div className="absolute top-0 left-0 w-1.5 h-full bg-amber-500"></div>
                 <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">Média em Simulados</p>
                 <h3 className="text-2xl font-black text-white mt-1.5">{mediaSimulados} <span className="text-xs font-normal text-zinc-500">/ 10</span></h3>
-                <span className="text-[11px] text-zinc-500 mt-1 block">{simulados.length} simulados registados</span>
+                <span className="text-[11px] text-zinc-500 mt-1 block">{simuladosFiltrados.length} simulados registados</span>
               </div>
 
               <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-5 shadow-xl relative overflow-hidden sm:col-span-2 lg:col-span-1">
@@ -297,10 +312,9 @@ export default function DesempenhoPage() {
                 <h3 className="text-2xl font-black text-white mt-1.5">{flashcardsStats.total}</h3>
                 <span className="text-[10px] text-emerald-400 mt-1 block">🟢 {flashcardsStats.bom} | 🟡 {flashcardsStats.medio} | 🔴 {flashcardsStats.ruim}</span>
               </div>
-
             </div>
 
-            {/* SEÇÃO DEDICADA E EXCLUSIVA PARA OS FLASHCARDS (COM DISCIPLINA E ASSUNTO JUNTOS) */}
+            {/* SEÇÃO DE FLASHCARDS */}
             <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 shadow-xl space-y-4">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-3 border-b border-zinc-800">
                 <div className="flex items-center gap-2">
@@ -317,7 +331,7 @@ export default function DesempenhoPage() {
               {flashcardsListados.length === 0 ? (
                 <div className="text-center py-10 space-y-2">
                   <HelpCircle className="w-10 h-10 text-zinc-700 mx-auto" />
-                  <p className="text-xs text-zinc-400">Nenhum flashcard gerado ou avaliado no Caderno de Revisão na nuvem ainda.</p>
+                  <p className="text-xs text-zinc-400">Nenhum flashcard gerado ou avaliado no Caderno de Revisão ainda.</p>
                   <button 
                     onClick={() => router.push('/caderno-revisao')}
                     className="px-4 py-2 bg-amber-500 text-black font-bold text-xs rounded-xl hover:bg-amber-400 transition-all shadow"
@@ -329,42 +343,30 @@ export default function DesempenhoPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[450px] overflow-y-auto pr-1">
                   {flashcardsListados.map((fc) => (
                     <div key={fc.id} className="bg-zinc-900/80 border border-zinc-800 rounded-2xl p-4 flex flex-col justify-between gap-3 shadow-inner">
-                      <div className="space-y-2">
-                        {/* Disciplina e Assunto Juntos */}
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-blue-500/20 text-blue-300 border border-blue-500/30 truncate max-w-[140px]">
                             {fc.disciplina}
                           </span>
-                          <span className="text-[10px] text-zinc-500">•</span>
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                            {fc.assunto}
-                          </span>
+                          <span className="text-xs font-bold text-amber-300 truncate max-w-[150px]">{fc.assunto}</span>
                         </div>
                         <p className="text-xs text-zinc-300 line-clamp-2 leading-relaxed">{fc.pergunta}</p>
                       </div>
 
                       <div className="pt-2 border-t border-zinc-800/80 flex items-center justify-between">
-                        <span className="text-[11px] text-zinc-500">Status na Nuvem:</span>
+                        <span className="text-[11px] text-zinc-500">Sua avaliação:</span>
                         <div>
                           {fc.status === 'bom' && (
-                            <span className="px-3 py-1 bg-emerald-950/80 border border-emerald-600/40 text-emerald-300 text-xs font-bold rounded-xl flex items-center gap-1 shadow">
-                              🟢 Bom
-                            </span>
+                            <span className="px-3 py-1 bg-emerald-950/80 border border-emerald-600/40 text-emerald-300 text-xs font-bold rounded-xl flex items-center gap-1 shadow">🟢 Bom</span>
                           )}
                           {fc.status === 'medio' && (
-                            <span className="px-3 py-1 bg-amber-950/80 border border-amber-600/40 text-amber-300 text-xs font-bold rounded-xl flex items-center gap-1 shadow">
-                              🟡 Médio
-                            </span>
+                            <span className="px-3 py-1 bg-amber-950/80 border border-amber-600/40 text-amber-300 text-xs font-bold rounded-xl flex items-center gap-1 shadow">🟡 Médio</span>
                           )}
                           {fc.status === 'ruim' && (
-                            <span className="px-3 py-1 bg-rose-950/80 border border-rose-600/40 text-rose-300 text-xs font-bold rounded-xl flex items-center gap-1 shadow">
-                              🔴 Precisa Revisar
-                            </span>
+                            <span className="px-3 py-1 bg-rose-950/80 border border-rose-600/40 text-rose-300 text-xs font-bold rounded-xl flex items-center gap-1 shadow">🔴 Precisa Revisar</span>
                           )}
                           {fc.status === 'pendente' && (
-                            <span className="px-2.5 py-1 bg-zinc-950 border border-zinc-800 text-zinc-500 text-[11px] font-medium rounded-xl">
-                              ⚪ Não Avaliado
-                            </span>
+                            <span className="px-2.5 py-1 bg-zinc-950 border border-zinc-800 text-zinc-500 text-[11px] font-medium rounded-xl">⚪ Não Avaliado</span>
                           )}
                         </div>
                       </div>
@@ -374,10 +376,10 @@ export default function DesempenhoPage() {
               )}
             </div>
 
-            {/* Secção de Listagens Detalhadas */}
+            {/* Listagens Detalhadas */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               
-              {/* Histórico de Questões */}
+              {/* Histórico de Questões (Com exibição explícita do Assunto) */}
               <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 shadow-xl space-y-4">
                 <h2 className="text-lg font-bold text-white flex items-center gap-2">
                   <Award className="w-5 h-5 text-red-500" />
@@ -390,9 +392,14 @@ export default function DesempenhoPage() {
                   <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
                     {questoesFiltradas.map((q) => (
                       <div key={q.id} className="bg-zinc-900/60 border border-zinc-800/80 rounded-xl p-4 flex justify-between items-center">
-                        <div>
+                        <div className="space-y-1">
                           <h4 className="text-sm font-bold text-white">{q.materia}</h4>
-                          <span className="text-[10px] text-zinc-500 flex items-center gap-1 mt-0.5">
+                          {q.assunto && (
+                            <p className="text-[11px] text-amber-400 font-medium flex items-center gap-1">
+                              <Tag className="w-3 h-3" /> {q.assunto}
+                            </p>
+                          )}
+                          <span className="text-[10px] text-zinc-500 flex items-center gap-1">
                             <Calendar className="w-3 h-3" />
                             {new Date(q.created_at).toLocaleDateString('pt-BR')}
                           </span>
@@ -412,21 +419,18 @@ export default function DesempenhoPage() {
                 <div className="flex justify-between items-center">
                   <h2 className="text-lg font-bold text-white flex items-center gap-2">
                     <Award className="w-5 h-5 text-amber-500" />
-                    Simulados VUNESP
+                    Simulados VUNESP ({filtroPeriodo.toUpperCase()})
                   </h2>
-                  <button 
-                    onClick={() => router.push('/simulados')}
-                    className="text-xs text-red-400 hover:text-red-300 font-semibold"
-                  >
+                  <button onClick={() => router.push('/simulados')} className="text-xs text-red-400 hover:text-red-300 font-semibold">
                     Ver todos →
                   </button>
                 </div>
 
-                {simulados.length === 0 ? (
+                {simuladosFiltrados.length === 0 ? (
                   <p className="text-xs text-zinc-500 py-6 text-center">Nenhum simulado registado.</p>
                 ) : (
                   <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
-                    {simulados.map((s) => (
+                    {simuladosFiltrados.map((s) => (
                       <div key={s.id} className="bg-zinc-900/60 border border-zinc-800/80 rounded-xl p-4 flex justify-between items-center">
                         <div>
                           <h4 className="text-sm font-bold text-white">{s.titulo}</h4>
@@ -452,20 +456,15 @@ export default function DesempenhoPage() {
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                   <h2 className="text-lg font-bold text-white flex items-center gap-2">
                     <FileText className="w-5 h-5 text-blue-500" />
-                    Redações VUNESP
+                    Redações VUNESP ({filtroPeriodo.toUpperCase()})
                   </h2>
-                  <div className="flex items-center gap-2 text-[10px] text-zinc-400 bg-zinc-900 px-2 py-1 rounded-lg border border-zinc-800">
-                    <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>0-5</span>
-                    <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>5-7</span>
-                    <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>7-10</span>
-                  </div>
                 </div>
 
-                {redacoes.length === 0 ? (
+                {redacoesFiltradas.length === 0 ? (
                   <p className="text-xs text-zinc-500 py-6 text-center">Nenhuma redação registada.</p>
                 ) : (
                   <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
-                    {redacoes.map((r) => (
+                    {redacoesFiltradas.map((r) => (
                       <div key={r.id} className="bg-zinc-900/60 border border-zinc-800/80 rounded-xl p-4 space-y-3">
                         <div className="flex justify-between items-start gap-2">
                           <h4 className="text-sm font-bold text-white leading-snug truncate max-w-[170px]">{r.tema}</h4>

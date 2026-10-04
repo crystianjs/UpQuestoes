@@ -20,7 +20,9 @@ import {
   Sparkles,
   Quote,
   Pencil,
-  Plus
+  Plus,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 
 const cronogramaPadrao = [
@@ -163,7 +165,6 @@ export default function CronogramaPage() {
       if (data && data.dias) {
         setDiasSemana(data.dias);
       } else {
-        // Se não existir, cria o padrão para este usuário
         await supabase.from('user_cronograma_progresso').upsert({
           user_id: uid,
           dias: cronogramaPadrao,
@@ -193,6 +194,25 @@ export default function CronogramaPage() {
       console.error("Erro ao salvar no Supabase:", e);
       alert("Erro ao salvar na nuvem: " + e.message);
     }
+  };
+
+  // Funções para alterar a ordem dos cards (dias da semana)
+  const moverDiaEsquerda = (index: number) => {
+    if (index === 0) return;
+    const novaLista = [...diasSemana];
+    const temp = novaLista[index];
+    novaLista[index] = novaLista[index - 1];
+    novaLista[index - 1] = temp;
+    salvarNoSupabase(novaLista);
+  };
+
+  const moverDiaDireita = (index: number) => {
+    if (index === diasSemana.length - 1) return;
+    const novaLista = [...diasSemana];
+    const temp = novaLista[index];
+    novaLista[index] = novaLista[index + 1];
+    novaLista[index + 1] = temp;
+    salvarNoSupabase(novaLista);
   };
 
   const toggleTarefa = (diaId: string, tarefaId: string) => {
@@ -324,14 +344,14 @@ export default function CronogramaPage() {
                 <Sparkles className="w-3 h-3" /> Alta Performance
               </span>
               <span className="bg-emerald-500/20 text-emerald-400 text-xs font-bold px-2.5 py-0.5 rounded-full border border-emerald-500/30">
-                Tabela Dedicada Supabase 🟢
+                Isolado por ID na Nuvem 🟢
               </span>
             </div>
             <h1 className="text-2xl font-bold text-white mt-1.5">
               Cronograma Semanal de Estudos e Trabalho
             </h1>
             <p className="text-xs text-zinc-400 mt-0.5">
-              Acompanhe suas tarefas diárias, marque as etapas concluídas e gerencie sua rotina com total privacidade.
+              Acompanhe suas tarefas diárias, altere a ordem dos dias como preferir e gerencie sua rotina.
             </p>
           </div>
 
@@ -370,7 +390,7 @@ export default function CronogramaPage() {
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <blockquote className="bg-zinc-950/90 border border-amber-500/30 rounded-xl p-3.5 text-xs italic text-amber-300 shadow-md">
-                  &ldquo;Não tem milagre se você não tiver se preparado.&rdquo;
+                  &ldquo;Notem bem: não tem milagre se você não tiver se preparado.&rdquo;
                 </blockquote>
                 <blockquote className="bg-zinc-950/90 border border-amber-500/30 rounded-xl p-3.5 text-xs italic text-amber-300 shadow-md">
                   &ldquo;Algumas conquistas são sempre antecedidas de algumas dores.&rdquo;
@@ -409,11 +429,32 @@ export default function CronogramaPage() {
                   )}
 
                   <div>
-                    <div className="flex items-center justify-between pb-3 border-b border-zinc-800/80 mb-4 pr-12">
-                      <h3 className="text-base font-bold text-white flex items-center gap-2">
-                        <Calendar className={`w-4 h-4 ${isHoje ? 'text-red-500' : 'text-blue-400'}`} />
-                        {diaObj.dia}
+                    {/* Cabeçalho do Card com Botões de Reorganização de Ordem */}
+                    <div className="flex items-center justify-between pb-3 border-b border-zinc-800/80 mb-4 gap-1">
+                      <h3 className="text-base font-bold text-white flex items-center gap-1.5 min-w-0 truncate">
+                        <Calendar className={`w-4 h-4 shrink-0 ${isHoje ? 'text-red-500' : 'text-blue-400'}`} />
+                        <span className="truncate">{diaObj.dia}</span>
                       </h3>
+
+                      {/* Controles para alterar ordem dos cards */}
+                      <div className="flex items-center gap-1 shrink-0 bg-zinc-900 border border-zinc-800 rounded-lg p-0.5">
+                        <button
+                          onClick={() => moverDiaEsquerda(index)}
+                          disabled={index === 0}
+                          title="Mover para esquerda"
+                          className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer transition-colors"
+                        >
+                          <ChevronLeft className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => moverDiaDireita(index)}
+                          disabled={index === diasSemana.length - 1}
+                          title="Mover para direita"
+                          className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer transition-colors"
+                        >
+                          <ChevronRight className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
 
                     <div className="mb-4 space-y-1.5">

@@ -2,16 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import Navbar from '../components/Navbar';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase';
 
-// Inicialização do Cliente Supabase
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
-// ============================================================================
-// MATÉRIAS OFICIAIS DO EDITAL TJSP - VUNESP
-// ============================================================================
 const DISCIPLINAS_TJSP = [
   "Língua Portuguesa",
   "Direito Penal",
@@ -48,18 +40,11 @@ const flashcardsInicialExemplo = {
 const PROMPT_MESTRE_FLASHCARDS = `Com base estritamente no assunto de estudo fornecido (de qualquer disciplina do edital do TJSP), transforme-o em um JSON válido estruturado para flashcards de memorização ativa (sem nenhum texto ou markdown fora das chaves).
 
 REGRAS OBRIGATÓRIAS PARA OS FLASHCARDS (PADRÃO PROVA VUNESP):
-1. IDs ÚNICOS E INÉDITOS: Cada item dentro do array 'cards' DEVE ter um campo 'id' único, descritivo e inédito (ex: 'penal-crime-fc01', 'portuguesa-crase-fc02'). NUNCA repita IDs anteriores para garantir o funcionamento correto do merge na nuvem.
-2. PERGUNTAS IGUAL A PROVA: As perguntas ('pergunta') DEVEM ser formuladas exatamente no estilo de cobrança de concurso público da banca VUNESP (ex: envolvendo situações-problema, "Nos termos do Código...", "Assinale a alternativa correta...", ou casos práticos cobrados de Escrevente).
-3. ESTRUTURA DOS CARDS: Cada flashcard DEVE conter obrigatoriamente:
-   - 'assunto' com emoji visual (ex: '📌 Direito Penal').
-   - 'tag' curta e 'tagClasses' (cores padrão Tailwind).
-   - 'pergunta' desafiadora no padrão de prova.
-   - 'respostaResumida' direta, objetiva e fundamentada na lei seca.
-   - 'detalhes' com macetes, prazos e pegadinhas clássicas da VUNESP.
-4. PADRÃO VISUAL E EMOJIS: Utilize emojis estratégicos (🧠, ✅, ⚠️, 📌) para facilitar a retenção visual.
+1. IDs ÚNICOS E INÉDITOS: Cada item dentro do array 'cards' DEVE ter um campo 'id' único, descritivo e inédito (ex: 'penal-crime-fc01', 'portuguesa-crase-fc02').
+2. PERGUNTAS IGUAL A PROVA: As perguntas ('pergunta') DEVEM ser formuladas exatamente no estilo de cobrança de concurso público da banca VUNESP.
+3. ESTRUTURA DOS CARDS: Cada flashcard DEVE conter obrigatoriamente: 'assunto', 'tag', 'tagClasses', 'pergunta', 'respostaResumida', 'detalhes'.
 
 Siga exatamente esta estrutura JSON de exemplo:
-
 {
   "disciplina": "Nome exato da Disciplina do Edital TJSP",
   "titulo": "Flashcards: [Nome do Assunto]",
@@ -70,9 +55,9 @@ Siga exatamente esta estrutura JSON de exemplo:
       "assunto": "📌 [Subtema ou Tópico]",
       "tag": "Palavra-Chave",
       "tagClasses": "bg-amber-500/20 text-amber-300 border-amber-500/30",
-      "pergunta": "🧠 (TJSP / VUNESP) Pergunta elaborada exatamente no estilo de cobrança de prova de concurso público?",
-      "respostaResumida": "✅ Resposta clara, objetiva e fundamentada na lei seca que aparece ao virar o cartão.",
-      "detalhes": "⚠️ Macete VUNESP / Base Legal: Detalhe complementar, prazo ou pegadinha clássica sobre o tema.",
+      "pergunta": "🧠 (TJSP / VUNESP) Pergunta elaborada exatamente no estilo de cobrança...",
+      "respostaResumida": "✅ Resposta clara, objetiva e fundamentada na lei seca.",
+      "detalhes": "⚠️️ Macete VUNESP / Base Legal: Detalhe complementar ou pegadinha.",
       "icone": "fa-brain"
     }
   ]
@@ -83,12 +68,10 @@ export default function CadernoRevisaoPage() {
   const [selectedDisciplina, setSelectedDisciplina] = useState<string>("Todas as Matérias");
   const [selectedAssunto, setSelectedAssunto] = useState<string>("all");
 
-  // Estados dos Flashcards
   const [cardIndex, setCardIndex] = useState<number>(0);
   const [isFlipped, setIsFlipped] = useState<boolean>(false);
   const [progressoCards, setProgressoCards] = useState<Record<string, string>>({});
 
-  // Estados dos Modais
   const [showJsonModal, setShowJsonModal] = useState<boolean>(false);
   const [modalDisciplinaAlvo, setModalDisciplinaAlvo] = useState<string>("Direito Processual Civil");
   const [jsonInputText, setJsonInputText] = useState<string>('');
@@ -97,112 +80,60 @@ export default function CadernoRevisaoPage() {
   const [modalFeedback, setModalFeedback] = useState<{ tipo: 'erro' | 'sucesso'; mensagem: string } | null>(null);
   const [carregando, setCarregando] = useState<boolean>(true);
 
-  // Carrega do Supabase ao iniciar e ativa sincronização em tempo real (Realtime)
   useEffect(() => {
-    carregarDecksDoSupabase();
-
-    const channel = supabase
-      .channel('public:caderno_revisao')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'caderno_revisao' }, () => {
-        carregarDecksDoSupabase();
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    carregarDados();
   }, []);
 
-  const carregarDecksDoSupabase = async () => {
+  const carregarDados = async () => {
     try {
       setCarregando(true);
-      const { data, error } = await supabase.from('caderno_revisao').select('*');
-      
-      if (error) throw error;
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const userId = session.user.id;
 
-      if (data && data.length > 0) {
-        const formatoObj: Record<string, any> = {};
-        const progressoGeral: Record<string, string> = {};
+      // Carrega os decks salvos em localStorage (ou tabela de decks)
+      const savedDecks = localStorage.getItem('upquest_flashcards');
+      let formatoObj: Record<string, any> = {};
 
-        data.forEach((item: any) => {
-          formatoObj[item.disciplina] = {
-            disciplina: item.disciplina,
-            titulo: item.titulo,
-            banca: item.banca,
-            cards: item.cards
-          };
-
-          // Extrai o status/avaliação salvo em cada card
-          if (item.cards && Array.isArray(item.cards)) {
-            item.cards.forEach((c: any) => {
-              if (c.statusAvaliacao) {
-                progressoGeral[c.id] = c.statusAvaliacao;
-              }
-            });
-          }
-        });
-
-        setDecksPorDisciplina(formatoObj);
-        if (Object.keys(progressoGeral).length > 0) {
-          setProgressoCards(progressoGeral);
-        }
+      if (savedDecks) {
+        formatoObj = JSON.parse(savedDecks);
       } else {
-        // Insere o exemplo inicial se a tabela estiver vazia
-        await supabase.from('caderno_revisao').upsert({
-          disciplina: flashcardsInicialExemplo.disciplina,
-          titulo: flashcardsInicialExemplo.titulo,
-          banca: flashcardsInicialExemplo.banca,
-          cards: flashcardsInicialExemplo.cards
-        }, { onConflict: 'disciplina' });
+        formatoObj = { [flashcardsInicialExemplo.disciplina]: flashcardsInicialExemplo };
+        localStorage.setItem('upquest_flashcards', JSON.stringify(formatoObj));
+      }
+      setDecksPorDisciplina(formatoObj);
 
-        setDecksPorDisciplina({ [flashcardsInicialExemplo.disciplina]: flashcardsInicialExemplo });
+      // Carrega o progresso individual direto da nova tabela dedicada 'flashcards_progresso'
+      const { data: progressoData, error } = await supabase
+        .from('flashcards_progresso')
+        .select('*')
+        .eq('user_id', userId);
+
+      if (!error && progressoData) {
+        const progressoGeral: Record<string, string> = {};
+        progressoData.forEach((item: any) => {
+          progressoGeral[item.card_id] = item.status;
+        });
+        setProgressoCards(progressoGeral);
       }
     } catch (e) {
-      console.error("Erro ao carregar do Supabase:", e);
+      console.error("Erro ao carregar dados:", e);
     } finally {
       setCarregando(false);
     }
   };
 
-  const salvarNoSupabase = async (disciplinaAlvo: string, deckData: any) => {
-    try {
-      const { error } = await supabase.from('caderno_revisao').upsert({
-        disciplina: disciplinaAlvo,
-        titulo: deckData.titulo,
-        banca: deckData.banca || 'VUNESP',
-        cards: deckData.cards,
-        updated_at: new Date().toISOString()
-      }, { onConflict: 'disciplina' });
-
-      if (error) throw error;
-
-      setDecksPorDisciplina(prev => ({
-        ...prev,
-        [disciplinaAlvo]: deckData
-      }));
-    } catch (e: any) {
-      console.error("Erro ao salvar no Supabase:", e);
-      setModalFeedback({ tipo: 'erro', mensagem: `Erro ao salvar na nuvem: ${e.message}` });
-    }
-  };
-
-  const handleCarregarJson = async () => {
+  const handleCarregarJson = () => {
     setModalFeedback(null);
     try {
       const parsed = JSON.parse(jsonInputText);
       if (parsed && parsed.cards && Array.isArray(parsed.cards)) {
-        // Pega os cards que já existem na disciplina alvo (se houver) para fazer o merge inteligente
         const deckExistente = decksPorDisciplina[modalDisciplinaAlvo];
         let cardsFinais = [...parsed.cards];
 
         if (deckExistente && deckExistente.cards) {
-          // Cria um mapa dos IDs dos cards novos que estão sendo inseridos
           const idsNovos = new Set(parsed.cards.map((c: any) => c.id));
-          
-          // Mantém os cards antigos cujos IDs NÃO estão no novo lote enviado
           const cardsAntigosPreservados = deckExistente.cards.filter((c: any) => !idsNovos.has(c.id));
-          
-          // Une os antigos preservados com os novos cards
           cardsFinais = [...cardsAntigosPreservados, ...parsed.cards];
         }
 
@@ -213,10 +144,17 @@ export default function CadernoRevisaoPage() {
           cards: cardsFinais
         };
 
-        await salvarNoSupabase(modalDisciplinaAlvo, deckFinal);
+        const novoEstadoDecks = {
+          ...decksPorDisciplina,
+          [modalDisciplinaAlvo]: deckFinal
+        };
+
+        setDecksPorDisciplina(novoEstadoDecks);
+        localStorage.setItem('upquest_flashcards', JSON.stringify(novoEstadoDecks));
+
         setModalFeedback({ 
           tipo: 'sucesso', 
-          mensagem: `Deck atualizado! Total de ${cardsFinais.length} cards na nuvem para ${modalDisciplinaAlvo} (sem perder os anteriores).` 
+          mensagem: `Deck atualizado com sucesso! Total de ${cardsFinais.length} cards para ${modalDisciplinaAlvo}.` 
         });
 
         setTimeout(() => {
@@ -235,40 +173,44 @@ export default function CadernoRevisaoPage() {
     }
   };
 
-  const excluirCard = async (cardId: string) => {
-    if (!deckAtual) return;
-    if (confirm("Deseja apagar este flashcard da nuvem?")) {
-      const novosCards = deckAtual.cards.filter((c: any) => c.id !== cardId);
-      
-      if (novosCards.length === 0) {
-        await supabase.from('caderno_revisao').delete().eq('disciplina', selectedDisciplina);
-        const novoEstado = { ...decksPorDisciplina };
-        delete novoEstado[selectedDisciplina];
-        setDecksPorDisciplina(novoEstado);
-      } else {
-        const deckAtualizado = { ...deckAtual, cards: novosCards };
-        await salvarNoSupabase(selectedDisciplina, deckAtualizado);
-      }
-      setCardIndex(0);
-      setIsFlipped(false);
+  const avaliarDesempenho = async (avaliacao: 'ruim' | 'medio' | 'bom') => {
+    if (!cardAtual) return;
+
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    const userId = session.user.id;
+    
+    // Atualiza estado local imediatamente
+    const novoProgresso = {
+      ...progressoCards,
+      [cardAtual.id]: avaliacao
+    };
+    setProgressoCards(novoProgresso);
+    
+    // Grava de forma isolada na nova tabela dedicada 'flashcards_progresso'
+    try {
+      const { error } = await supabase.from('flashcards_progresso').upsert({
+        user_id: userId,
+        card_id: cardAtual.id,
+        disciplina: selectedDisciplina,
+        assunto: cardAtual.assunto,
+        status: avaliacao,
+        pergunta: cardAtual.pergunta,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'user_id,card_id' });
+
+      if (error) console.error("Erro ao salvar progresso no Supabase:", error);
+    } catch (err) {
+      console.error("Erro na requisição:", err);
     }
-  };
 
-  const copiarPromptMestre = () => {
-    navigator.clipboard.writeText(PROMPT_MESTRE_FLASHCARDS);
-    setCopiadoPrompt(true);
-    setTimeout(() => setCopiadoPrompt(false), 3000);
-  };
-
-  const copiarPromptModal = () => {
-    navigator.clipboard.writeText(PROMPT_MESTRE_FLASHCARDS);
-    setCopiadoModalPrompt(true);
-    setTimeout(() => setCopiadoModalPrompt(false), 3000);
+    setTimeout(() => {
+      proximoCard();
+    }, 350);
   };
 
   const deckAtual = selectedDisciplina !== "Todas as Matérias" ? decksPorDisciplina[selectedDisciplina] : null;
   const assuntosDisponiveis = deckAtual?.cards ? Array.from(new Set(deckAtual.cards.map((c: any) => c.assunto))) : [];
-
   const cardsExibir = deckAtual?.cards ? deckAtual.cards.filter((c: any) => selectedAssunto === 'all' || c.assunto === selectedAssunto) : [];
   const cardAtual = cardsExibir[cardIndex] || cardsExibir[0];
 
@@ -290,44 +232,49 @@ export default function CadernoRevisaoPage() {
     }
   };
 
-  const avaliarDesempenho = async (avaliacao: 'ruim' | 'medio' | 'bom') => {
-    if (!cardAtual || !deckAtual) return;
-    
-    const novoProgresso = {
-      ...progressoCards,
-      [cardAtual.id]: avaliacao
-    };
-    setProgressoCards(novoProgresso);
-    
-    // Atualiza o statusAvaliacao dentro do card e salva na nuvem
-    const cardsAtualizados = deckAtual.cards.map((c: any) => {
-      if (c.id === cardAtual.id) {
-        return { ...c, statusAvaliacao: avaliacao };
+  const excluirCard = (cardId: string) => {
+    if (!deckAtual) return;
+    if (confirm("Deseja apagar este flashcard?")) {
+      const novosCards = deckAtual.cards.filter((c: any) => c.id !== cardId);
+      const novoEstadoDecks = { ...decksPorDisciplina };
+      
+      if (novosCards.length === 0) {
+        delete novoEstadoDecks[selectedDisciplina];
+      } else {
+        novoEstadoDecks[selectedDisciplina] = { ...deckAtual, cards: novosCards };
       }
-      return c;
-    });
 
-    const deckAtualizado = { ...deckAtual, cards: cardsAtualizados };
-    await salvarNoSupabase(selectedDisciplina, deckAtualizado);
-
-    setTimeout(() => {
-      proximoCard();
-    }, 350);
+      setDecksPorDisciplina(novoEstadoDecks);
+      localStorage.setItem('upquest_flashcards', JSON.stringify(novoEstadoDecks));
+      setCardIndex(0);
+      setIsFlipped(false);
+    }
   };
 
-  // Contadores para o resumo superior
+  const copiarPromptMestre = () => {
+    navigator.clipboard.writeText(PROMPT_MESTRE_FLASHCARDS);
+    setCopiadoPrompt(true);
+    setTimeout(() => setCopiadoPrompt(false), 3000);
+  };
+
+  const copiarPromptModal = () => {
+    navigator.clipboard.writeText(PROMPT_MESTRE_FLASHCARDS);
+    setCopiadoModalPrompt(true);
+    setTimeout(() => setCopiadoModalPrompt(false), 3000);
+  };
+
+  // Contadores calculados diretamente dos estados reais salvos
   const totalBons = Object.values(progressoCards).filter(v => v === 'bom').length;
   const totalMedios = Object.values(progressoCards).filter(v => v === 'medio').length;
   const totalRuins = Object.values(progressoCards).filter(v => v === 'ruim').length;
 
   return (
     <div className="min-h-screen bg-black text-zinc-100 font-sans selection:bg-red-600 selection:text-white">
-      
       <Navbar />
 
       <main className="max-w-6xl mx-auto px-6 py-8 space-y-6">
         
-        {/* Painel de Status Detalhado por Assunto (Sincronizado) */}
+        {/* Painel de Status Detalhado */}
         <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <span className="text-sm font-bold text-white flex items-center gap-2">
@@ -347,32 +294,29 @@ export default function CadernoRevisaoPage() {
           </div>
         </div>
 
-        {/* Header da Página */}
+        {/* Header */}
         <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
               <span className="bg-amber-500/20 text-amber-300 text-xs font-bold px-2.5 py-0.5 rounded-full border border-amber-500/30">TJSP - VUNESP</span>
-              <span className="bg-emerald-500/20 text-emerald-400 text-xs font-bold px-2.5 py-0.5 rounded-full border border-emerald-500/30">Sincronizado Supabase 🟢</span>
+              <span className="bg-emerald-500/20 text-emerald-400 text-xs font-bold px-2.5 py-0.5 rounded-full border border-emerald-500/30">Tabela Dedicada Supabase 🟢</span>
             </div>
             <h1 className="text-2xl font-bold text-white mt-1">
               {deckAtual ? deckAtual.titulo : "Flashcards de Memorização Ativa"}
             </h1>
           </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => {
-                setModalDisciplinaAlvo(selectedDisciplina !== "Todas as Matérias" ? selectedDisciplina : DISCIPLINAS_TJSP[0]);
-                setJsonInputText(JSON.stringify(flashcardsInicialExemplo, null, 2));
-                setModalFeedback(null);
-                setShowJsonModal(true);
-              }}
-              className="text-xs font-semibold px-4 py-2.5 rounded-xl border border-amber-500/40 bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 transition-all flex items-center gap-1.5 shadow-md"
-            >
-              <svg className="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
-              Gerenciar / Adicionar Novos Cards (JSON)
-            </button>
-          </div>
+          <button
+            onClick={() => {
+              setModalDisciplinaAlvo(selectedDisciplina !== "Todas as Matérias" ? selectedDisciplina : DISCIPLINAS_TJSP[0]);
+              setJsonInputText(JSON.stringify(flashcardsInicialExemplo, null, 2));
+              setModalFeedback(null);
+              setShowJsonModal(true);
+            }}
+            className="text-xs font-semibold px-4 py-2.5 rounded-xl border border-amber-500/40 bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 transition-all flex items-center gap-1.5 shadow-md"
+          >
+            Gerenciar / Adicionar Novos Cards (JSON)
+          </button>
         </div>
 
         {/* Filtros */}
@@ -426,13 +370,11 @@ export default function CadernoRevisaoPage() {
           </div>
         </div>
 
-        {/* Main Container do Flashcard */}
+        {/* Flashcard Card Main */}
         <div className="bg-zinc-950 rounded-3xl border border-zinc-800 shadow-2xl relative overflow-hidden flex flex-col p-6 min-h-[550px] justify-between">
-          <div className="absolute inset-0 bg-[radial-gradient(#1E293B_1px,transparent_1px)] [background-size:20px_20px] opacity-20 pointer-events-none"></div>
-
           <div className="z-10 flex items-center justify-between pb-3 border-b border-zinc-800">
             <div className="flex items-center gap-2">
-              <span className="bg-amber-500/20 text-amber-300 text-xs font-bold px-2.5 py-1 rounded-lg border border-amber-500/30 flex items-center gap-1.5">
+              <span className="bg-amber-500/20 text-amber-300 text-xs font-bold px-2.5 py-1 rounded-lg border border-amber-500/30">
                 Card {cardsExibir.length > 0 ? cardIndex + 1 : 0} de {cardsExibir.length}
               </span>
               {cardAtual && (
@@ -445,10 +387,8 @@ export default function CadernoRevisaoPage() {
             {cardAtual && (
               <button
                 onClick={() => excluirCard(cardAtual.id)}
-                className="text-zinc-400 hover:text-rose-400 bg-zinc-900/80 hover:bg-rose-950/40 px-3 py-1.5 rounded-xl border border-zinc-800 hover:border-rose-500/40 transition-all text-xs font-semibold flex items-center gap-1.5"
-                title="Apagar este flashcard específico"
+                className="text-zinc-400 hover:text-rose-400 bg-zinc-900/80 hover:bg-rose-950/40 px-3 py-1.5 rounded-xl border border-zinc-800 hover:border-rose-500/40 transition-all text-xs font-semibold"
               >
-                <svg className="w-3.5 h-3.5 text-rose-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                 Apagar Card
               </button>
             )}
@@ -456,7 +396,7 @@ export default function CadernoRevisaoPage() {
 
           <div className="z-10 my-6 flex-1 flex flex-col items-center justify-center">
             {carregando ? (
-              <div className="text-center p-12 text-zinc-400 text-xs">Sincronizando com o Supabase...</div>
+              <div className="text-center p-12 text-zinc-400 text-xs">A carregar flashcards...</div>
             ) : selectedDisciplina === "Todas as Matérias" ? (
               <div className="text-center p-12 space-y-3">
                 <p className="text-sm text-zinc-400 font-medium">Selecione uma disciplina no filtro acima para iniciar os estudos.</p>
@@ -497,7 +437,7 @@ export default function CadernoRevisaoPage() {
                 <div className="mt-4 mb-6">
                   {!isFlipped ? (
                     <div className="space-y-3">
-                      <span className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <span className="text-xs font-bold text-amber-400 uppercase tracking-wider">
                         {cardAtual.assunto}
                       </span>
                       <h2 className="text-base sm:text-lg font-bold text-white leading-relaxed">
@@ -506,7 +446,7 @@ export default function CadernoRevisaoPage() {
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">
                         ✅ Resposta Correta:
                       </span>
                       <p className="text-sm sm:text-base font-semibold text-zinc-100 leading-relaxed bg-zinc-950/80 p-4 rounded-2xl border border-zinc-800">
@@ -519,11 +459,11 @@ export default function CadernoRevisaoPage() {
                       )}
 
                       <div className="pt-3 border-t border-zinc-800/80 space-y-2">
-                        <p className="text-xs font-semibold text-zinc-400">Sua revisão sobre o assunto é (salvo na nuvem):</p>
+                        <p className="text-xs font-semibold text-zinc-400">Sua avaliação (salva na tabela `flashcards_progresso`):</p>
                         <div className="grid grid-cols-3 gap-2">
                           <button onClick={() => avaliarDesempenho('ruim')} className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all ${progressoCards[cardAtual.id] === 'ruim' ? 'bg-rose-600 text-white border-2 border-rose-400' : 'bg-rose-950/40 text-rose-400 border border-rose-600/30'}`}>Ruim</button>
                           <button onClick={() => avaliarDesempenho('medio')} className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all ${progressoCards[cardAtual.id] === 'medio' ? 'bg-amber-600 text-white border-2 border-amber-400' : 'bg-amber-950/40 text-amber-400 border border-amber-600/30'}`}>Médio</button>
-                          <button onClick={() => avaliarDesempenho('bom')} className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all ${progressoCards[cardAtual.id] === 'bom' ? 'bg-emerald-600 text-white border-2 border-emerald-400' : 'bg-emerald-950/40 text-emerald-400 border border-emerald-600/30'}`}>Bom</button>
+                          <button onClick={() => avaliarDesempenho('bom')} className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all ${progressoCards[cardAtual.id] === 'bom' ? 'bg-emerald-600 text-white border-2 border-emerald-400' : 'bg-emerald-950/40 text-emerald-300 border border-emerald-600/30'}`}>Bom</button>
                         </div>
                       </div>
                     </div>
@@ -548,21 +488,10 @@ export default function CadernoRevisaoPage() {
           {cardsExibir.length > 0 && (
             <div className="z-10 flex items-center justify-between pt-4 border-t border-zinc-800">
               <button onClick={cardAnterior} className="px-4 py-2.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 font-semibold rounded-xl text-xs border border-zinc-800">Anterior</button>
-              <span className="text-xs text-zinc-500 font-medium">Sincronizado na Nuvem</span>
+              <span className="text-xs text-zinc-500 font-medium">Sincronizado na Tabela `flashcards_progresso`</span>
               <button onClick={proximoCard} className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl text-xs border border-blue-500/40 shadow-md">Próximo Card</button>
             </div>
           )}
-        </div>
-
-        {/* Prompt Mestre Card */}
-        <div className="bg-zinc-950 p-6 rounded-2xl border border-zinc-800 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <h2 className="text-sm font-bold text-white">Prompt Mestre para Flashcards (Padrão Prova VUNESP)</h2>
-            <p className="text-xs text-zinc-400 max-w-xl">Gera perguntas no estilo exato de concurso público, com IDs únicos e macetes VUNESP.</p>
-          </div>
-          <button onClick={copiarPromptMestre} className="px-4 py-2.5 rounded-xl font-semibold text-xs bg-amber-500 hover:bg-amber-400 text-black font-bold shadow-md">
-            {copiadoPrompt ? 'Prompt Copiado!' : 'Copiar Prompt Mestre'}
-          </button>
         </div>
 
       </main>
@@ -574,7 +503,7 @@ export default function CadernoRevisaoPage() {
             <button onClick={() => { setShowJsonModal(false); setModalFeedback(null); }} className="absolute top-4 right-4 z-20 text-rose-400 hover:text-white bg-rose-950/40 hover:bg-rose-600 p-2 rounded-xl border border-rose-500/40 w-9 h-9 flex items-center justify-center">✕</button>
 
             <div className="flex items-center justify-between pr-12">
-              <h2 className="text-lg font-bold text-white">Adicionar / Atualizar Flashcards na Nuvem</h2>
+              <h2 className="text-lg font-bold text-white">Adicionar / Atualizar Flashcards</h2>
               <button onClick={copiarPromptModal} className="text-xs font-semibold px-3 py-2 rounded-xl border bg-zinc-900 text-amber-300 border-amber-500/40">
                 {copiadoModalPrompt ? 'Copiado!' : 'Copiar Prompt Mestre'}
               </button>
@@ -588,7 +517,7 @@ export default function CadernoRevisaoPage() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-zinc-300">Cole o JSON gerado (os novos IDs somam-se aos antigos):</label>
+              <label className="text-xs font-bold text-zinc-300">Cole o JSON gerado:</label>
               <textarea
                 value={jsonInputText}
                 onChange={(e) => { setJsonInputText(e.target.value); if (modalFeedback) setModalFeedback(null); }}
@@ -603,13 +532,12 @@ export default function CadernoRevisaoPage() {
             )}
 
             <div className="pt-2 border-t border-zinc-800 flex items-center justify-between">
-              <span className="text-[11px] text-zinc-500">Faz merge automático por ID sem perder os antigos.</span>
-              <button onClick={handleCarregarJson} className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-black font-bold rounded-xl text-xs shadow-md">Salvar na Nuvem</button>
+              <span className="text-[11px] text-zinc-500">Atualiza os cards mantendo os anteriores.</span>
+              <button onClick={handleCarregarJson} className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-black font-bold rounded-xl text-xs shadow-md">Salvar</button>
             </div>
           </div>
         </div>
       )}
-
     </div>
   );
 }

@@ -22,7 +22,9 @@ import {
   Pencil,
   Plus,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react';
 
 const cronogramaPadrao = [
@@ -215,6 +217,37 @@ export default function CronogramaPage() {
     salvarNoSupabase(novaLista);
   };
 
+  // Funções para alterar a ordem das tarefas (blocos) dentro do dia
+  const moverTarefaCima = (diaId: string, tarefaIndex: number) => {
+    if (tarefaIndex === 0) return;
+    const atualizado = diasSemana.map((dia) => {
+      if (dia.id === diaId) {
+        const novasTarefas = [...dia.tarefas];
+        const temp = novasTarefas[tarefaIndex];
+        novasTarefas[tarefaIndex] = novasTarefas[tarefaIndex - 1];
+        novasTarefas[tarefaIndex - 1] = temp;
+        return { ...dia, tarefas: novasTarefas };
+      }
+      return dia;
+    });
+    salvarNoSupabase(atualizado);
+  };
+
+  const moverTarefaBaixo = (diaId: string, tarefaIndex: number) => {
+    const atualizado = diasSemana.map((dia) => {
+      if (dia.id === diaId) {
+        if (tarefaIndex === dia.tarefas.length - 1) return dia;
+        const novasTarefas = [...dia.tarefas];
+        const temp = novasTarefas[tarefaIndex];
+        novasTarefas[tarefaIndex] = novasTarefas[tarefaIndex + 1];
+        novasTarefas[tarefaIndex + 1] = temp;
+        return { ...dia, tarefas: novasTarefas };
+      }
+      return dia;
+    });
+    salvarNoSupabase(atualizado);
+  };
+
   const toggleTarefa = (diaId: string, tarefaId: string) => {
     const atualizado = diasSemana.map((dia) => {
       if (dia.id === diaId) {
@@ -351,7 +384,7 @@ export default function CronogramaPage() {
               Cronograma Semanal de Estudos e Trabalho
             </h1>
             <p className="text-xs text-zinc-400 mt-0.5">
-              Acompanhe suas tarefas diárias, altere a ordem dos dias como preferir e gerencie sua rotina.
+              Acompanhe suas tarefas diárias, altere a ordem dos blocos (subir/descer) e gerencie sua rotina.
             </p>
           </div>
 
@@ -429,19 +462,18 @@ export default function CronogramaPage() {
                   )}
 
                   <div>
-                    {/* Cabeçalho do Card com Botões de Reorganização de Ordem */}
+                    {/* Cabeçalho do Card com Botões de Reorganização do Card (Esquerda/Direita) */}
                     <div className="flex items-center justify-between pb-3 border-b border-zinc-800/80 mb-4 gap-1">
                       <h3 className="text-base font-bold text-white flex items-center gap-1.5 min-w-0 truncate">
                         <Calendar className={`w-4 h-4 shrink-0 ${isHoje ? 'text-red-500' : 'text-blue-400'}`} />
                         <span className="truncate">{diaObj.dia}</span>
                       </h3>
 
-                      {/* Controles para alterar ordem dos cards */}
                       <div className="flex items-center gap-1 shrink-0 bg-zinc-900 border border-zinc-800 rounded-lg p-0.5">
                         <button
                           onClick={() => moverDiaEsquerda(index)}
                           disabled={index === 0}
-                          title="Mover para esquerda"
+                          title="Mover dia para esquerda"
                           className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer transition-colors"
                         >
                           <ChevronLeft className="w-3.5 h-3.5" />
@@ -449,7 +481,7 @@ export default function CronogramaPage() {
                         <button
                           onClick={() => moverDiaDireita(index)}
                           disabled={index === diasSemana.length - 1}
-                          title="Mover para direita"
+                          title="Mover dia para direita"
                           className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer transition-colors"
                         >
                           <ChevronRight className="w-3.5 h-3.5" />
@@ -471,7 +503,7 @@ export default function CronogramaPage() {
                     </div>
 
                     <div className="space-y-3">
-                      {diaObj.tarefas.map((tarefa: any) => (
+                      {diaObj.tarefas.map((tarefa: any, tarefaIdx: number) => (
                         <div 
                           key={tarefa.id}
                           className={`p-3.5 rounded-xl border transition-all flex flex-col gap-3 group/item ${
@@ -493,10 +525,39 @@ export default function CronogramaPage() {
                             </div>
 
                             <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-amber-400 mb-1">
-                                {renderIcone(tarefa.icone, "w-3.5 h-3.5")}
-                                <span>{tarefa.horario}</span>
+                              <div className="flex items-center justify-between gap-1 mb-1">
+                                <div className="flex items-center gap-1.5 text-[11px] font-semibold text-amber-400">
+                                  {renderIcone(tarefa.icone, "w-3.5 h-3.5")}
+                                  <span>{tarefa.horario}</span>
+                                </div>
+
+                                {/* Botões para Mover Tarefa para Cima ou para Baixo */}
+                                <div className="flex items-center gap-0.5 bg-zinc-950/80 border border-zinc-800/80 rounded-md p-0.5">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      moverTarefaCima(diaObj.id, tarefaIdx);
+                                    }}
+                                    disabled={tarefaIdx === 0}
+                                    title="Mover para cima"
+                                    className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 disabled:opacity-20 cursor-pointer transition-colors"
+                                  >
+                                    <ArrowUp className="w-3 h-3" />
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      moverTarefaBaixo(diaObj.id, tarefaIdx);
+                                    }}
+                                    disabled={tarefaIdx === diaObj.tarefas.length - 1}
+                                    title="Mover para baixo"
+                                    className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 disabled:opacity-20 cursor-pointer transition-colors"
+                                  >
+                                    <ArrowDown className="w-3 h-3" />
+                                  </button>
+                                </div>
                               </div>
+
                               <p className={`text-xs leading-relaxed transition-colors ${tarefa.concluida ? 'text-zinc-500 line-through' : 'text-zinc-200'}`}>
                                 {tarefa.titulo}
                               </p>

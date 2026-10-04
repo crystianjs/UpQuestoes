@@ -56,7 +56,7 @@ export default function DesempenhoPage() {
 
       const userId = session.user.id;
 
-      // Execução em paralelo consultando a nova tabela dedicada 'flashcards_progresso'
+      // Execução em paralelo consultando a tabela dedicada 'flashcards_progresso'
       const [qRes, rRes, sRes, fRes] = await Promise.all([
         supabase.from('user_questions').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
         supabase.from('redaccoes').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
@@ -70,14 +70,11 @@ export default function DesempenhoPage() {
 
       // Processamento de Flashcards direto da tabela dedicada 'flashcards_progresso'
       try {
-        let progressoObj: Record<string, string> = {};
         let listaCards: Array<{ id: string; assunto: string; disciplina: string; status: string; pergunta: string }> = [];
 
         if (fRes.data && fRes.data.length > 0) {
           fRes.data.forEach((item: any) => {
             const statusCard = item.status || 'pendente';
-            progressoObj[item.card_id] = statusCard;
-
             listaCards.push({
               id: item.card_id,
               assunto: item.assunto || 'Assunto Geral',
@@ -176,7 +173,7 @@ export default function DesempenhoPage() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-zinc-100 font-sans selection:bg-red-600 selection:text-white">
+    <div className="min-h-screen bg-black text-zinc-100 font-sans selection:bg-amber-500 selection:text-black">
       <Navbar />
 
       <main className="max-w-6xl mx-auto px-6 py-8 space-y-8">
@@ -185,7 +182,7 @@ export default function DesempenhoPage() {
         <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-              <BarChart3 className="w-6 h-6 text-red-500" />
+              <BarChart3 className="w-6 h-6 text-amber-500" />
               Desempenho e Estatísticas — UPQUESTOES
             </h1>
             <p className="text-sm text-zinc-400 mt-1">
@@ -197,19 +194,19 @@ export default function DesempenhoPage() {
             <Filter className="w-4 h-4 text-zinc-400 ml-2" />
             <button 
               onClick={() => setFiltroPeriodo('todas')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${filtroPeriodo === 'todas' ? 'bg-red-600 text-white shadow' : 'text-zinc-400 hover:text-white'}`}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${filtroPeriodo === 'todas' ? 'bg-amber-500 text-black font-bold shadow' : 'text-zinc-400 hover:text-white'}`}
             >
               Geral
             </button>
             <button 
               onClick={() => setFiltroPeriodo('semana')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${filtroPeriodo === 'semana' ? 'bg-red-600 text-white shadow' : 'text-zinc-400 hover:text-white'}`}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${filtroPeriodo === 'semana' ? 'bg-amber-500 text-black font-bold shadow' : 'text-zinc-400 hover:text-white'}`}
             >
               Esta Semana
             </button>
             <button 
               onClick={() => setFiltroPeriodo('mes')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${filtroPeriodo === 'mes' ? 'bg-red-600 text-white shadow' : 'text-zinc-400 hover:text-white'}`}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${filtroPeriodo === 'mes' ? 'bg-amber-500 text-black font-bold shadow' : 'text-zinc-400 hover:text-white'}`}
             >
               Este Mês
             </button>
@@ -223,21 +220,21 @@ export default function DesempenhoPage() {
             {/* Cards de Métricas Principais */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
               <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-5 shadow-xl relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-1.5 h-full bg-red-600"></div>
+                <div className="absolute top-0 left-0 w-1.5 h-full bg-amber-500"></div>
                 <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">Questões no Período</p>
                 <h3 className="text-2xl font-black text-white mt-1.5">{totalFeitas}</h3>
                 <span className="text-[11px] text-zinc-500 mt-1 block">Filtro: <strong className="text-zinc-300 uppercase">{filtroPeriodo}</strong></span>
               </div>
 
               <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-5 shadow-xl relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-1.5 h-full bg-emerald-600"></div>
+                <div className="absolute top-0 left-0 w-1.5 h-full bg-emerald-500"></div>
                 <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">Taxa de Acerto</p>
                 <h3 className="text-2xl font-black text-white mt-1.5">{aproveitamento}%</h3>
                 <span className="text-[11px] text-zinc-500 mt-1 block">{totalAcertos} acertos / {totalErros} erros</span>
               </div>
 
               <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-5 shadow-xl relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-1.5 h-full bg-blue-600"></div>
+                <div className="absolute top-0 left-0 w-1.5 h-full bg-blue-500"></div>
                 <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">Total de Redações</p>
                 <h3 className="text-2xl font-black text-white mt-1.5">{redacoesFiltradas.length}</h3>
                 <span className="text-[11px] text-zinc-500 mt-1 block">Treinos cronometrados</span>
@@ -250,17 +247,17 @@ export default function DesempenhoPage() {
                 <span className="text-[11px] text-zinc-500 mt-1 block">{simuladosFiltrados.length} simulados registados</span>
               </div>
 
-              {/* Card de Flashcards com destaque em fundo amarelo/âmbar suave */}
-              <div className="bg-gradient-to-br from-amber-950/40 to-zinc-950 border border-amber-500/40 rounded-2xl p-5 shadow-xl relative overflow-hidden sm:col-span-2 lg:col-span-1">
+              {/* Card de Flashcards com destaque exclusivo em fundo amarelo/âmbar suave */}
+              <div className="bg-gradient-to-br from-amber-950/60 via-zinc-950 to-zinc-950 border border-amber-500/60 rounded-2xl p-5 shadow-xl relative overflow-hidden sm:col-span-2 lg:col-span-1">
                 <div className="absolute top-0 left-0 w-1.5 h-full bg-amber-500"></div>
-                <p className="text-[11px] font-bold uppercase tracking-wider text-amber-300">Flashcards Revistos</p>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-amber-400">Flashcards Revistos</p>
                 <h3 className="text-2xl font-black text-white mt-1.5">{flashcardsStats.total}</h3>
-                <span className="text-[10px] text-amber-400 mt-1 block">🟢 {flashcardsStats.bom} | 🟡 {flashcardsStats.medio} | 🔴 {flashcardsStats.ruim}</span>
+                <span className="text-[10px] text-amber-300 mt-1 block">🟢 {flashcardsStats.bom} | 🟡 {flashcardsStats.medio} | 🔴 {flashcardsStats.ruim}</span>
               </div>
             </div>
 
-            {/* SEÇÃO DE FLASHCARDS COM DETALHES */}
-            <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 shadow-xl space-y-4">
+            {/* SEÇÃO DE FLASHCARDS COM DESTAQUE EM AMARELO */}
+            <div className="bg-zinc-950 border border-amber-500/30 rounded-2xl p-6 shadow-xl space-y-4">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-3 border-b border-zinc-800">
                 <div className="flex items-center gap-2">
                   <Brain className="w-6 h-6 text-amber-400" />
@@ -275,7 +272,7 @@ export default function DesempenhoPage() {
 
               {flashcardsListados.length === 0 ? (
                 <div className="text-center py-10 space-y-2">
-                  <HelpCircle className="w-10 h-10 text-zinc-700 mx-auto" />
+                  <HelpCircle className="w-10 h-10 text-amber-500/50 mx-auto" />
                   <p className="text-xs text-zinc-400">Nenhum flashcard avaliado na tabela dedicada ainda.</p>
                   <button 
                     onClick={() => router.push('/caderno-revisao')}
@@ -287,10 +284,10 @@ export default function DesempenhoPage() {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[450px] overflow-y-auto pr-1">
                   {flashcardsListados.map((fc) => (
-                    <div key={fc.id} className="bg-zinc-900/80 border border-zinc-800 rounded-2xl p-4 flex flex-col justify-between gap-3 shadow-inner">
+                    <div key={fc.id} className="bg-zinc-900/90 border border-amber-500/30 rounded-2xl p-4 flex flex-col justify-between gap-3 shadow-inner">
                       <div className="space-y-1.5">
                         <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30 truncate max-w-[140px]">
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/40 truncate max-w-[140px]">
                             {fc.disciplina}
                           </span>
                           <span className="text-xs font-bold text-amber-200 truncate max-w-[150px]">{fc.assunto}</span>
@@ -327,7 +324,7 @@ export default function DesempenhoPage() {
               {/* Histórico de Questões */}
               <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 shadow-xl space-y-4">
                 <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                  <Award className="w-5 h-5 text-red-500" />
+                  <Award className="w-5 h-5 text-amber-500" />
                   Questões ({filtroPeriodo.toUpperCase()})
                 </h2>
 
@@ -366,7 +363,7 @@ export default function DesempenhoPage() {
                     <Award className="w-5 h-5 text-amber-500" />
                     Simulados VUNESP ({filtroPeriodo.toUpperCase()})
                   </h2>
-                  <button onClick={() => router.push('/simulados')} className="text-xs text-red-400 hover:text-red-300 font-semibold">
+                  <button onClick={() => router.push('/simulados')} className="text-xs text-amber-400 hover:text-amber-300 font-semibold">
                     Ver todos →
                   </button>
                 </div>
@@ -385,7 +382,7 @@ export default function DesempenhoPage() {
                           </span>
                         </div>
                         <div className="text-right">
-                          <span className="text-xs bg-red-950/40 border border-red-600/30 text-red-400 px-2 py-1 rounded-lg font-bold">
+                          <span className="text-xs bg-amber-950/40 border border-amber-600/30 text-amber-400 px-2 py-1 rounded-lg font-bold">
                             Nota: {s.nota}
                           </span>
                           <p className="text-[10px] text-zinc-400 mt-1">{s.acertos}/{s.total_questoes} acertos</p>
@@ -400,7 +397,7 @@ export default function DesempenhoPage() {
               <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 shadow-xl space-y-4">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                   <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                    <FileText className="w-5 h-5 text-blue-500" />
+                    <FileText className="w-5 h-5 text-amber-500" />
                     Redações VUNESP ({filtroPeriodo.toUpperCase()})
                   </h2>
                 </div>
@@ -420,7 +417,7 @@ export default function DesempenhoPage() {
 
                         <div className="bg-zinc-950 border border-zinc-800/60 p-2.5 rounded-lg flex items-center justify-between">
                           <div className="flex items-center gap-1.5 text-xs text-zinc-400">
-                            <Clock className="w-3.5 h-3.5 text-red-500" />
+                            <Clock className="w-3.5 h-3.5 text-amber-500" />
                             <span className="font-mono text-[11px]">{formatarTempoRedacao(r.tempo_gasto_segundos)}</span>
                           </div>
                           <div>

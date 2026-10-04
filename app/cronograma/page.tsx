@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Navbar from '../components/Navbar';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase';
 import { 
   BookOpen, 
   Briefcase, 
@@ -21,11 +22,6 @@ import {
   Pencil,
   Plus
 } from 'lucide-react';
-
-// Inicialização do Cliente Supabase
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 const cronogramaPadrao = [
   {
@@ -115,9 +111,11 @@ const PROMPT_CRONOGRAMA_JSON = `Gere estritamente um array JSON válido contendo
 Ícones permitidos no campo "icone": "BookOpen", "Briefcase", "Utensils", "Moon", "Laptop", "Smile".`;
 
 export default function CronogramaPage() {
+  const router = useRouter();
   const [diasSemana, setDiasSemana] = useState<any[]>(cronogramaPadrao);
   const [diaAtualIndex, setDiaAtualIndex] = useState<number>(0);
   const [carregando, setCarregando] = useState<boolean>(true);
+  const [userId, setUserId] = useState<string | null>(null);
   
   // Modais
   const [showJsonModal, setShowJsonModal] = useState<boolean>(false);
@@ -133,44 +131,44 @@ export default function CronogramaPage() {
   const [editIcone, setEditIcone] = useState<string>('BookOpen');
 
   useEffect(() => {
-    const hojeJs = new Date().getDay();
-    let indexMapeado = hojeJs === 0 ? 6 : hojeJs - 1;
-    setDiaAtualIndex(indexMapeado);
+    async function init() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        router.push('/');
+        return;
+      }
+      const uid = session.user.id;
+      setUserId(uid);
 
-    carregarCronogramaSupabase();
+      const hojeJs = new Date().getDay();
+      let indexMapeado = hojeJs === 0 ? 6 : hojeJs - 1;
+      setDiaAtualIndex(indexMapeado);
 
-    const channel = supabase
-      .channel('public:cronograma')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'cronograma' }, () => {
-        carregarCronogramaSupabase();
-      })
-      .subscribe();
+      await carregarCronogramaSupabase(uid);
+    }
+    init();
+  }, [router]);
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
-
-  const carregarCronogramaSupabase = async () => {
+  const carregarCronogramaSupabase = async (uid: string) => {
     try {
       setCarregando(true);
-      const { data, error } = await supabase.from('cronograma').select('*');
+      const { data, error } = await supabase
+        .from('user_cronograma_progresso')
+        .select('*')
+        .eq('user_id', uid)
+        .maybeSingle();
       
       if (error) throw error;
 
-      if (data && data.length > 0) {
-        const registroUnico = data.find((item: any) => item.id === 'semana' || item.id === 'cronograma_geral');
-        if (registroUnico && registroUnico.dias) {
-          setDiasSemana(registroUnico.dias);
-        } else {
-          setDiasSemana(data);
-        }
+      if (data && data.dias) {
+        setDiasSemana(data.dias);
       } else {
-        await supabase.from('cronograma').upsert({
-          id: 'semana',
+        // Se não existir, cria o padrão para este usuário
+        await supabase.from('user_cronograma_progresso').upsert({
+          user_id: uid,
           dias: cronogramaPadrao,
           updated_at: new Date().toISOString()
-        }, { onConflict: 'id' });
+        }, { onConflict: 'user_id' });
         setDiasSemana(cronogramaPadrao);
       }
     } catch (e) {
@@ -181,13 +179,14 @@ export default function CronogramaPage() {
   };
 
   const salvarNoSupabase = async (novoCronograma: any[]) => {
+    if (!userId) return;
     try {
       setDiasSemana(novoCronograma);
-      const { error } = await supabase.from('cronograma').upsert({
-        id: 'semana',
+      const { error } = await supabase.from('user_cronograma_progresso').upsert({
+        user_id: userId,
         dias: novoCronograma,
         updated_at: new Date().toISOString()
-      }, { onConflict: 'id' });
+      }, { onConflict: 'user_id' });
 
       if (error) throw error;
     } catch (e: any) {
@@ -325,14 +324,14 @@ export default function CronogramaPage() {
                 <Sparkles className="w-3 h-3" /> Alta Performance
               </span>
               <span className="bg-emerald-500/20 text-emerald-400 text-xs font-bold px-2.5 py-0.5 rounded-full border border-emerald-500/30">
-                Sincronizado Supabase 🟢
+                Tabela Dedicada Supabase 🟢
               </span>
             </div>
             <h1 className="text-2xl font-bold text-white mt-1.5">
               Cronograma Semanal de Estudos e Trabalho
             </h1>
             <p className="text-xs text-zinc-400 mt-0.5">
-              Acompanhe suas tarefas diárias, marque as etapas concluídas e gerencie sua rotina de aprovado.
+              Acompanhe suas tarefas diárias, marque as etapas concluídas e gerencie sua rotina com total privacidade.
             </p>
           </div>
 
@@ -342,14 +341,14 @@ export default function CronogramaPage() {
                 setJsonInputText(JSON.stringify(diasSemana, null, 2));
                 setShowJsonModal(true);
               }}
-              className="text-xs font-semibold px-4 py-2.5 rounded-xl border border-blue-500/40 bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 transition-all flex items-center gap-2 shadow-md"
+              className="text-xs font-semibold px-4 py-2.5 rounded-xl border border-blue-500/40 bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 transition-all flex items-center gap-2 shadow-md cursor-pointer"
             >
               <Upload className="w-4 h-4 text-blue-400" /> Subir Novo Cronograma (JSON)
             </button>
 
             <button
               onClick={handleRemoverCronograma}
-              className="text-xs font-semibold px-4 py-2.5 rounded-xl border border-rose-500/40 bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 transition-all flex items-center gap-2 shadow-md"
+              className="text-xs font-semibold px-4 py-2.5 rounded-xl border border-rose-500/40 bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 transition-all flex items-center gap-2 shadow-md cursor-pointer"
             >
               <Trash2 className="w-4 h-4 text-rose-400" /> Restaurar Padrão
             </button>
@@ -469,7 +468,7 @@ export default function CronogramaPage() {
                                 e.stopPropagation();
                                 abrirEdicaoTarefa(diaObj.id, tarefa);
                               }}
-                              className="px-2.5 py-1 rounded-lg bg-zinc-800/90 text-zinc-300 hover:text-white hover:bg-blue-600/30 border border-zinc-700/85 transition-all text-[11px] font-medium flex items-center gap-1"
+                              className="px-2.5 py-1 rounded-lg bg-zinc-800/90 text-zinc-300 hover:text-white hover:bg-blue-600/30 border border-zinc-700/85 transition-all text-[11px] font-medium flex items-center gap-1 cursor-pointer"
                               title="Editar Tarefa"
                             >
                               <Pencil className="w-3 h-3 text-blue-400" /> Editar
@@ -480,7 +479,7 @@ export default function CronogramaPage() {
                                 e.stopPropagation();
                                 toggleTarefa(diaObj.id, tarefa.id);
                               }}
-                              className={`px-2.5 py-1 rounded-lg border transition-all text-[11px] font-medium ${
+                              className={`px-2.5 py-1 rounded-lg border transition-all text-[11px] font-medium cursor-pointer ${
                                 tarefa.concluida
                                   ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/30'
                                   : 'bg-zinc-800 text-zinc-300 border-zinc-700 hover:bg-red-600/20 hover:text-red-300 hover:border-red-500/40'
@@ -494,7 +493,7 @@ export default function CronogramaPage() {
                                 e.stopPropagation();
                                 removerTarefa(diaObj.id, tarefa.id);
                               }}
-                              className="px-2.5 py-1 rounded-lg bg-zinc-800/90 text-zinc-400 hover:text-rose-400 hover:bg-rose-600/20 border border-zinc-700/85 transition-all text-[11px] font-medium flex items-center gap-1"
+                              className="px-2.5 py-1 rounded-lg bg-zinc-800/90 text-zinc-400 hover:text-rose-400 hover:bg-rose-600/20 border border-zinc-700/85 transition-all text-[11px] font-medium flex items-center gap-1 cursor-pointer"
                               title="Excluir Tarefa"
                             >
                               <Trash2 className="w-3 h-3 text-rose-400" /> Apagar
@@ -506,7 +505,7 @@ export default function CronogramaPage() {
 
                     <button
                       onClick={() => adicionarNovaTarefa(diaObj.id)}
-                      className="w-full mt-3 py-2 bg-zinc-900/60 hover:bg-zinc-900 border border-dashed border-zinc-800 hover:border-zinc-700 text-zinc-400 hover:text-white text-xs font-semibold rounded-xl transition-all flex items-center justify-center gap-1.5"
+                      className="w-full mt-3 py-2 bg-zinc-900/60 hover:bg-zinc-900 border border-dashed border-zinc-800 hover:border-zinc-700 text-zinc-400 hover:text-white text-xs font-semibold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                     >
                       <Plus className="w-3.5 h-3.5 text-red-500" /> Adicionar Tarefa
                     </button>
@@ -532,7 +531,7 @@ export default function CronogramaPage() {
             
             <button 
               onClick={() => setShowEditModal(false)} 
-              className="absolute top-4 right-4 text-zinc-400 hover:text-white bg-zinc-900 w-8 h-8 flex items-center justify-center rounded-full border border-zinc-800 transition-all text-xs"
+              className="absolute top-4 right-4 text-zinc-400 hover:text-white bg-zinc-900 w-8 h-8 flex items-center justify-center rounded-full border border-zinc-800 transition-all text-xs cursor-pointer"
             >
               ✕
             </button>
@@ -590,13 +589,13 @@ export default function CronogramaPage() {
             <div className="pt-2 border-t border-zinc-800 flex items-center justify-end gap-2.5">
               <button 
                 onClick={() => setShowEditModal(false)}
-                className="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 font-semibold rounded-xl text-xs transition-all border border-zinc-800"
+                className="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 font-semibold rounded-xl text-xs transition-all border border-zinc-800 cursor-pointer"
               >
                 Cancelar
               </button>
               <button 
                 onClick={salvarEdicaoTarefa}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-xs transition-all shadow-lg shadow-blue-900/30"
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-xs transition-all shadow-lg shadow-blue-900/30 cursor-pointer"
               >
                 Salvar Alterações
               </button>
@@ -613,7 +612,7 @@ export default function CronogramaPage() {
             
             <button 
               onClick={() => setShowJsonModal(false)} 
-              className="absolute top-4 right-4 text-zinc-400 hover:text-white bg-zinc-900 w-9 h-9 flex items-center justify-center rounded-full border border-zinc-800 transition-all text-sm"
+              className="absolute top-4 right-4 text-zinc-400 hover:text-white bg-zinc-900 w-9 h-9 flex items-center justify-center rounded-full border border-zinc-800 transition-all text-sm cursor-pointer"
               title="Fechar"
             >
               ✕
@@ -635,7 +634,7 @@ export default function CronogramaPage() {
                   <label className="text-xs font-semibold text-zinc-400">Estrutura JSON do Cronograma:</label>
                   <button
                     onClick={copiarPromptJson}
-                    className={`text-[11px] font-semibold px-2.5 py-1 rounded-lg border transition-all flex items-center gap-1.5 ${
+                    className={`text-[11px] font-semibold px-2.5 py-1 rounded-lg border transition-all flex items-center gap-1.5 cursor-pointer ${
                       copiadoPrompt 
                         ? 'bg-emerald-600 text-white border-emerald-500' 
                         : 'bg-zinc-900 text-zinc-300 border-zinc-800 hover:text-white'
@@ -657,13 +656,13 @@ export default function CronogramaPage() {
             <div className="pt-2 border-t border-zinc-800 flex items-center justify-end gap-3">
               <button 
                 onClick={() => setShowJsonModal(false)}
-                className="px-4 py-2.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 font-semibold rounded-xl text-xs transition-all border border-zinc-800"
+                className="px-4 py-2.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 font-semibold rounded-xl text-xs transition-all border border-zinc-800 cursor-pointer"
               >
                 Cancelar
               </button>
               <button 
                 onClick={handleSalvarNovoJson}
-                className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-xs transition-all shadow-lg shadow-blue-900/30 flex items-center gap-2"
+                className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-xs transition-all shadow-lg shadow-blue-900/30 flex items-center gap-2 cursor-pointer"
               >
                 <Upload className="w-4 h-4" /> Salvar na Nuvem
               </button>

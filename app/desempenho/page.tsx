@@ -39,7 +39,7 @@ export default function DesempenhoPage() {
   const [redacoes, setRedacoes] = useState<RedacaoRegistro[]>([]);
   const [simulados, setSimulados] = useState<SimuladoRegistro[]>([]);
   
-  // Estado para armazenar os flashcards sincronizados
+  // Estado para armazenar os flashcards sincronizados da tabela dedicada 'flashcards_progresso'
   const [flashcardsListados, setFlashcardsListados] = useState<Array<{ id: string; assunto: string; disciplina: string; status: string; pergunta: string }>>([]);
   const [flashcardsStats, setFlashcardsStats] = useState({ bom: 0, medio: 0, ruim: 0, total: 0 });
 
@@ -56,55 +56,35 @@ export default function DesempenhoPage() {
 
       const userId = session.user.id;
 
-      // Execução em paralelo para otimizar o carregamento de todas as métricas
+      // Execução em paralelo consultando a nova tabela dedicada 'flashcards_progresso'
       const [qRes, rRes, sRes, fRes] = await Promise.all([
         supabase.from('user_questions').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
         supabase.from('redaccoes').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
         supabase.from('simulados').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
-        supabase.from('user_flashcard_progress').select('card_id, status').eq('user_id', userId)
+        supabase.from('flashcards_progresso').select('*').eq('user_id', userId)
       ]);
 
       if (qRes.data) setQuestoes(qRes.data);
       if (rRes.data) setRedacoes(rRes.data);
       if (sRes.data) setSimulados(sRes.data);
 
-      // Processamento de Flashcards (Sincronização Supabase + LocalStorage)
+      // Processamento de Flashcards direto da tabela dedicada 'flashcards_progresso'
       try {
         let progressoObj: Record<string, string> = {};
+        let listaCards: Array<{ id: string; assunto: string; disciplina: string; status: string; pergunta: string }> = [];
 
         if (fRes.data && fRes.data.length > 0) {
           fRes.data.forEach((item: any) => {
-            progressoObj[item.card_id] = item.status;
-          });
-        } else {
-          // Fallback para o localStorage se ainda não houver dados na tabela da nuvem
-          const savedProgresso = localStorage.getItem('upquest_flashcards_progresso');
-          if (savedProgresso) {
-            progressoObj = JSON.parse(savedProgresso);
-          }
-        }
+            const statusCard = item.status || 'pendente';
+            progressoObj[item.card_id] = statusCard;
 
-        const savedDecks = localStorage.getItem('upquest_flashcards');
-        let listaCards: Array<{ id: string; assunto: string; disciplina: string; status: string; pergunta: string }> = [];
-
-        if (savedDecks) {
-          const decksObj = JSON.parse(savedDecks);
-
-          Object.keys(decksObj).forEach((discKey) => {
-            const deck = decksObj[discKey];
-            if (deck && deck.cards && Array.isArray(deck.cards)) {
-              deck.cards.forEach((card: any) => {
-                const statusCard = progressoObj[card.id] || 'pendente';
-
-                listaCards.push({
-                  id: card.id,
-                  assunto: card.assunto || 'Assunto Geral',
-                  disciplina: deck.disciplina || discKey,
-                  status: statusCard,
-                  pergunta: card.pergunta
-                });
-              });
-            }
+            listaCards.push({
+              id: item.card_id,
+              assunto: item.assunto || 'Assunto Geral',
+              disciplina: item.disciplina || 'Geral',
+              status: statusCard,
+              pergunta: item.pergunta || 'Pergunta do card'
+            });
           });
         }
 
@@ -114,7 +94,6 @@ export default function DesempenhoPage() {
           return (peso[a.status] || 5) - (peso[b.status] || 5);
         });
 
-        // Contagem rigorosamente derivada da lista final exibida para evitar divergências
         let b = 0, m = 0, r = 0;
         listaCards.forEach((fc) => {
           if (fc.status === 'bom') b++;
@@ -134,7 +113,6 @@ export default function DesempenhoPage() {
     carregarDados();
   }, [router]);
 
-  // Função utilitária centralizada para aplicar o filtro de período
   const filtrarPorPeriodo = <T extends { created_at: string }>(itens: T[]) => {
     const agora = new Date();
     return itens.filter((item) => {
@@ -272,19 +250,20 @@ export default function DesempenhoPage() {
                 <span className="text-[11px] text-zinc-500 mt-1 block">{simuladosFiltrados.length} simulados registados</span>
               </div>
 
-              <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-5 shadow-xl relative overflow-hidden sm:col-span-2 lg:col-span-1">
-                <div className="absolute top-0 left-0 w-1.5 h-full bg-purple-600"></div>
-                <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">Flashcards Revistos</p>
+              {/* Card de Flashcards com destaque em fundo amarelo/âmbar suave */}
+              <div className="bg-gradient-to-br from-amber-950/40 to-zinc-950 border border-amber-500/40 rounded-2xl p-5 shadow-xl relative overflow-hidden sm:col-span-2 lg:col-span-1">
+                <div className="absolute top-0 left-0 w-1.5 h-full bg-amber-500"></div>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-amber-300">Flashcards Revistos</p>
                 <h3 className="text-2xl font-black text-white mt-1.5">{flashcardsStats.total}</h3>
-                <span className="text-[10px] text-emerald-400 mt-1 block">🟢 {flashcardsStats.bom} | 🟡 {flashcardsStats.medio} | 🔴 {flashcardsStats.ruim}</span>
+                <span className="text-[10px] text-amber-400 mt-1 block">🟢 {flashcardsStats.bom} | 🟡 {flashcardsStats.medio} | 🔴 {flashcardsStats.ruim}</span>
               </div>
             </div>
 
-            {/* SEÇÃO DE FLASHCARDS */}
+            {/* SEÇÃO DE FLASHCARDS COM DETALHES */}
             <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 shadow-xl space-y-4">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-3 border-b border-zinc-800">
                 <div className="flex items-center gap-2">
-                  <Brain className="w-6 h-6 text-purple-400" />
+                  <Brain className="w-6 h-6 text-amber-400" />
                   <h2 className="text-lg font-bold text-white">Caderno de Revisão: Status Detalhado por Assunto</h2>
                 </div>
                 <div className="flex items-center gap-3 text-xs">
@@ -297,7 +276,7 @@ export default function DesempenhoPage() {
               {flashcardsListados.length === 0 ? (
                 <div className="text-center py-10 space-y-2">
                   <HelpCircle className="w-10 h-10 text-zinc-700 mx-auto" />
-                  <p className="text-xs text-zinc-400">Nenhum flashcard gerado ou avaliado no Caderno de Revisão ainda.</p>
+                  <p className="text-xs text-zinc-400">Nenhum flashcard avaliado na tabela dedicada ainda.</p>
                   <button 
                     onClick={() => router.push('/caderno-revisao')}
                     className="px-4 py-2 bg-amber-500 text-black font-bold text-xs rounded-xl hover:bg-amber-400 transition-all shadow"
@@ -311,10 +290,10 @@ export default function DesempenhoPage() {
                     <div key={fc.id} className="bg-zinc-900/80 border border-zinc-800 rounded-2xl p-4 flex flex-col justify-between gap-3 shadow-inner">
                       <div className="space-y-1.5">
                         <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-blue-500/20 text-blue-300 border border-blue-500/30 truncate max-w-[140px]">
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30 truncate max-w-[140px]">
                             {fc.disciplina}
                           </span>
-                          <span className="text-xs font-bold text-amber-300 truncate max-w-[150px]">{fc.assunto}</span>
+                          <span className="text-xs font-bold text-amber-200 truncate max-w-[150px]">{fc.assunto}</span>
                         </div>
                         <p className="text-xs text-zinc-300 line-clamp-2 leading-relaxed">{fc.pergunta}</p>
                       </div>
@@ -323,13 +302,13 @@ export default function DesempenhoPage() {
                         <span className="text-[11px] text-zinc-500">Sua avaliação:</span>
                         <div>
                           {fc.status === 'bom' && (
-                            <span className="px-3 py-1 bg-emerald-950/80 border border-emerald-600/40 text-emerald-300 text-xs font-bold rounded-xl flex items-center gap-1 shadow">🟢 Bom</span>
+                            <span className="px-3 py-1 bg-emerald-950/80 border border-emerald-600/40 text-emerald-300 text-xs font-bold rounded-xl shadow">🟢 Bom</span>
                           )}
                           {fc.status === 'medio' && (
-                            <span className="px-3 py-1 bg-amber-950/80 border border-amber-600/40 text-amber-300 text-xs font-bold rounded-xl flex items-center gap-1 shadow">🟡 Médio</span>
+                            <span className="px-3 py-1 bg-amber-950/80 border border-amber-600/40 text-amber-300 text-xs font-bold rounded-xl shadow">🟡 Médio</span>
                           )}
                           {fc.status === 'ruim' && (
-                            <span className="px-3 py-1 bg-rose-950/80 border border-rose-600/40 text-rose-300 text-xs font-bold rounded-xl flex items-center gap-1 shadow">🔴 Precisa Revisar</span>
+                            <span className="px-3 py-1 bg-rose-950/80 border border-rose-600/40 text-rose-300 text-xs font-bold rounded-xl shadow">🔴 Precisa Revisar</span>
                           )}
                           {fc.status === 'pendente' && (
                             <span className="px-2.5 py-1 bg-zinc-950 border border-zinc-800 text-zinc-500 text-[11px] font-medium rounded-xl">⚪ Não Avaliado</span>

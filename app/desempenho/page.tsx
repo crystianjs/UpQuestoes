@@ -9,7 +9,7 @@ import { BarChart3, Award, CheckCircle2, XCircle, Clock, Calendar, Filter, Brain
 interface QuestaoRegistro {
   id: string;
   materia: string;
-  assunto?: string; // Adicionado para exibir o assunto da questão
+  assunto?: string;
   total_feitas: number;
   acertos: number;
   erros: number;
@@ -33,40 +33,18 @@ interface SimuladoRegistro {
   created_at: string;
 }
 
-const PROMPT_MESTRE_FLASHCARDS = `Com base no assunto de estudo fornecido, transforme-o estritamente no seguinte formato JSON válido (sem markdown extra fora das chaves). 
-IMPORTANTE: Gere cartões focados em memorização ativa para concurso público (padrão VUNESP), contendo ID único, assunto, tag curta, classes de estilo para a tag, pergunta, respostaResumida, macete de detalhes e icone (ex: fa-brain, fa-book, fa-bolt).
-
-{
-  "disciplina": "Nome exato da Disciplina do Edital TJSP",
-  "titulo": "Título descritivo do Deck de Flashcards",
-  "banca": "VUNESP",
-  "cards": [
-    {
-      "id": "fc-identificador-unico",
-      "assunto": "Subtema ou Tópico",
-      "tag": "Palavra Chave",
-      "tagClasses": "bg-amber-500/20 text-amber-300 border-amber-500/30",
-      "pergunta": "Pergunta direta e desafiadora estimulando a lembrança ativa?",
-      "respostaResumida": "Resposta clara, objetiva e direta que aparece ao virar o cartão.",
-      "detalhes": "Detalhe complementar, macete ou pegadinha clássica da banca VUNESP sobre o tema.",
-      "icone": "fa-brain"
-    }
-  ]
-}`;
-
 export default function DesempenhoPage() {
   const router = useRouter();
   const [questoes, setQuestoes] = useState<QuestaoRegistro[]>([]);
   const [redacoes, setRedacoes] = useState<RedacaoRegistro[]>([]);
   const [simulados, setSimulados] = useState<SimuladoRegistro[]>([]);
   
-  // Estado para armazenar os flashcards sincronizados com o Supabase (com fallback seguro para localStorage)
+  // Estado para armazenar os flashcards sincronizados
   const [flashcardsListados, setFlashcardsListados] = useState<Array<{ id: string; assunto: string; disciplina: string; status: string; pergunta: string }>>([]);
   const [flashcardsStats, setFlashcardsStats] = useState({ bom: 0, medio: 0, ruim: 0, total: 0 });
 
   const [loading, setLoading] = useState(true);
   const [filtroPeriodo, setFiltroPeriodo] = useState<'todas' | 'semana' | 'mes'>('todas');
-  const [copiadoPrompt, setCopiadoPrompt] = useState<boolean>(false);
 
   useEffect(() => {
     async function carregarDados() {
@@ -78,44 +56,28 @@ export default function DesempenhoPage() {
 
       const userId = session.user.id;
 
-      // Buscar questões (garantindo seleção do campo de assunto, se houver)
-      const { data: qData } = await supabase
-        .from('user_questions')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false });
+      // Execução em paralelo para otimizar o carregamento de todas as métricas
+      const [qRes, rRes, sRes, fRes] = await Promise.all([
+        supabase.from('user_questions').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
+        supabase.from('redaccoes').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
+        supabase.from('simulados').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
+        supabase.from('user_flashcard_progress').select('card_id, status').eq('user_id', userId)
+      ]);
 
-      const { data: rData } = await supabase
-        .from('redaccoes')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false });
+      if (qRes.data) setQuestoes(qRes.data);
+      if (rRes.data) setRedacoes(rRes.data);
+      if (sRes.data) setSimulados(sRes.data);
 
-      const { data: sData } = await supabase
-        .from('simulados')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false });
-
-      if (qData) setQuestoes(qData);
-      if (rData) setRedacoes(rData);
-      if (sData) setSimulados(sData);
-
-      // Carregamento de Flashcards: Busca primária no Supabase para persistência real na nuvem
+      // Processamento de Flashcards (Sincronização Supabase + LocalStorage)
       try {
         let progressoObj: Record<string, string> = {};
 
-        const { data: progressoSupabase } = await supabase
-          .from('user_flashcard_progress')
-          .select('card_id, status')
-          .eq('user_id', userId);
-
-        if (progressoSupabase && progressoSupabase.length > 0) {
-          progressoSupabase.forEach((item: any) => {
+        if (fRes.data && fRes.data.length > 0) {
+          fRes.data.forEach((item: any) => {
             progressoObj[item.card_id] = item.status;
           });
         } else {
-          // Fallback para o localStorage se ainda não houver tabela na nuvem
+          // Fallback para o localStorage se ainda não houver dados na tabela da nuvem
           const savedProgresso = localStorage.getItem('upquest_flashcards_progresso');
           if (savedProgresso) {
             progressoObj = JSON.parse(savedProgresso);
@@ -124,7 +86,6 @@ export default function DesempenhoPage() {
 
         const savedDecks = localStorage.getItem('upquest_flashcards');
         let listaCards: Array<{ id: string; assunto: string; disciplina: string; status: string; pergunta: string }> = [];
-        let b = 0, m = 0, r = 0;
 
         if (savedDecks) {
           const decksObj = JSON.parse(savedDecks);
@@ -134,9 +95,6 @@ export default function DesempenhoPage() {
             if (deck && deck.cards && Array.isArray(deck.cards)) {
               deck.cards.forEach((card: any) => {
                 const statusCard = progressoObj[card.id] || 'pendente';
-                if (statusCard === 'bom') b++;
-                if (statusCard === 'medio') m++;
-                if (statusCard === 'ruim') r++;
 
                 listaCards.push({
                   id: card.id,
@@ -154,6 +112,14 @@ export default function DesempenhoPage() {
         listaCards.sort((a, b) => {
           const peso: Record<string, number> = { ruim: 1, medio: 2, bom: 3, pendente: 4 };
           return (peso[a.status] || 5) - (peso[b.status] || 5);
+        });
+
+        // Contagem rigorosamente derivada da lista final exibida para evitar divergências
+        let b = 0, m = 0, r = 0;
+        listaCards.forEach((fc) => {
+          if (fc.status === 'bom') b++;
+          if (fc.status === 'medio') m++;
+          if (fc.status === 'ruim') r++;
         });
 
         setFlashcardsListados(listaCards);
@@ -379,7 +345,7 @@ export default function DesempenhoPage() {
             {/* Listagens Detalhadas */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               
-              {/* Histórico de Questões (Com exibição explícita do Assunto) */}
+              {/* Histórico de Questões */}
               <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 shadow-xl space-y-4">
                 <h2 className="text-lg font-bold text-white flex items-center gap-2">
                   <Award className="w-5 h-5 text-red-500" />

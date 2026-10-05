@@ -28,50 +28,41 @@ const DISCIPLINAS_TJSP = [
 ];
 
 const mapaInicialExemplo = {
-  disciplina: "Direito Processual Civil",
-  titulo: "Mapa Mental: D. Processual Civil e Normas",
+  disciplina: "Língua Portuguesa",
+  titulo: "Mapa Mental: Morfossintaxe e Substantivação",
   banca: "VUNESP",
   ramos: [
     {
-      id: "citacao-conceito",
-      titulo: "📌 1. Citação: Conceito e Formas de Realização",
-      artigos: "ARTS. 238 - 259",
-      tag: "Triangulação",
+      id: "substantivo-derivacao",
+      titulo: "📌 1. Substantivo e Derivação Imprópria",
+      artigos: "MORFOSSINTAXE",
+      tag: "Classe Variável",
       tagClasses: "bg-zinc-950 text-amber-400 border-amber-400/40",
       subnos: [
         {
-          titulo: "⚖️ Regra Geral e Meio Eletrônico (Art. 246)",
-          descricao: "Convocação do réu, executado ou interessado para integrar a relação processual.",
-          corTitulo: "text-zinc-950 font-black",
+          titulo: "Classe variável que nomeia seres, objetos, ações e sentimentos; atua como núcleo de funções sintáticas.",
+          descricao: "",
+          corTitulo: "text-zinc-950 font-bold",
           itens: [
-            "☑ Regra PREFERENCIAL: Meio eletrônico (prazo de até 3 dias úteis para confirmação de recebimento após envio).",
-            "☑ Ausência de confirmação em 3 dias úteis exige citação por correio, oficial, escrivão/chefe ou edital."
-          ]
-        },
-        {
-          titulo: "🏛️ Demais Formas Reais (Correio, Oficial, Cartório)",
-          descricao: "Modalidades diretas de comunicação ao citando.",
-          corTitulo: "text-zinc-950 font-black",
-          itens: [
-            "☑ Correio (AR): Regra subsidiária padrão. Entregue ao citando ou ao encarregado da recepção em condomínios/loteamentos.",
-            "☑ Oficial de Justiça: Utilizada quando frustrado o meio eletrônico/correio, em ações de estado, réu incapaz ou pessoa de direito público."
+            "☑ Flexiona em gênero, número e grau, exercendo função de núcleo do sujeito ou objeto.",
+            "☑ Derivação imprópria: qualquer palavra (advérbio, verbo) antecedida por determinante vira substantivo."
           ]
         }
       ],
       modalInfo: {
-        title: "💡 Exemplo Prático: Formas de Citação",
-        tag: "Art. 238 a 259 CPC",
+        title: "💡 Exemplo Prático: Derivação Imprópria",
+        tag: "Morfossintaxe",
         tagBg: "bg-amber-400 text-zinc-950 border-amber-500",
         casosPraticos: [
           {
-            titulo: "🏛 CASO PRÁTICO 1 — CITAÇÃO ELETRÔNICA:",
-            texto: "A empresa ré é intimada por meio eletrônico cadastrado, mas deixa passar o prazo de 3 dias úteis sem acusar o recebimento."
+            titulo: "🏛 CASO PRÁTICO 1 — SUBSTANTIVAÇÃO:",
+            texto: "A banca coloca uma frase em que um advérbio ou verbo vem precedido de artigo (ex: 'O o anfíbio...')."
           }
         ],
         conclusoes: [
-          "✅ Caso 1: Frustrada a via eletrônica sem confirmação, o processo prossegue com a expedição de mandado por correio ou oficial de justiça."
+          "✅ Caso 1: A palavra perde sua classe gramatical original por derivação imprópria e passa a atuar como substantivo."
         ],
-        pegadinha: "⚠️ A VUNESP costuma inventar que a ausência de confirmação da citação eletrônica gera revelia automática. Cuidado: ela apenas obriga o uso dos meios tradicionais (correio/oficial), salvo se houver justificativa indevida passível de multa por ato atentatório à dignidade da justiça."
+        pegadinha: "⚠️ Cuidado: A VUNESP costuma tentar induzir o candidato ao erro dizendo que a palavra mantém sua classe primitiva. Sempre olhe para o determinante (artigo/pronome)."
       }
     }
   ]
@@ -88,16 +79,12 @@ REGRAS OBRIGATÓRIAS DE CONTEÚDO E ESTRUTURA
 =====================================================
 
 1. IDs ÚNICOS E INÉDITOS:
-   - Cada item dentro do array 'ramos' DEVE conter um campo 'id' único, descritivo e inédito (ex: 'dpc-tjsp-citacao-v1', 'penal-tjsp-peculato-v1').
+   - Cada item dentro do array 'ramos' DEVE conter um campo 'id' único, descritivo e inédito.
 
-2. RIGOR VUNESP & TJSP:
-   - Foque 100% na lei seca, jurisprudência pacificada e nas pegadinhas clássicas da VUNESP para o TJSP.
+2. REMOÇÃO DE RÓTULOS REDUNDANTES:
+   - NUNCA inclua termos como "Regra Principal e Conceito" nos títulos dos sub-itens. Vá direto ao conceito ou regra jurídica na primeira linha do sub-bloco amarelo.
 
-3. CHECKBOXES SEM COLCHETES:
-   - Dentro de 'itens' em 'subnos', utilize a caixa de seleção simbólica "☑ " ou "☐ " diretamente no texto.
-   - NUNCA utilize colchetes como "[ ]" ou "[x]" nos itens.
-
-4. ESTRUTURA EXATA DO JSON:
+3. ESTRUTURA EXATA DO JSON:
 {
   "disciplina": "[Nome Exato da Disciplina do Edital]",
   "titulo": "Mapa Mental: [Nome do Assunto Completo]",
@@ -106,14 +93,14 @@ REGRAS OBRIGATÓRIAS DE CONTEÚDO E ESTRUTURA
     {
       "id": "identificador-unico",
       "titulo": "📌 1. [Título do Tópico]",
-      "artigos": "ARTS. X - Y",
-      "tag": "[Palavra-Chave]",
+      "artigos": "TEMA",
+      "tag": "[Classe]",
       "tagClasses": "bg-zinc-950 text-amber-400 border-amber-400/40",
       "subnos": [
         {
-          "titulo": "⚖️️ [Subtópico]",
-          "descricao": "[Descrição]",
-          "corTitulo": "text-zinc-950 font-black",
+          "titulo": "[Conceito ou Regra Direta sem rótulos extras]",
+          "descricao": "",
+          "corTitulo": "text-zinc-950 font-bold",
           "itens": ["☑ Ponto 1", "☑ Ponto 2"]
         }
       ],
@@ -136,7 +123,7 @@ export default function MapaMentalPage() {
 
   const [activeModal, setActiveModal] = useState<string | null>(null);
   const [showJsonModal, setShowJsonModal] = useState<boolean>(false);
-  const [modalDisciplinaAlvo, setModalDisciplinaAlvo] = useState<string>("Direito Processual Civil");
+  const [modalDisciplinaAlvo, setModalDisciplinaAlvo] = useState<string>("Língua Portuguesa");
   const [jsonInputText, setJsonInputText] = useState<string>('');
   const [copiadoPrompt, setCopiadoPrompt] = useState<boolean>(false);
   const [carregando, setCarregando] = useState<boolean>(true);
@@ -420,13 +407,15 @@ export default function MapaMentalPage() {
                     {/* Título do Card na parte externa escura */}
                     <h3 className="text-sm font-extrabold text-white mb-4 tracking-tight">{ramo.titulo}</h3>
 
-                    {/* Blocos Internos com Fundo Amarelo e Texto Escuro de Contraste Perfeito */}
+                    {/* Blocos Internos com Fundo Amarelo e Conteúdo Direto */}
                     <div className="space-y-3 text-xs">
                       {ramo.subnos.map((sub: any, idx: number) => (
                         <div key={idx} className="p-4 rounded-xl bg-amber-400 text-zinc-950 border border-amber-500 shadow-md space-y-1.5">
-                          <span className="font-black block text-xs sm:text-[13px] text-zinc-950 flex items-center gap-1.5 leading-snug">
-                            {sub.titulo}
-                          </span>
+                          {sub.titulo && (
+                            <span className="font-extrabold block text-xs sm:text-[13px] text-zinc-950 leading-snug">
+                              {sub.titulo}
+                            </span>
+                          )}
                           {sub.descricao && (
                             <p className="text-zinc-900 text-xs leading-relaxed font-semibold">{sub.descricao}</p>
                           )}
@@ -465,10 +454,10 @@ export default function MapaMentalPage() {
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <span className="bg-amber-400 text-zinc-950 font-bold text-xs px-2.5 py-0.5 rounded-full">Mentor TJSP / VUNESP</span>
-              <h2 className="text-sm font-bold text-white">Prompt Mestre Definitivo com Casos Práticos Mapeados</h2>
+              <h2 className="text-sm font-bold text-white">Prompt Mestre Definitivo Atualizado</h2>
             </div>
             <p className="text-xs text-zinc-400 max-w-2xl">
-              Gera mapas mentais com profundidade jurídica completa, checkboxes e casos práticos detalhados por sub-assunto.
+              Gera mapas mentais limpos, sem rótulos redundantes, indo direto ao conceito jurídico.
             </p>
           </div>
 

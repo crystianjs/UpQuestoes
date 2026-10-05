@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Navbar from '../components/Navbar';
 import { createClient } from '@supabase/supabase-js';
 
-// Inicialização do Cliente Supabase (Certifique-se de ter as variáveis no seu .env.local)
+// Inicialização do Cliente Supabase
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
@@ -37,15 +37,12 @@ const mapaInicialExemplo = {
       titulo: "📌 1. Citação: Conceito e Formas de Realização",
       artigos: "ARTS. 238 - 259",
       tag: "Triangulação",
-      corBorda: "border-rose-500/40 hover:border-rose-400",
-      tagClasses: "bg-rose-500/20 text-rose-300 border-rose-500/30",
-      headerIcon: "fa-envelope text-rose-400",
+      tagClasses: "bg-zinc-950 text-amber-400 border-amber-400/40",
       subnos: [
         {
           titulo: "⚖️ Regra Geral e Meio Eletrônico (Art. 246)",
           descricao: "Convocação do réu, executado ou interessado para integrar a relação processual.",
-          corTitulo: "text-amber-300",
-          icone: "fa-bolt",
+          corTitulo: "text-zinc-950 font-black",
           itens: [
             "☑ Regra PREFERENCIAL: Meio eletrônico (prazo de até 3 dias úteis para confirmação de recebimento após envio).",
             "☑ Ausência de confirmação em 3 dias úteis exige citação por correio, oficial, escrivão/chefe ou edital."
@@ -54,8 +51,7 @@ const mapaInicialExemplo = {
         {
           titulo: "🏛️ Demais Formas Reais (Correio, Oficial, Cartório)",
           descricao: "Modalidades diretas de comunicação ao citando.",
-          corTitulo: "text-amber-300",
-          icone: "fa-user-tie",
+          corTitulo: "text-zinc-950 font-black",
           itens: [
             "☑ Correio (AR): Regra subsidiária padrão. Entregue ao citando ou ao encarregado da recepção em condomínios/loteamentos.",
             "☑ Oficial de Justiça: Utilizada quando frustrado o meio eletrônico/correio, em ações de estado, réu incapaz ou pessoa de direito público."
@@ -65,9 +61,7 @@ const mapaInicialExemplo = {
       modalInfo: {
         title: "💡 Exemplo Prático: Formas de Citação",
         tag: "Art. 238 a 259 CPC",
-        tagBg: "bg-rose-500/20 text-rose-300 border-rose-500/30",
-        iconBg: "bg-rose-500/20 text-rose-400 border border-rose-500/40",
-        icon: "fa-envelope",
+        tagBg: "bg-amber-400 text-zinc-950 border-amber-500",
         casosPraticos: [
           {
             titulo: "🏛 CASO PRÁTICO 1 — CITAÇÃO ELETRÔNICA:",
@@ -94,95 +88,46 @@ REGRAS OBRIGATÓRIAS DE CONTEÚDO E ESTRUTURA
 =====================================================
 
 1. IDs ÚNICOS E INÉDITOS:
-   - Cada item dentro do array 'ramos' DEVE conter um campo 'id' único, descritivo e inédito (ex: 'dpc-tjsp-citação-v1', 'penal-tjsp-peculato-v1').
+   - Cada item dentro do array 'ramos' DEVE conter um campo 'id' único, descritivo e inédito (ex: 'dpc-tjsp-citacao-v1', 'penal-tjsp-peculato-v1').
 
 2. RIGOR VUNESP & TJSP:
    - Foque 100% na lei seca, jurisprudência pacificada e nas pegadinhas clássicas da VUNESP para o TJSP.
-   - NÃO RESUMA DEMAIS. Traga a matéria completa do assunto com profundidade jurídica para caderno de revisão.
 
 3. CHECKBOXES SEM COLCHETES:
    - Dentro de 'itens' em 'subnos', utilize a caixa de seleção simbólica "☑ " ou "☐ " diretamente no texto.
    - NUNCA utilize colchetes como "[ ]" ou "[x]" nos itens.
-   - NUNCA utilize a palavra "Checklist" nos títulos das seções ou ramos.
 
-4. COBERTURA TOTAL DE EXEMPLOS PRÁTICOS (SEM DÓ):
-   - No objeto 'modalInfo', dentro do array 'casosPraticos', você DEVE trazer exemplos práticos para CADA UM dos sub-assuntos abordados no ramo.
-   - Se o ramo abordar 5 pontos/sub-assuntos, o array 'casosPraticos' DEVE conter 5 casos práticos numerados (ex: "🏛 CASO PRÁTICO 1 — ...", "🏛 CASO PRÁTICO 2 — ..."), detalhando exatamente como a VUNESP cobra em formato de situação-problema de prova.
-   - O array 'conclusoes' deve trazer o desfecho jurídico direto de cada caso prático correspondente.
-
-5. PADRÃO VISUAL E EMOJIS:
-   - Use emojis estratégicos em todos os títulos e tópicos (📌, ⚖️, ⏱️, 🏛, ⚠️, ✅, 💡) para facilitar a memorização visual.
-   - Mantenha classes Tailwind vibrantes e alternadas para cores de borda, badges e ícones do FontAwesome.
-
-=====================================================
-ESTRUTURA EXATA DO JSON A SER GERADO:
-=====================================================
-
+4. ESTRUTURA EXATA DO JSON:
 {
   "disciplina": "[Nome Exato da Disciplina do Edital]",
   "titulo": "Mapa Mental: [Nome do Assunto Completo]",
   "banca": "VUNESP",
   "ramos": [
     {
-      "id": "identificador-unico-e-inedito",
-      "titulo": "📌 1. [Título do Tópico 1]",
-      "artigos": "ARTS. X - Y DO [CÓDIGO/LEI]",
+      "id": "identificador-unico",
+      "titulo": "📌 1. [Título do Tópico]",
+      "artigos": "ARTS. X - Y",
       "tag": "[Palavra-Chave]",
-      "corBorda": "border-rose-500/40 hover:border-rose-400",
-      "tagClasses": "bg-rose-500/20 text-rose-300 border-rose-500/30",
-      "headerIcon": "fa-gavel text-rose-400",
+      "tagClasses": "bg-zinc-950 text-amber-400 border-amber-400/40",
       "subnos": [
         {
-          "titulo": "⚖️ [Nome do Subtopico 1.1]",
-          "descricao": "[Descrição sucinta da regra/natureza jurídica]",
-          "corTitulo": "text-rose-300",
-          "icone": "fa-shield-halved",
-          "itens": [
-            "☑ Regra 1 e base legal completa.",
-            "☑ Regra 2 com detalhe cobrado em prova."
-          ]
-        },
-        {
-          "titulo": "⚖️ [Nome do Subtopico 1.2]",
-          "descricao": "[Descrição sucinta]",
-          "corTitulo": "text-amber-300",
-          "icone": "fa-user-ninja",
-          "itens": [
-            "☑ Ponto legal de destaque.",
-            "☑ Outro ponto fundamental."
-          ]
+          "titulo": "⚖️️ [Subtópico]",
+          "descricao": "[Descrição]",
+          "corTitulo": "text-zinc-950 font-black",
+          "itens": ["☑ Ponto 1", "☑ Ponto 2"]
         }
       ],
       "modalInfo": {
-        "title": "💡 Aplicação Prática: [Nome do Tópico]",
-        "tag": "[Referência Legal]",
-        "tagBg": "bg-rose-500/20 text-rose-300 border-rose-500/30",
-        "iconBg": "bg-rose-500/20 text-rose-400 border border-rose-500/40",
-        "icon": "fa-gavel",
-        "casosPraticos": [
-          {
-            "titulo": "🏛 CASO PRÁTICO 1 — [Sub-assunto 1.1]:",
-            "texto": "Situação-problema hipotética no estilo exato da VUNESP..."
-          },
-          {
-            "titulo": "🏛 CASO PRÁTICO 2 — [Sub-assunto 1.2]:",
-            "texto": "Outra situação-problema simulando a prova para o segundo sub-assunto..."
-          }
-        ],
-        "conclusoes": [
-          "✅ Caso 1: Desfecho jurídico fundamentado no artigo X...",
-          "✅ Caso 2: Desfecho jurídico fundamentado no artigo Y..."
-        ],
-        "pegadinha": "⚠️ Cuidado! A VUNESP costuma tentar induzir o candidato ao erro afirmando que [descrever detalhadamente a armadilha clássica da banca sobre o assunto]..."
+        "title": "💡 Aplicação Prática",
+        "tag": "Referência",
+        "tagBg": "bg-amber-400 text-zinc-950 border-amber-500",
+        "casosPraticos": [{"titulo": "CASO 1", "texto": "..."}],
+        "conclusoes": ["✅ Desfecho..."],
+        "pegadinha": "⚠️ Cuidado com..."
       }
     }
   ]
-}
-
-=====================================================
-ASSUNTO A SER TRANSFORMADO EM JSON:
-=====================================================
-[COLE AQUI A MATÉRIA OU OS ARTIGOS DA LEI QUE VOCÊ QUER GERAR]`;
+}`;
 
 export default function MapaMentalPage() {
   const [mapasPorDisciplina, setMapasPorDisciplina] = useState<Record<string, any>>({});
@@ -196,7 +141,6 @@ export default function MapaMentalPage() {
   const [copiadoPrompt, setCopiadoPrompt] = useState<boolean>(false);
   const [carregando, setCarregando] = useState<boolean>(true);
 
-  // Carrega do Supabase ao iniciar e configura o Realtime
   useEffect(() => {
     carregarDadosSupabase();
 
@@ -231,7 +175,6 @@ export default function MapaMentalPage() {
         });
         setMapasPorDisciplina(mapaFormatado);
       } else {
-        // Insere o exemplo inicial se a tabela estiver vazia
         await supabase.from('mapas_mentais').upsert({
           disciplina: mapaInicialExemplo.disciplina,
           titulo: mapaInicialExemplo.titulo,
@@ -274,18 +217,12 @@ export default function MapaMentalPage() {
     try {
       const parsed = JSON.parse(jsonInputText);
       if (parsed && parsed.ramos && Array.isArray(parsed.ramos)) {
-        // Pega o mapa/deck existente na disciplina alvo para fazer o merge inteligente por ID
         const mapaExistente = mapasPorDisciplina[modalDisciplinaAlvo];
         let ramosFinais = [...parsed.ramos];
 
         if (mapaExistente && mapaExistente.ramos) {
-          // Cria um Set com os IDs dos ramos novos que estão sendo enviados
           const idsNovos = new Set(parsed.ramos.map((r: any) => r.id));
-          
-          // Preserva os ramos antigos cujos IDs NÃO estão presentes no novo lote
           const ramosAntigosPreservados = mapaExistente.ramos.filter((r: any) => !idsNovos.has(r.id));
-          
-          // Une os antigos preservados com os novos ramos (ou atualizados por ID)
           ramosFinais = [...ramosAntigosPreservados, ...parsed.ramos];
         }
 
@@ -301,7 +238,7 @@ export default function MapaMentalPage() {
         setJsonInputText('');
         setSelectedDisciplina(modalDisciplinaAlvo);
         setSelectedAssunto('all');
-        alert(`Mapa mental atualizado com sucesso na nuvem para ${modalDisciplinaAlvo} (${ramosFinais.length} blocos no total, sem perder os anteriores)!`);
+        alert(`Mapa mental atualizado com sucesso na nuvem para ${modalDisciplinaAlvo} (${ramosFinais.length} blocos no total)!`);
       } else {
         alert('O JSON precisa conter obrigatoriamente a chave "ramos".');
       }
@@ -316,7 +253,6 @@ export default function MapaMentalPage() {
       const novosRamos = mapaAtual.ramos.filter((r: any) => r.id !== ramoId);
       
       if (novosRamos.length === 0) {
-        // Se ficar vazio, remove do banco
         await supabase.from('mapas_mentais').delete().eq('disciplina', selectedDisciplina);
         const novoEstado = { ...mapasPorDisciplina };
         delete novoEstado[selectedDisciplina];
@@ -339,7 +275,7 @@ export default function MapaMentalPage() {
   const ramosExibir = mapaAtual?.ramos ? mapaAtual.ramos.filter((r: any) => selectedAssunto === 'all' || r.id === selectedAssunto) : [];
 
   return (
-    <div className="min-h-screen bg-black text-zinc-100 font-sans selection:bg-red-600 selection:text-white">
+    <div className="min-h-screen bg-black text-zinc-100 font-sans selection:bg-amber-400 selection:text-zinc-950">
       <Navbar />
 
       <main className="max-w-6xl mx-auto px-6 py-8 space-y-6">
@@ -349,7 +285,7 @@ export default function MapaMentalPage() {
           <div>
             <div className="flex items-center gap-2">
               <span className="bg-blue-500/20 text-blue-400 text-xs font-bold px-2.5 py-0.5 rounded-full border border-blue-500/30">TJSP - VUNESP</span>
-              <span className="bg-amber-500/20 text-amber-300 text-xs font-bold px-2.5 py-0.5 rounded-full border border-amber-500/30">Sincronizado Supabase 🟢</span>
+              <span className="bg-amber-400 text-zinc-950 font-bold text-xs px-2.5 py-0.5 rounded-full shadow-sm">Sincronizado Supabase 🟢</span>
             </div>
             <h1 className="text-2xl font-bold text-white mt-1">
               {mapaAtual ? mapaAtual.titulo : "Mapa Mental • Edital TJSP"}
@@ -363,9 +299,9 @@ export default function MapaMentalPage() {
                 setJsonInputText(JSON.stringify(mapaInicialExemplo, null, 2));
                 setShowJsonModal(true);
               }}
-              className="text-xs font-semibold px-4 py-2.5 rounded-xl border border-amber-500/40 bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 transition-all flex items-center gap-1.5 shadow-md"
+              className="text-xs font-bold px-4 py-2.5 rounded-xl border border-amber-400/50 bg-amber-400 hover:bg-amber-500 text-zinc-950 transition-all flex items-center gap-1.5 shadow-md cursor-pointer"
             >
-              <svg className="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg> Gerenciar / Adicionar Novos Blocos (JSON)
+              <svg className="w-4 h-4 text-zinc-950" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg> Gerenciar / Adicionar Novos Blocos (JSON)
             </button>
           </div>
         </div>
@@ -380,7 +316,7 @@ export default function MapaMentalPage() {
                 setSelectedDisciplina(e.target.value);
                 setSelectedAssunto('all');
               }}
-              className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 text-xs rounded-xl px-3 py-2.5 outline-none focus:border-blue-500"
+              className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 text-xs rounded-xl px-3 py-2.5 outline-none focus:border-amber-400"
             >
               <option value="Todas as Matérias">Todas as Matérias</option>
               {DISCIPLINAS_TJSP.map((disc) => (
@@ -396,12 +332,12 @@ export default function MapaMentalPage() {
             {selectedDisciplina === "Todas as Matérias" ? (
               <span className="text-xs text-zinc-500 italic">Selecione uma disciplina acima.</span>
             ) : !mapaAtual ? (
-              <span className="text-xs text-amber-400/90 italic">Nenhum mapa cadastrado.</span>
+              <span className="text-xs text-amber-400 italic">Nenhum mapa cadastrado.</span>
             ) : (
               <div className="flex items-center gap-1.5">
                 <button 
                   onClick={() => setSelectedAssunto('all')} 
-                  className={`text-xs font-semibold px-3 py-2 rounded-xl border transition-all whitespace-nowrap ${selectedAssunto === 'all' ? 'border-amber-500 bg-amber-600 text-white shadow-lg' : 'border-zinc-800 bg-zinc-900 text-zinc-300 hover:text-white'}`}
+                  className={`text-xs font-bold px-3 py-2 rounded-xl border transition-all whitespace-nowrap cursor-pointer ${selectedAssunto === 'all' ? 'border-amber-400 bg-amber-400 text-zinc-950 shadow-lg' : 'border-zinc-800 bg-zinc-900 text-zinc-300 hover:text-white'}`}
                 >
                   Todos os Temas
                 </button>
@@ -409,7 +345,7 @@ export default function MapaMentalPage() {
                   <button 
                     key={ramo.id}
                     onClick={() => setSelectedAssunto(ramo.id)} 
-                    className={`text-xs font-semibold px-3 py-2 rounded-xl border transition-all whitespace-nowrap ${selectedAssunto === ramo.id ? 'border-amber-500 bg-amber-600 text-white shadow-lg' : 'border-zinc-800 bg-zinc-900 text-zinc-300 hover:text-white'}`}
+                    className={`text-xs font-bold px-3 py-2 rounded-xl border transition-all whitespace-nowrap cursor-pointer ${selectedAssunto === ramo.id ? 'border-amber-400 bg-amber-400 text-zinc-950 shadow-lg' : 'border-zinc-800 bg-zinc-900 text-zinc-300 hover:text-white'}`}
                   >
                     {ramo.titulo.replace(/^[📌⚖️⏱️0-9]+\.\s*/, '')}
                   </button>
@@ -429,7 +365,7 @@ export default function MapaMentalPage() {
                 {selectedDisciplina !== "Todas as Matérias" ? selectedDisciplina : "Edital TJSP"} - Visão Sistêmica
               </span>
             </div>
-            <span className="text-xs text-zinc-400 hidden sm:inline">Clique em um bloco para ver o <b>Exemplo Prático e Pegadinha</b></span>
+            <span className="text-xs text-zinc-400 hidden sm:inline">Clique no botão amarelo para ver o <b>Exemplo Prático e Pegadinha</b></span>
           </div>
 
           <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-6 z-10 overflow-y-auto pr-1">
@@ -446,7 +382,7 @@ export default function MapaMentalPage() {
                 <p className="text-sm text-zinc-300 font-medium">Nenhum dado cadastrado para <b>{selectedDisciplina}</b>.</p>
                 <button 
                   onClick={() => { setModalDisciplinaAlvo(selectedDisciplina); setShowJsonModal(true); }}
-                  className="px-4 py-2.5 bg-amber-600 text-white rounded-xl text-xs font-semibold shadow-md hover:bg-amber-500 transition-all"
+                  className="px-4 py-2.5 bg-amber-400 text-zinc-950 font-bold rounded-xl text-xs shadow-md hover:bg-amber-500 transition-all cursor-pointer"
                 >
                   Adicionar Blocos via JSON
                 </button>
@@ -459,20 +395,21 @@ export default function MapaMentalPage() {
               ramosExibir.map((ramo: any) => (
                 <div 
                   key={ramo.id}
-                  className={`bg-zinc-900/90 rounded-2xl p-5 border ${ramo.corBorda} transition-all flex flex-col justify-between shadow-xl group`}
+                  className="bg-zinc-900/95 rounded-2xl p-5 border border-zinc-800 hover:border-zinc-700 transition-all flex flex-col justify-between shadow-xl group"
                 >
                   <div>
+                    {/* Cabeçalho do Card (Fundo Escuro, Texto Branco) */}
                     <div className="flex items-center justify-between pb-3 border-b border-zinc-800 mb-4">
-                      <span className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 text-zinc-300">
+                      <span className="text-xs font-bold uppercase tracking-wider text-amber-400">
                         {ramo.artigos}
                       </span>
                       <div className="flex items-center gap-1.5">
-                        <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-md border ${ramo.tagClasses}`}>
+                        <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-md border ${ramo.tagClasses || 'bg-zinc-950 text-amber-400 border-amber-400/40'}`}>
                           {ramo.tag}
                         </span>
                         <button
                           onClick={() => excluirRamo(ramo.id)}
-                          className="text-zinc-500 hover:text-rose-400 bg-zinc-950/80 hover:bg-rose-950/40 p-1.5 rounded-lg border border-zinc-800 hover:border-rose-500/40 transition-all text-xs"
+                          className="text-zinc-500 hover:text-rose-400 bg-zinc-950 hover:bg-rose-950/40 p-1.5 rounded-lg border border-zinc-800 hover:border-rose-500/40 transition-all text-xs cursor-pointer"
                           title="Apagar este assunto"
                         >
                           ✕
@@ -480,19 +417,21 @@ export default function MapaMentalPage() {
                       </div>
                     </div>
 
-                    <h3 className="text-sm font-bold text-white mb-4">{ramo.titulo}</h3>
+                    {/* Título do Card na parte externa escura */}
+                    <h3 className="text-sm font-extrabold text-white mb-4 tracking-tight">{ramo.titulo}</h3>
 
+                    {/* Blocos Internos com Fundo Amarelo e Texto Escuro de Contraste Perfeito */}
                     <div className="space-y-3 text-xs">
                       {ramo.subnos.map((sub: any, idx: number) => (
-                        <div key={idx} className="p-3.5 rounded-xl bg-zinc-950/80 border border-zinc-800/80 shadow-sm">
-                          <span className={`font-bold block mb-1.5 text-xs sm:text-[13px] ${sub.corTitulo || 'text-amber-300'} flex items-center gap-1.5`}>
+                        <div key={idx} className="p-4 rounded-xl bg-amber-400 text-zinc-950 border border-amber-500 shadow-md space-y-1.5">
+                          <span className="font-black block text-xs sm:text-[13px] text-zinc-950 flex items-center gap-1.5 leading-snug">
                             {sub.titulo}
                           </span>
                           {sub.descricao && (
-                            <p className="text-zinc-300 text-xs leading-relaxed">{sub.descricao}</p>
+                            <p className="text-zinc-900 text-xs leading-relaxed font-semibold">{sub.descricao}</p>
                           )}
                           {sub.itens && sub.itens.length > 0 && (
-                            <ul className="text-[11px] text-zinc-400 mt-2 space-y-1.5 list-disc list-inside">
+                            <ul className="text-[11px] text-zinc-900 mt-2 space-y-1 list-disc list-inside font-medium">
                               {sub.itens.map((item: string, iIdx: number) => (
                                 <li key={iIdx}>{item}</li>
                               ))}
@@ -503,9 +442,10 @@ export default function MapaMentalPage() {
                     </div>
                   </div>
 
+                  {/* Botão Inferior com Fundo Amarelo e Texto Preto */}
                   <button 
                     onClick={() => setActiveModal(ramo.id)} 
-                    className="mt-5 w-full py-3 bg-amber-600/20 hover:bg-amber-600/40 text-amber-300 text-xs font-semibold rounded-xl border border-amber-500/40 transition-all flex items-center justify-center gap-1.5 shadow-md"
+                    className="mt-5 w-full py-3 bg-amber-400 hover:bg-amber-300 text-zinc-950 text-xs font-extrabold rounded-xl border border-amber-500 transition-all flex items-center justify-center gap-1.5 shadow-lg cursor-pointer"
                   >
                     💡 Exemplo Prático e Pegadinha VUNESP
                   </button>
@@ -524,7 +464,7 @@ export default function MapaMentalPage() {
         <div className="bg-zinc-950 p-6 rounded-2xl border border-zinc-800 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <span className="bg-amber-500/20 text-amber-300 text-xs font-bold px-2.5 py-0.5 rounded-full border border-amber-500/30">Mentor TJSP / VUNESP</span>
+              <span className="bg-amber-400 text-zinc-950 font-bold text-xs px-2.5 py-0.5 rounded-full">Mentor TJSP / VUNESP</span>
               <h2 className="text-sm font-bold text-white">Prompt Mestre Definitivo com Casos Práticos Mapeados</h2>
             </div>
             <p className="text-xs text-zinc-400 max-w-2xl">
@@ -534,10 +474,10 @@ export default function MapaMentalPage() {
 
           <button
             onClick={copiarPromptMestre}
-            className={`px-4 py-2.5 rounded-xl font-semibold text-xs transition-all flex items-center gap-2 whitespace-nowrap shadow-md ${
+            className={`px-4 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center gap-2 whitespace-nowrap shadow-md cursor-pointer ${
               copiadoPrompt 
                 ? 'bg-emerald-600 text-white border border-emerald-500' 
-                : 'bg-amber-600 hover:bg-amber-500 text-white border border-amber-500/40'
+                : 'bg-amber-400 hover:bg-amber-500 text-zinc-950 border border-amber-500'
             }`}
           >
             {copiadoPrompt ? 'Prompt Copiado!' : 'Copiar Prompt Mestre'}
@@ -558,14 +498,14 @@ export default function MapaMentalPage() {
                 
                 <button 
                   onClick={() => setActiveModal(null)} 
-                  className="absolute top-4 right-4 text-zinc-400 hover:text-white bg-zinc-900 p-2 rounded-full border border-zinc-800 transition-all"
+                  className="absolute top-4 right-4 text-zinc-400 hover:text-white bg-zinc-900 p-2 rounded-full border border-zinc-800 transition-all cursor-pointer"
                 >
                   ✕
                 </button>
 
                 <div className="flex items-center gap-3">
                   <div>
-                    <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full border ${info.tagBg || 'bg-amber-500/20 text-amber-300 border-amber-500/30'}`}>
+                    <span className="text-xs font-bold px-2.5 py-0.5 rounded-full border bg-amber-400 text-zinc-950 border-amber-500">
                       {info.tag}
                     </span>
                     <h2 className="text-lg font-bold text-white mt-1">{info.title}</h2>
@@ -575,7 +515,7 @@ export default function MapaMentalPage() {
                 <div className="space-y-3 text-xs text-zinc-300 max-h-[60vh] overflow-y-auto pr-1">
                   {info.casosPraticos && info.casosPraticos.map((caso: any, idx: number) => (
                     <div key={idx} className="p-4 bg-zinc-900 rounded-2xl border border-zinc-800 space-y-2 shadow-inner">
-                      <p className="font-bold text-amber-300 uppercase tracking-wide">
+                      <p className="font-bold text-amber-400 uppercase tracking-wide">
                         {caso.titulo}
                       </p>
                       <p className="text-zinc-200 text-xs sm:text-[13px] leading-relaxed">{caso.texto}</p>
@@ -589,7 +529,7 @@ export default function MapaMentalPage() {
                   ))}
 
                   {info.pegadinha && (
-                    <div className="p-4 bg-[#1b151b] rounded-2xl border border-amber-500/40 text-amber-200 space-y-1.5 shadow-lg">
+                    <div className="p-4 bg-zinc-900 rounded-2xl border border-amber-400/40 text-amber-200 space-y-1.5 shadow-lg">
                       <p className="font-bold uppercase tracking-wider text-amber-400">
                         ⚠️ PEGADINHA VUNESP:
                       </p>
@@ -601,7 +541,7 @@ export default function MapaMentalPage() {
                 <div className="pt-2 border-t border-zinc-800 flex justify-end">
                   <button 
                     onClick={() => setActiveModal(null)} 
-                    className="w-full sm:w-auto px-6 py-2.5 bg-gradient-to-r from-amber-600 to-yellow-600 hover:from-amber-500 hover:to-yellow-500 text-white font-bold rounded-xl text-xs transition-all shadow-lg shadow-amber-900/30 flex items-center justify-center gap-2"
+                    className="w-full sm:w-auto px-6 py-2.5 bg-amber-400 hover:bg-amber-300 text-zinc-950 font-extrabold rounded-xl text-xs transition-all shadow-lg cursor-pointer"
                   >
                     Entendi! Voltar ao Mapa
                   </button>
@@ -620,19 +560,19 @@ export default function MapaMentalPage() {
             
             <button 
               onClick={() => setShowJsonModal(false)} 
-              className="absolute top-4 right-4 text-[#ff7575] hover:text-white bg-[#2a1215] hover:bg-[#3d1a1e] w-9 h-9 flex items-center justify-center rounded-full border border-red-500/40 transition-all shadow-md"
+              className="absolute top-4 right-4 text-red-400 hover:text-white bg-zinc-900 w-9 h-9 flex items-center justify-center rounded-full border border-red-500/40 transition-all shadow-md cursor-pointer"
             >
               ✕
             </button>
 
             <div className="flex items-center gap-3 pr-10">
-              <div className="w-12 h-12 rounded-2xl flex items-center justify-center bg-amber-500/10 text-amber-400 border border-amber-500/40 shadow-inner flex-shrink-0">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <div className="w-12 h-12 rounded-2xl flex items-center justify-center bg-amber-400 text-zinc-950 font-bold shadow-inner flex-shrink-0">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
                 </svg>
               </div>
               <div>
-                <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full border bg-amber-500/20 text-amber-300 border-amber-500/30">
+                <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full border bg-amber-400 text-zinc-950 border-amber-500">
                   Gerenciador em Nuvem (Merge por ID)
                 </span>
                 <h2 className="text-lg font-bold text-white mt-1">Adicionar / Atualizar Blocos do Mapa Mental</h2>
@@ -646,7 +586,7 @@ export default function MapaMentalPage() {
               <select 
                 value={modalDisciplinaAlvo}
                 onChange={(e) => setModalDisciplinaAlvo(e.target.value)}
-                className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 text-xs rounded-xl px-3 py-2.5 outline-none focus:border-amber-500"
+                className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 text-xs rounded-xl px-3 py-2.5 outline-none focus:border-amber-400"
               >
                 {DISCIPLINAS_TJSP.map((disc) => (
                   <option key={disc} value={disc}>{disc}</option>
@@ -656,12 +596,12 @@ export default function MapaMentalPage() {
 
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-zinc-300 flex items-center gap-1">
-                Cole o JSON do Prompt Mestre (os novos IDs somam-se aos antigos):
+                Cole o JSON do Prompt Mestre:
               </label>
               <textarea
                 value={jsonInputText}
                 onChange={(e) => setJsonInputText(e.target.value)}
-                className="w-full h-40 bg-zinc-900 text-amber-300 p-3 rounded-2xl border border-zinc-800 font-mono text-xs outline-none focus:border-amber-500 resize-none shadow-inner"
+                className="w-full h-40 bg-zinc-900 text-amber-300 p-3 rounded-2xl border border-zinc-800 font-mono text-xs outline-none focus:border-amber-400 resize-none shadow-inner"
                 placeholder="Cole o JSON aqui..."
               />
             </div>
@@ -670,7 +610,7 @@ export default function MapaMentalPage() {
               <span className="text-[11px] text-zinc-500">Une os novos blocos com os anteriores na nuvem.</span>
               <button 
                 onClick={handleCarregarJson} 
-                className="px-5 py-2.5 bg-amber-600 hover:bg-amber-500 text-white font-semibold rounded-xl text-xs transition-all flex items-center gap-1.5 shadow-md"
+                className="px-5 py-2.5 bg-amber-400 hover:bg-amber-500 text-zinc-950 font-bold rounded-xl text-xs transition-all flex items-center gap-1.5 shadow-md cursor-pointer"
               >
                 Salvar na Nuvem
               </button>

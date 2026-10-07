@@ -2,7 +2,11 @@
 
 import React, { useState, useEffect } from 'react';
 import Navbar from '../components/Navbar';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 const DISCIPLINAS_TJSP = [
   "Língua Portuguesa",
@@ -19,525 +23,553 @@ const DISCIPLINAS_TJSP = [
   "Estatuto da Pessoa com Deficiência"
 ];
 
-const flashcardsInicialExemplo = {
-  disciplina: "Direito Processual Civil",
-  titulo: "Flashcards: Atos Processuais e Prazos (Padrão VUNESP)",
+const revisaoInicialExemplo = {
+  disciplina: "Língua Portuguesa",
+  titulo: "Caderno de Revisão: Flashcards VUNESP",
   banca: "VUNESP",
   cards: [
     {
-      id: "fc-tjsp-01",
-      assunto: "📌 Atos Processuais",
-      tag: "Contagem de Prazos",
-      tagClasses: "bg-amber-500/20 text-amber-300 border-amber-500/30",
-      pergunta: "🧠 (TJSP / VUNESP) De acordo com o CPC, na contagem de prazo em dias, estabelecida para o processo civil, computar-se-ão apenas:",
-      respostaResumida: "✅ Apenas os dias úteis (Art. 219 do CPC). Exclui-se o dia do começo e inclui-se o dia do vencimento.",
-      detalhes: "⚠️ Pegadinha VUNESP: A banca costuma tentar confundir dizendo que contam-se todos os dias corridos (regra antiga do CPC/73). No CPC atual, prazos processuais contam-se estritamente em dias úteis!",
-      icone: "fa-brain"
+      id: "fc-port-01",
+      tag: "Classes Gramaticais",
+      assunto: "Morfologia",
+      detalhes: "PEGADINHA VUNESP: A banca costuma tentar incluir interjeições e artigos como variáveis em graus compostos.",
+      pergunta: "Quais são as 10 classes gramaticais da Língua Portuguesa?",
+      respostaResumida: "Substantivo, Artigo, Adjetivo, Pronome, Numeral, Verbo, Advérbio, Preposição, Conjunção e Interjeição.",
+      statusAvaliacao: null
     }
   ]
 };
 
-const PROMPT_MESTRE_FLASHCARDS = `Com base estritamente no assunto de estudo fornecido (de qualquer disciplina do edital do TJSP), transforme-o em um JSON válido estruturado para flashcards de memorização ativa (sem nenhum texto ou markdown fora das chaves).
-
-REGRAS OBRIGATÓRIAS PARA OS FLASHCARDS (PADRÃO PROVA VUNESP):
-1. IDs ÚNICOS E INÉDITOS: Cada item dentro do array 'cards' DEVE ter um campo 'id' único, descritivo e inédito (ex: 'penal-crime-fc01', 'portuguesa-crase-fc02').
-2. PERGUNTAS IGUAL A PROVA: As perguntas ('pergunta') DEVEM ser formuladas exatamente no estilo de cobrança de concurso público da banca VUNESP.
-3. ESTRUTURA DOS CARDS: Cada flashcard DEVE conter obrigatoriamente: 'assunto', 'tag', 'tagClasses', 'pergunta', 'respostaResumida', 'detalhes'.
-
-Siga exatamente esta estrutura JSON de exemplo:
+const PROMPT_MESTRE_FLASHCARD = `Atue como Especialista e Mentor para o concurso do TJSP (Banca VUNESP). 
+Gere um JSON estruturado para o Caderno de Revisão (Flashcards) contendo perguntas diretas, resposta resumida e detalhes/pegadinha da banca.
+Retorne EXCLUSIVAMENTE o JSON válido, seguindo esta estrutura exata:
 {
-  "disciplina": "Nome exato da Disciplina do Edital TJSP",
-  "titulo": "Flashcards: [Nome do Assunto]",
+  "disciplina": "Nome da Disciplina",
+  "titulo": "Flashcards VUNESP: [Assunto]",
   "banca": "VUNESP",
   "cards": [
     {
-      "id": "identificador-unico-e-inedito",
-      "assunto": "📌 [Subtema ou Tópico]",
-      "tag": "Palavra-Chave",
-      "tagClasses": "bg-amber-500/20 text-amber-300 border-amber-500/30",
-      "pergunta": "🧠 (TJSP / VUNESP) Pergunta elaborada exatamente no estilo de cobrança...",
-      "respostaResumida": "✅ Resposta clara, objetiva e fundamentada na lei seca.",
-      "detalhes": "⚠️️ Macete VUNESP / Base Legal: Detalhe complementar ou pegadinha.",
-      "icone": "fa-brain"
+      "id": "fc-disc-001",
+      "tag": "Palavra-Chave / Assunto Curto",
+      "assunto": "Tema Principal",
+      "pergunta": "Pergunta objetiva com foco na VUNESP?",
+      "respostaResumida": "Explicação ou gabarito direto da resposta.",
+      "detalhes": "PEGADINHA VUNESP: Explicação do ponto que a banca mais erra.",
+      "statusAvaliacao": null
     }
   ]
 }`;
 
 export default function CadernoRevisaoPage() {
-  const [decksPorDisciplina, setDecksPorDisciplina] = useState<Record<string, any>>({});
-  const [selectedDisciplina, setSelectedDisciplina] = useState<string>("Todas as Matérias");
+  const [revisoesPorDisciplina, setRevisoesPorDisciplina] = useState<Record<string, any>>({});
+  const [selectedDisciplina, setSelectedDisciplina] = useState<string>("Língua Portuguesa");
   const [selectedAssunto, setSelectedAssunto] = useState<string>("all");
 
-  const [cardIndex, setCardIndex] = useState<number>(0);
-  const [isFlipped, setIsFlipped] = useState<boolean>(false);
-  const [progressoCards, setProgressoCards] = useState<Record<string, string>>({});
-
+  const [activeModal, setActiveModal] = useState<string | null>(null);
   const [showJsonModal, setShowJsonModal] = useState<boolean>(false);
-  const [modalDisciplinaAlvo, setModalDisciplinaAlvo] = useState<string>("Direito Processual Civil");
+  const [modalDisciplinaAlvo, setModalDisciplinaAlvo] = useState<string>("Língua Portuguesa");
   const [jsonInputText, setJsonInputText] = useState<string>('');
   const [copiadoPrompt, setCopiadoPrompt] = useState<boolean>(false);
-  const [copiadoModalPrompt, setCopiadoModalPrompt] = useState<boolean>(false);
-  const [modalFeedback, setModalFeedback] = useState<{ tipo: 'erro' | 'sucesso'; mensagem: string } | null>(null);
   const [carregando, setCarregando] = useState<boolean>(true);
 
+  // Controle de flashcards revelados
+  const [respostasReveladas, setRespostasReveladas] = useState<Record<string, boolean>>({});
+
   useEffect(() => {
-    carregarDados();
+    carregarDadosSupabase();
   }, []);
 
-  const carregarDados = async () => {
+  const carregarDadosSupabase = async () => {
     try {
       setCarregando(true);
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
-      const userId = session.user.id;
+      const { data, error } = await supabase.from('caderno_revisao').select('*');
+      if (error) throw error;
 
-      // Carrega os decks salvos em localStorage (ou tabela de decks)
-      const savedDecks = localStorage.getItem('upquest_flashcards');
-      let formatoObj: Record<string, any> = {};
-
-      if (savedDecks) {
-        formatoObj = JSON.parse(savedDecks);
-      } else {
-        formatoObj = { [flashcardsInicialExemplo.disciplina]: flashcardsInicialExemplo };
-        localStorage.setItem('upquest_flashcards', JSON.stringify(formatoObj));
-      }
-      setDecksPorDisciplina(formatoObj);
-
-      // Carrega o progresso individual direto da nova tabela dedicada 'flashcards_progresso'
-      const { data: progressoData, error } = await supabase
-        .from('flashcards_progresso')
-        .select('*')
-        .eq('user_id', userId);
-
-      if (!error && progressoData) {
-        const progressoGeral: Record<string, string> = {};
-        progressoData.forEach((item: any) => {
-          progressoGeral[item.card_id] = item.status;
+      if (data && data.length > 0) {
+        const formatado: Record<string, any> = {};
+        data.forEach((item: any) => {
+          let rawCards = item.cards;
+          if (typeof rawCards === 'string') {
+            try { rawCards = JSON.parse(rawCards); } catch (e) { rawCards = []; }
+          }
+          formatado[item.disciplina] = {
+            disciplina: item.disciplina,
+            titulo: item.titulo,
+            banca: item.banca,
+            cards: Array.isArray(rawCards) ? rawCards : []
+          };
         });
-        setProgressoCards(progressoGeral);
+        setRevisoesPorDisciplina(formatado);
+      } else {
+        await supabase.from('caderno_revisao').upsert({
+          disciplina: revisaoInicialExemplo.disciplina,
+          titulo: revisaoInicialExemplo.titulo,
+          banca: revisaoInicialExemplo.banca,
+          cards: revisaoInicialExemplo.cards
+        }, { onConflict: 'disciplina' });
+        setRevisoesPorDisciplina({ [revisaoInicialExemplo.disciplina]: revisaoInicialExemplo });
       }
     } catch (e) {
-      console.error("Erro ao carregar dados:", e);
+      console.error("Erro ao carregar do Supabase:", e);
     } finally {
       setCarregando(false);
     }
   };
 
-  const handleCarregarJson = () => {
-    setModalFeedback(null);
+  const salvarNoSupabase = async (disciplinaAlvo: string, payload: any) => {
+    try {
+      const { error } = await supabase.from('caderno_revisao').upsert({
+        disciplina: disciplinaAlvo,
+        titulo: payload.titulo,
+        banca: payload.banca || 'VUNESP',
+        cards: payload.cards,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'disciplina' });
+
+      if (error) throw error;
+      setRevisoesPorDisciplina(prev => ({ ...prev, [disciplinaAlvo]: payload }));
+    } catch (e) {
+      alert("Erro ao salvar no banco.");
+    }
+  };
+
+  const handleCarregarJson = async () => {
     try {
       const parsed = JSON.parse(jsonInputText);
-      if (parsed && parsed.cards && Array.isArray(parsed.cards)) {
-        const deckExistente = decksPorDisciplina[modalDisciplinaAlvo];
-        let cardsFinais = [...parsed.cards];
+      const listaCards = parsed.cards || parsed.ramos;
+      if (parsed && listaCards && Array.isArray(listaCards)) {
+        const existente = revisoesPorDisciplina[modalDisciplinaAlvo];
+        let cardsFinais = [...listaCards];
 
-        if (deckExistente && deckExistente.cards) {
-          const idsNovos = new Set(parsed.cards.map((c: any) => c.id));
-          const cardsAntigosPreservados = deckExistente.cards.filter((c: any) => !idsNovos.has(c.id));
-          cardsFinais = [...cardsAntigosPreservados, ...parsed.cards];
+        if (existente && existente.cards) {
+          const idsNovos = new Set(listaCards.map((r: any) => r.id));
+          const preservados = existente.cards.filter((r: any) => !idsNovos.has(r.id));
+          cardsFinais = [...preservados, ...listaCards];
         }
 
-        const deckFinal = {
+        const payloadFinal = {
           disciplina: modalDisciplinaAlvo,
-          titulo: parsed.titulo || deckExistente?.titulo || `Flashcards: ${modalDisciplinaAlvo}`,
+          titulo: parsed.titulo || existente?.titulo || `Revisão: ${modalDisciplinaAlvo}`,
           banca: parsed.banca || 'VUNESP',
           cards: cardsFinais
         };
 
-        const novoEstadoDecks = {
-          ...decksPorDisciplina,
-          [modalDisciplinaAlvo]: deckFinal
-        };
-
-        setDecksPorDisciplina(novoEstadoDecks);
-        localStorage.setItem('upquest_flashcards', JSON.stringify(novoEstadoDecks));
-
-        setModalFeedback({ 
-          tipo: 'sucesso', 
-          mensagem: `Deck atualizado com sucesso! Total de ${cardsFinais.length} cards para ${modalDisciplinaAlvo}.` 
-        });
-
-        setTimeout(() => {
-          setShowJsonModal(false);
-          setModalFeedback(null);
-          setSelectedDisciplina(modalDisciplinaAlvo);
-          setSelectedAssunto('all');
-          setCardIndex(0);
-          setIsFlipped(false);
-        }, 1500);
+        await salvarNoSupabase(modalDisciplinaAlvo, payloadFinal);
+        setShowJsonModal(false);
+        setJsonInputText('');
+        setSelectedDisciplina(modalDisciplinaAlvo);
+        setSelectedAssunto('all');
+        alert(`Atualizado com sucesso para ${modalDisciplinaAlvo}!`);
       } else {
-        setModalFeedback({ tipo: 'erro', mensagem: 'O JSON precisa conter obrigatoriamente a chave "cards" em formato de array ([...]).' });
+        alert('O JSON precisa conter a chave "cards".');
       }
-    } catch (e: any) {
-      setModalFeedback({ tipo: 'erro', mensagem: `Erro de sintaxe no JSON: ${e.message}` });
+    } catch (e) {
+      alert('Erro de sintaxe no JSON.');
     }
   };
 
-  const avaliarDesempenho = async (avaliacao: 'ruim' | 'medio' | 'bom') => {
-    if (!cardAtual) return;
+  const toggleRevelar = (cardId: string) => {
+    setRespostasReveladas(prev => ({ ...prev, [cardId]: !prev[cardId] }));
+  };
 
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
-    const userId = session.user.id;
-    
-    // Atualiza estado local imediatamente
-    const novoProgresso = {
-      ...progressoCards,
-      [cardAtual.id]: avaliacao
+  // Salva o status de desempenho diretamente dentro do card e sincroniza com o Supabase
+  const definirStatus = async (cardId: string, status: string) => {
+    if (!revisaoAtual) return;
+
+    const cardsAtualizados = revisaoAtual.cards.map((c: any) => {
+      if (c.id === cardId) {
+        return { ...c, statusAvaliacao: status };
+      }
+      return c;
+    });
+
+    const payloadAtualizado = {
+      ...revisaoAtual,
+      cards: cardsAtualizados
     };
-    setProgressoCards(novoProgresso);
-    
-    // Grava de forma isolada na nova tabela dedicada 'flashcards_progresso'
-    try {
-      const { error } = await supabase.from('flashcards_progresso').upsert({
-        user_id: userId,
-        card_id: cardAtual.id,
-        disciplina: selectedDisciplina,
-        assunto: cardAtual.assunto,
-        status: avaliacao,
-        pergunta: cardAtual.pergunta,
-        updated_at: new Date().toISOString()
-      }, { onConflict: 'user_id,card_id' });
 
-      if (error) console.error("Erro ao salvar progresso no Supabase:", error);
-    } catch (err) {
-      console.error("Erro na requisição:", err);
-    }
-
-    setTimeout(() => {
-      proximoCard();
-    }, 350);
+    await salvarNoSupabase(selectedDisciplina, payloadAtualizado);
   };
 
-  const deckAtual = selectedDisciplina !== "Todas as Matérias" ? decksPorDisciplina[selectedDisciplina] : null;
-  const assuntosDisponiveis = deckAtual?.cards ? Array.from(new Set(deckAtual.cards.map((c: any) => c.assunto))) : [];
-  const cardsExibir = deckAtual?.cards ? deckAtual.cards.filter((c: any) => selectedAssunto === 'all' || c.assunto === selectedAssunto) : [];
-  const cardAtual = cardsExibir[cardIndex] || cardsExibir[0];
-
-  const proximoCard = () => {
-    setIsFlipped(false);
-    if (cardIndex < cardsExibir.length - 1) {
-      setCardIndex(cardIndex + 1);
-    } else {
-      setCardIndex(0);
-    }
-  };
-
-  const cardAnterior = () => {
-    setIsFlipped(false);
-    if (cardIndex > 0) {
-      setCardIndex(cardIndex - 1);
-    } else {
-      setCardIndex(cardsExibir.length - 1);
-    }
-  };
-
-  const excluirCard = (cardId: string) => {
-    if (!deckAtual) return;
+  const excluirCard = async (cardId: string) => {
+    if (!revisaoAtual) return;
     if (confirm("Deseja apagar este flashcard?")) {
-      const novosCards = deckAtual.cards.filter((c: any) => c.id !== cardId);
-      const novoEstadoDecks = { ...decksPorDisciplina };
-      
+      const novosCards = revisaoAtual.cards.filter((r: any) => r.id !== cardId);
       if (novosCards.length === 0) {
-        delete novoEstadoDecks[selectedDisciplina];
+        await supabase.from('caderno_revisao').delete().eq('disciplina', selectedDisciplina);
+        const novoEstado = { ...revisoesPorDisciplina };
+        delete novoEstado[selectedDisciplina];
+        setRevisoesPorDisciplina(novoEstado);
       } else {
-        novoEstadoDecks[selectedDisciplina] = { ...deckAtual, cards: novosCards };
+        const novoMapa = { ...revisaoAtual, cards: novosCards };
+        await salvarNoSupabase(selectedDisciplina, novoMapa);
       }
-
-      setDecksPorDisciplina(novoEstadoDecks);
-      localStorage.setItem('upquest_flashcards', JSON.stringify(novoEstadoDecks));
-      setCardIndex(0);
-      setIsFlipped(false);
+      setSelectedAssunto('all');
     }
   };
 
   const copiarPromptMestre = () => {
-    navigator.clipboard.writeText(PROMPT_MESTRE_FLASHCARDS);
+    navigator.clipboard.writeText(PROMPT_MESTRE_FLASHCARD);
     setCopiadoPrompt(true);
     setTimeout(() => setCopiadoPrompt(false), 3000);
   };
 
-  const copiarPromptModal = () => {
-    navigator.clipboard.writeText(PROMPT_MESTRE_FLASHCARDS);
-    setCopiadoModalPrompt(true);
-    setTimeout(() => setCopiadoModalPrompt(false), 3000);
-  };
-
-  // Contadores calculados diretamente dos estados reais salvos
-  const totalBons = Object.values(progressoCards).filter(v => v === 'bom').length;
-  const totalMedios = Object.values(progressoCards).filter(v => v === 'medio').length;
-  const totalRuins = Object.values(progressoCards).filter(v => v === 'ruim').length;
+  const revisaoAtual = selectedDisciplina !== "Todas as Matérias" ? revisoesPorDisciplina[selectedDisciplina] : null;
+  const cardsExibir = revisaoAtual?.cards ? revisaoAtual.cards.filter((r: any) => selectedAssunto === 'all' || r.id === selectedAssunto) : [];
 
   return (
-    <div className="min-h-screen bg-black text-zinc-100 font-sans selection:bg-red-600 selection:text-white">
+    <div className="min-h-screen bg-black text-zinc-100 font-sans selection:bg-amber-400 selection:text-zinc-950">
       <Navbar />
 
-      <main className="max-w-6xl mx-auto px-6 py-8 space-y-6">
+      <main className="w-full px-4 sm:px-8 py-6 space-y-6">
         
-        {/* Painel de Status Detalhado */}
-        <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-bold text-white flex items-center gap-2">
-              🧠 Caderno de Revisão: Status Detalhado por Assunto
-            </span>
-          </div>
-          <div className="flex items-center gap-2 text-xs font-bold">
-            <span className="bg-emerald-950/60 text-emerald-300 border border-emerald-500/40 px-3 py-1 rounded-xl flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-400"></span> Bom: {totalBons}
-            </span>
-            <span className="bg-amber-950/60 text-amber-300 border border-amber-500/40 px-3 py-1 rounded-xl flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-amber-400"></span> Médio: {totalMedios}
-            </span>
-            <span className="bg-rose-950/60 text-rose-300 border border-rose-500/40 px-3 py-1 rounded-xl flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-rose-400"></span> Ruim: {totalRuins}
-            </span>
-          </div>
-        </div>
-
-        {/* Header */}
-        <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4">
+        {/* Header Superior */}
+        <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
-              <span className="bg-amber-500/20 text-amber-300 text-xs font-bold px-2.5 py-0.5 rounded-full border border-amber-500/30">TJSP - VUNESP</span>
-              <span className="bg-emerald-500/20 text-emerald-400 text-xs font-bold px-2.5 py-0.5 rounded-full border border-emerald-500/30">Tabela Dedicada Supabase 🟢</span>
+              <span className="bg-blue-500/20 text-blue-400 text-xs font-bold px-2.5 py-0.5 rounded-full border border-blue-500/30">TJSP - VUNESP</span>
+              <span className="bg-amber-400 text-zinc-950 font-bold text-xs px-2.5 py-0.5 rounded-full">Caderno de Revisão 🟢</span>
             </div>
-            <h1 className="text-2xl font-bold text-white mt-1">
-              {deckAtual ? deckAtual.titulo : "Flashcards de Memorização Ativa"}
+            <h1 className="text-2xl sm:text-3xl font-black text-white mt-1 tracking-tight">
+              {revisaoAtual ? revisaoAtual.titulo : "Painel de Flashcards"}
             </h1>
           </div>
 
-          <button
-            onClick={() => {
-              setModalDisciplinaAlvo(selectedDisciplina !== "Todas as Matérias" ? selectedDisciplina : DISCIPLINAS_TJSP[0]);
-              setJsonInputText(JSON.stringify(flashcardsInicialExemplo, null, 2));
-              setModalFeedback(null);
-              setShowJsonModal(true);
-            }}
-            className="text-xs font-semibold px-4 py-2.5 rounded-xl border border-amber-500/40 bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 transition-all flex items-center gap-1.5 shadow-md"
-          >
-            Gerenciar / Adicionar Novos Cards (JSON)
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                setModalDisciplinaAlvo(selectedDisciplina !== "Todas as Matérias" ? selectedDisciplina : DISCIPLINAS_TJSP[0]);
+                setJsonInputText(JSON.stringify(revisaoInicialExemplo, null, 2));
+                setShowJsonModal(true);
+              }}
+              className="text-xs font-bold px-4 py-2.5 rounded-xl border border-amber-400/50 bg-amber-400 hover:bg-amber-500 text-zinc-950 transition-all flex items-center gap-1.5 shadow-md cursor-pointer"
+            >
+              ⚡ Adicionar / Gerenciar (JSON)
+            </button>
+          </div>
         </div>
 
-        {/* Filtros */}
+        {/* Filtros Limpos: Matéria e Assunto */}
         <div className="bg-zinc-950 border border-zinc-800 p-4 rounded-2xl shadow-lg flex flex-col md:flex-row items-center gap-4">
-          <div className="w-full md:w-1/3 flex items-center gap-2">
-            <span className="text-xs font-bold text-zinc-400 whitespace-nowrap">Disciplina:</span>
+          <div className="w-full md:w-1/2 flex items-center gap-2">
+            <span className="text-xs font-bold text-zinc-400 whitespace-nowrap">Matéria:</span>
             <select 
               value={selectedDisciplina}
               onChange={(e) => {
                 setSelectedDisciplina(e.target.value);
                 setSelectedAssunto('all');
-                setCardIndex(0);
-                setIsFlipped(false);
               }}
-              className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 text-xs rounded-xl px-3 py-2.5 outline-none focus:border-amber-500"
+              className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 text-xs rounded-xl px-3 py-2.5 outline-none focus:border-amber-400 font-semibold cursor-pointer"
             >
               <option value="Todas as Matérias">Todas as Matérias</option>
               {DISCIPLINAS_TJSP.map((disc) => (
                 <option key={disc} value={disc}>
-                  {disc} {decksPorDisciplina[disc] ? "🟢" : "⚪"}
+                  {disc} {revisoesPorDisciplina[disc] ? "🟢" : "⚪"}
                 </option>
               ))}
             </select>
           </div>
 
-          <div className="w-full md:w-2/3 flex items-center gap-2 overflow-x-auto pb-1 md:pb-0">
-            <span className="text-xs font-bold text-zinc-400 whitespace-nowrap">Tópico:</span>
-            {selectedDisciplina === "Todas as Matérias" ? (
-              <span className="text-xs text-zinc-500 italic">Selecione uma disciplina ao lado.</span>
-            ) : !deckAtual ? (
-              <span className="text-xs text-amber-400/90 italic">Nenhum flashcard cadastrado.</span>
-            ) : (
-              <div className="flex items-center gap-1.5">
-                <button 
-                  onClick={() => { setSelectedAssunto('all'); setCardIndex(0); setIsFlipped(false); }} 
-                  className={`text-xs font-semibold px-3 py-2 rounded-xl border transition-all whitespace-nowrap ${selectedAssunto === 'all' ? 'border-amber-500 bg-amber-500 text-black font-bold shadow-lg' : 'border-zinc-800 bg-zinc-900 text-zinc-300 hover:text-white'}`}
-                >
-                  Todos os Tópicos
-                </button>
-                {assuntosDisponiveis.map((assunto: any) => (
-                  <button 
-                    key={assunto}
-                    onClick={() => { setSelectedAssunto(assunto); setCardIndex(0); setIsFlipped(false); }} 
-                    className={`text-xs font-semibold px-3 py-2 rounded-xl border transition-all whitespace-nowrap ${selectedAssunto === assunto ? 'border-amber-500 bg-amber-500 text-black font-bold shadow-lg' : 'border-zinc-800 bg-zinc-900 text-zinc-300 hover:text-white'}`}
-                  >
-                    {assunto.replace(/^[📌⚖️⏱️0-9]+\.\s*/, '')}
-                  </button>
-                ))}
-              </div>
-            )}
+          <div className="w-full md:w-1/2 flex items-center gap-2">
+            <span className="text-xs font-bold text-zinc-400 whitespace-nowrap">Assunto:</span>
+            <select
+              value={selectedAssunto}
+              onChange={(e) => setSelectedAssunto(e.target.value)}
+              disabled={selectedDisciplina === "Todas as Matérias" || !revisaoAtual}
+              className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 text-xs rounded-xl px-3 py-2.5 outline-none focus:border-amber-400 font-semibold disabled:opacity-40 cursor-pointer"
+            >
+              <option value="all">Todos os Assuntos</option>
+              {revisaoAtual?.cards?.map((card: any) => (
+                <option key={card.id} value={card.id}>
+                  {card.titulo || card.tag}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 
-        {/* Flashcard Card Main */}
-        <div className="bg-zinc-950 rounded-3xl border border-zinc-800 shadow-2xl relative overflow-hidden flex flex-col p-6 min-h-[550px] justify-between">
-          <div className="z-10 flex items-center justify-between pb-3 border-b border-zinc-800">
-            <div className="flex items-center gap-2">
-              <span className="bg-amber-500/20 text-amber-300 text-xs font-bold px-2.5 py-1 rounded-lg border border-amber-500/30">
-                Card {cardsExibir.length > 0 ? cardIndex + 1 : 0} de {cardsExibir.length}
-              </span>
-              {cardAtual && (
-                <span className={`text-xs font-bold px-2.5 py-1 rounded-lg border ${cardAtual.tagClasses}`}>
-                  {cardAtual.tag}
-                </span>
-              )}
+        {/* CONTAINER EM TELA CHEIA */}
+        <div className="bg-zinc-950 rounded-3xl border border-zinc-800 shadow-2xl relative overflow-hidden p-6 sm:p-10 min-h-[70vh]">
+          
+          {carregando ? (
+            <div className="flex items-center justify-center p-20 text-zinc-400 text-sm">
+              Carregando dados da nuvem...
             </div>
-
-            {cardAtual && (
-              <button
-                onClick={() => excluirCard(cardAtual.id)}
-                className="text-zinc-400 hover:text-rose-400 bg-zinc-900/80 hover:bg-rose-950/40 px-3 py-1.5 rounded-xl border border-zinc-800 hover:border-rose-500/40 transition-all text-xs font-semibold"
+          ) : selectedDisciplina === "Todas as Matérias" ? (
+            <div className="flex flex-col items-center justify-center text-center p-20 space-y-3">
+              <p className="text-base text-zinc-400 font-medium">Selecione uma disciplina para visualizar os flashcards em tela cheia.</p>
+            </div>
+          ) : !revisaoAtual ? (
+            <div className="flex flex-col items-center justify-center text-center p-20 space-y-3">
+              <p className="text-base text-zinc-300 font-medium">Nenhum flashcard encontrado para <b>{selectedDisciplina}</b>.</p>
+              <button 
+                onClick={() => { setModalDisciplinaAlvo(selectedDisciplina); setShowJsonModal(true); }}
+                className="px-5 py-3 bg-amber-400 text-zinc-950 font-extrabold rounded-xl text-xs shadow-md hover:bg-amber-500 transition-all cursor-pointer"
               >
-                Apagar Card
+                Cadastrar via JSON
               </button>
-            )}
-          </div>
+            </div>
+          ) : cardsExibir.length === 0 ? (
+            <div className="flex items-center justify-center p-20 text-zinc-500 text-sm">
+              Nenhum assunto correspondente.
+            </div>
+          ) : (
+            <div className="space-y-10">
+              {cardsExibir.map((card: any) => {
+                const revelado = respostasReveladas[card.id];
+                const statusAtual = card.statusAvaliacao; // Lido direto do card persistido
 
-          <div className="z-10 my-6 flex-1 flex flex-col items-center justify-center">
-            {carregando ? (
-              <div className="text-center p-12 text-zinc-400 text-xs">A carregar flashcards...</div>
-            ) : selectedDisciplina === "Todas as Matérias" ? (
-              <div className="text-center p-12 space-y-3">
-                <p className="text-sm text-zinc-400 font-medium">Selecione uma disciplina no filtro acima para iniciar os estudos.</p>
-              </div>
-            ) : !deckAtual || cardsExibir.length === 0 ? (
-              <div className="text-center p-12 space-y-3">
-                <p className="text-sm text-zinc-300 font-medium">Nenhum flashcard encontrado para esta seleção.</p>
-                <button 
-                  onClick={() => { 
-                    setModalDisciplinaAlvo(selectedDisciplina); 
-                    setJsonInputText(JSON.stringify(flashcardsInicialExemplo, null, 2));
-                    setModalFeedback(null);
-                    setShowJsonModal(true); 
-                  }}
-                  className="px-4 py-2.5 bg-amber-500 text-black font-bold rounded-xl text-xs shadow-md hover:bg-amber-400 transition-all"
-                >
-                  Adicionar Flashcards por JSON
-                </button>
-              </div>
-            ) : (
-              <div className="w-full max-w-2xl bg-zinc-900/95 border border-zinc-800 rounded-3xl p-6 sm:p-8 shadow-2xl flex flex-col justify-between min-h-[320px] relative transition-all">
-                
-                <div className="absolute top-4 right-4 flex items-center gap-2">
-                  {progressoCards[cardAtual.id] && (
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${
-                      progressoCards[cardAtual.id] === 'bom' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' :
-                      progressoCards[cardAtual.id] === 'medio' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' :
-                      'bg-rose-500/20 text-rose-300 border border-rose-500/30'
-                    }`}>
-                      {progressoCards[cardAtual.id].toUpperCase()}
-                    </span>
-                  )}
-                  <span className={`text-[10px] font-bold px-2.5 py-1 rounded-md uppercase tracking-wider ${isFlipped ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-blue-500/20 text-blue-300 border border-blue-500/30'}`}>
-                    {isFlipped ? 'Verso (Resposta)' : 'Frente (Pergunta)'}
-                  </span>
-                </div>
+                return (
+                  <div 
+                    key={card.id}
+                    className="bg-zinc-900/60 rounded-2xl p-6 sm:p-8 border border-zinc-800/80 shadow-xl space-y-6 relative"
+                  >
+                    {/* Cabeçalho */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-amber-400/40 gap-3">
+                      <div className="space-y-1">
+                        <span className="text-xs font-bold uppercase tracking-wider text-amber-400 bg-amber-400/10 px-2.5 py-1 rounded-md border border-amber-400/20">
+                          {card.assunto || card.tema || card.artigos || "FLASHCARD"}
+                        </span>
+                        <h2 className="text-lg sm:text-xl font-extrabold text-white tracking-tight pt-1">
+                          {card.pergunta || card.titulo || "Questão de Revisão"}
+                        </h2>
+                      </div>
 
-                <div className="mt-4 mb-6">
-                  {!isFlipped ? (
-                    <div className="space-y-3">
-                      <span className="text-xs font-bold text-amber-400 uppercase tracking-wider">
-                        {cardAtual.assunto}
-                      </span>
-                      <h2 className="text-base sm:text-lg font-bold text-white leading-relaxed">
-                        {cardAtual.pergunta}
-                      </h2>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">
-                        ✅ Resposta Correta:
-                      </span>
-                      <p className="text-sm sm:text-base font-semibold text-zinc-100 leading-relaxed bg-zinc-950/80 p-4 rounded-2xl border border-zinc-800">
-                        {cardAtual.respostaResumida}
-                      </p>
-                      {cardAtual.detalhes && (
-                        <p className="text-xs text-amber-300 bg-amber-950/20 p-3 rounded-xl border border-amber-500/30">
-                          {cardAtual.detalhes}
-                        </p>
-                      )}
-
-                      <div className="pt-3 border-t border-zinc-800/80 space-y-2">
-                        <p className="text-xs font-semibold text-zinc-400">Sua avaliação (salva na tabela `flashcards_progresso`):</p>
-                        <div className="grid grid-cols-3 gap-2">
-                          <button onClick={() => avaliarDesempenho('ruim')} className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all ${progressoCards[cardAtual.id] === 'ruim' ? 'bg-rose-600 text-white border-2 border-rose-400' : 'bg-rose-950/40 text-rose-400 border border-rose-600/30'}`}>Ruim</button>
-                          <button onClick={() => avaliarDesempenho('medio')} className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all ${progressoCards[cardAtual.id] === 'medio' ? 'bg-amber-600 text-white border-2 border-amber-400' : 'bg-amber-950/40 text-amber-400 border border-amber-600/30'}`}>Médio</button>
-                          <button onClick={() => avaliarDesempenho('bom')} className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all ${progressoCards[cardAtual.id] === 'bom' ? 'bg-emerald-600 text-white border-2 border-emerald-400' : 'bg-emerald-950/40 text-emerald-300 border border-emerald-600/30'}`}>Bom</button>
-                        </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold px-3 py-1 rounded-lg bg-zinc-950 text-amber-400 border border-amber-400/30">
+                          {card.tag}
+                        </span>
+                        <button
+                          onClick={() => excluirCard(card.id)}
+                          className="text-zinc-500 hover:text-rose-400 bg-zinc-950 p-2 rounded-lg border border-zinc-800 hover:border-rose-500/40 transition-all text-xs cursor-pointer"
+                          title="Apagar este card"
+                        >
+                          ✕
+                        </button>
                       </div>
                     </div>
-                  )}
-                </div>
 
-                {!isFlipped && (
-                  <div className="pt-4 border-t border-zinc-800 flex items-center justify-center">
-                    <button
-                      onClick={() => setIsFlipped(true)}
-                      className="w-full py-3 rounded-xl font-bold text-xs sm:text-sm transition-all shadow-lg flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-400 text-black border border-amber-400 shadow-amber-500/20"
-                    >
-                      Virar Cartão e Ver Resposta
-                    </button>
+                    {/* Área da Resposta */}
+                    <div className="space-y-4">
+                      {!revelado ? (
+                        <div className="p-6 rounded-xl bg-zinc-950 border border-zinc-800 text-center space-y-3">
+                          <p className="text-xs text-zinc-400 italic">A resposta está oculta para treino ativo.</p>
+                          <button
+                            onClick={() => toggleRevelar(card.id)}
+                            className="px-6 py-3 bg-amber-400 hover:bg-amber-300 text-zinc-950 font-black text-xs sm:text-sm rounded-xl transition-all shadow-md cursor-pointer"
+                          >
+                            Ver Resposta
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          <div className="p-5 sm:p-6 rounded-xl bg-zinc-950 border-l-4 border-amber-400 border-t border-r border-b border-zinc-800/80 shadow-md space-y-3">
+                            <span className="text-xs font-bold uppercase tracking-wider text-amber-400">Resposta:</span>
+                            <p className="text-zinc-200 text-xs sm:text-sm leading-relaxed font-semibold">
+                              {card.respostaResumida || card.conteudo || card.resposta || "Resposta não especificada."}
+                            </p>
+                          </div>
+
+                          <div className="flex justify-start">
+                            <button
+                              onClick={() => toggleRevelar(card.id)}
+                              className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-bold text-xs rounded-xl border border-zinc-700 transition-all cursor-pointer flex items-center gap-1.5"
+                            >
+                              Retornar ao Flashcard (Tentar Novamente)
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Controles de Desempenho e Botão de Pegadinha VUNESP */}
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-zinc-800">
+                      <div className="flex items-center gap-2 w-full sm:w-auto">
+                        <span className="text-xs font-bold text-zinc-400">Seu Desempenho:</span>
+                        <button
+                          onClick={() => definirStatus(card.id, 'ruim')}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                            statusAtual === 'ruim' 
+                              ? 'bg-rose-600 text-white border-rose-500 shadow-md ring-2 ring-rose-500/50' 
+                              : 'bg-zinc-950 text-rose-400 border-rose-500/30 hover:bg-rose-950/20'
+                          }`}
+                        >
+                          🔴 Ruim
+                        </button>
+                        <button
+                          onClick={() => definirStatus(card.id, 'medio')}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                            statusAtual === 'medio' 
+                              ? 'bg-amber-500 text-zinc-950 border-amber-400 shadow-md ring-2 ring-amber-400/50' 
+                              : 'bg-zinc-950 text-amber-400 border-amber-500/30 hover:bg-amber-950/20'
+                          }`}
+                        >
+                          🟡 Médio
+                        </button>
+                        <button
+                          onClick={() => definirStatus(card.id, 'bom')}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                            statusAtual === 'bom' 
+                              ? 'bg-emerald-600 text-white border-emerald-500 shadow-md ring-2 ring-emerald-500/50' 
+                              : 'bg-zinc-950 text-emerald-400 border-emerald-500/30 hover:bg-emerald-950/20'
+                          }`}
+                        >
+                          🟢 Bom
+                        </button>
+                      </div>
+
+                      {card.detalhes && (
+                        <button 
+                          onClick={() => setActiveModal(card.id)} 
+                          className="w-full sm:w-auto px-6 py-3 bg-zinc-900 hover:bg-zinc-800 text-amber-400 text-xs sm:text-sm font-bold rounded-xl border border-amber-400/40 transition-all shadow-md cursor-pointer"
+                        >
+                          💡 Ver Pegadinha e Detalhes VUNESP
+                        </button>
+                      )}
+                    </div>
+
                   </div>
-                )}
-
-              </div>
-            )}
-          </div>
-
-          {cardsExibir.length > 0 && (
-            <div className="z-10 flex items-center justify-between pt-4 border-t border-zinc-800">
-              <button onClick={cardAnterior} className="px-4 py-2.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 font-semibold rounded-xl text-xs border border-zinc-800">Anterior</button>
-              <span className="text-xs text-zinc-500 font-medium">Sincronizado na Tabela `flashcards_progresso`</span>
-              <button onClick={proximoCard} className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl text-xs border border-blue-500/40 shadow-md">Próximo Card</button>
+                );
+              })}
             </div>
           )}
         </div>
 
+        {/* Rodapé com Prompt Mestre para Flashcards */}
+        <div className="bg-zinc-950 p-6 rounded-2xl border border-zinc-800 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="bg-amber-400 text-zinc-950 font-bold text-xs px-2.5 py-0.5 rounded-full">Mentor VUNESP</span>
+              <h2 className="text-sm font-bold text-white">Prompt Mestre para Flashcards</h2>
+            </div>
+            <p className="text-xs text-zinc-400">
+              Gera os cards rigorosamente no formato correto para o painel.
+            </p>
+          </div>
+
+          <button
+            onClick={copiarPromptMestre}
+            className={`px-4 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center gap-2 whitespace-nowrap shadow-md cursor-pointer ${
+              copiadoPrompt 
+                ? 'bg-emerald-600 text-white border border-emerald-500' 
+                : 'bg-amber-400 hover:bg-amber-500 text-zinc-950 border border-amber-500'
+            }`}
+          >
+            {copiadoPrompt ? 'Prompt Copiado!' : 'Copiar Prompt Mestre'}
+          </button>
+        </div>
+
       </main>
 
-      {/* Modal JSON */}
-      {showJsonModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-zinc-950 border border-zinc-800 rounded-3xl max-w-2xl w-full p-6 shadow-2xl relative space-y-4">
-            <button onClick={() => { setShowJsonModal(false); setModalFeedback(null); }} className="absolute top-4 right-4 z-20 text-rose-400 hover:text-white bg-rose-950/40 hover:bg-rose-600 p-2 rounded-xl border border-rose-500/40 w-9 h-9 flex items-center justify-center">✕</button>
+      {/* MODAL DE DETALHES / PEGADINHAS */}
+      {activeModal && revisaoAtual && (
+        (() => {
+          const cardModal = revisaoAtual.cards.find((r: any) => r.id === activeModal);
+          if (!cardModal) return null;
+          return (
+            <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
+              <div className="bg-zinc-950 border border-zinc-800 rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl relative space-y-4">
+                
+                <button 
+                  onClick={() => setActiveModal(null)} 
+                  className="absolute top-4 right-4 text-zinc-400 hover:text-white bg-zinc-900 p-2.5 rounded-full border border-zinc-800 transition-all cursor-pointer"
+                >
+                  ✕
+                </button>
 
-            <div className="flex items-center justify-between pr-12">
-              <h2 className="text-lg font-bold text-white">Adicionar / Atualizar Flashcards</h2>
-              <button onClick={copiarPromptModal} className="text-xs font-semibold px-3 py-2 rounded-xl border bg-zinc-900 text-amber-300 border-amber-500/40">
-                {copiadoModalPrompt ? 'Copiado!' : 'Copiar Prompt Mestre'}
-              </button>
+                <div className="flex items-center gap-3">
+                  <div>
+                    <span className="text-xs font-bold px-2.5 py-0.5 rounded-full border bg-amber-400 text-zinc-950 border-amber-500">
+                      {cardModal.tag}
+                    </span>
+                    <h2 className="text-lg font-bold text-white mt-1">Detalhes e Comentários VUNESP</h2>
+                  </div>
+                </div>
+
+                <div className="space-y-4 text-xs text-zinc-300 max-h-[65vh] overflow-y-auto pr-1">
+                  <div className="p-4 bg-zinc-900 rounded-2xl border border-amber-400/40 text-amber-200 space-y-2 shadow-lg">
+                    <p className="font-bold uppercase tracking-wider text-amber-400">
+                      ⚠️ ANÁLISE / PEGADINHA:
+                    </p>
+                    <p className="leading-relaxed text-zinc-200 text-xs sm:text-sm">{cardModal.detalhes}</p>
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-zinc-800 flex justify-end">
+                  <button 
+                    onClick={() => setActiveModal(null)} 
+                    className="w-full sm:w-auto px-6 py-3 bg-amber-400 hover:bg-amber-300 text-zinc-950 font-black rounded-xl text-xs sm:text-sm transition-all shadow-lg cursor-pointer"
+                  >
+                    Entendi! Voltar ao Caderno
+                  </button>
+                </div>
+
+              </div>
+            </div>
+          );
+        })()
+      )}
+
+      {/* MODAL DE INJEÇÃO DE JSON */}
+      {showJsonModal && (
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="bg-zinc-950 border border-zinc-800 rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl relative space-y-4">
+            
+            <button 
+              onClick={() => setShowJsonModal(false)} 
+              className="absolute top-4 right-4 text-red-400 hover:text-white bg-zinc-900 w-9 h-9 flex items-center justify-center rounded-full border border-red-500/40 transition-all shadow-md cursor-pointer"
+            >
+              ✕
+            </button>
+
+            <div className="flex items-center gap-3 pr-10">
+              <div className="w-12 h-12 rounded-2xl flex items-center justify-center bg-amber-400 text-zinc-950 font-bold shadow-inner flex-shrink-0">
+                ⚡
+              </div>
+              <div>
+                <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full border bg-amber-400 text-zinc-950 border-amber-500">
+                  Gerenciador em Nuvem
+                </span>
+                <h2 className="text-lg font-bold text-white mt-1">Adicionar / Atualizar Flashcard</h2>
+              </div>
             </div>
 
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 pt-2">
               <label className="text-xs font-bold text-zinc-300">Disciplina Alvo:</label>
-              <select value={modalDisciplinaAlvo} onChange={(e) => setModalDisciplinaAlvo(e.target.value)} className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 text-xs rounded-xl px-3 py-2.5 outline-none focus:border-amber-500">
-                {DISCIPLINAS_TJSP.map((disc) => (<option key={disc} value={disc}>{disc}</option>))}
+              <select 
+                value={modalDisciplinaAlvo}
+                onChange={(e) => setModalDisciplinaAlvo(e.target.value)}
+                className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 text-xs rounded-xl px-3 py-2.5 outline-none focus:border-amber-400 font-semibold cursor-pointer"
+              >
+                {DISCIPLINAS_TJSP.map((disc) => (
+                  <option key={disc} value={disc}>{disc}</option>
+                ))}
               </select>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-zinc-300">Cole o JSON gerado:</label>
+              <label className="text-xs font-bold text-zinc-300">Cole o JSON do Flashcard:</label>
               <textarea
                 value={jsonInputText}
-                onChange={(e) => { setJsonInputText(e.target.value); if (modalFeedback) setModalFeedback(null); }}
-                className="w-full h-36 bg-zinc-900 text-amber-300 p-3 rounded-2xl border border-zinc-800 font-mono text-xs outline-none focus:border-amber-500 resize-none"
+                onChange={(e) => setJsonInputText(e.target.value)}
+                className="w-full h-44 bg-zinc-900 text-amber-300 p-3.5 rounded-2xl border border-zinc-800 font-mono text-xs outline-none focus:border-amber-400 resize-none shadow-inner"
+                placeholder="Cole o JSON aqui..."
               />
             </div>
 
-            {modalFeedback && (
-              <div className={`p-3 rounded-xl border text-xs font-semibold ${modalFeedback.tipo === 'sucesso' ? 'bg-emerald-950/40 text-emerald-300 border-emerald-500/40' : 'bg-rose-950/50 text-rose-300 border-rose-500/40'}`}>
-                {modalFeedback.mensagem}
-              </div>
-            )}
-
             <div className="pt-2 border-t border-zinc-800 flex items-center justify-between">
-              <span className="text-[11px] text-zinc-500">Atualiza os cards mantendo os anteriores.</span>
-              <button onClick={handleCarregarJson} className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-black font-bold rounded-xl text-xs shadow-md">Salvar</button>
+              <span className="text-[11px] text-zinc-500">Mescla os novos cards com os anteriores na nuvem.</span>
+              <button 
+                onClick={handleCarregarJson} 
+                className="px-5 py-2.5 bg-amber-400 hover:bg-amber-500 text-zinc-950 font-extrabold rounded-xl text-xs transition-all flex items-center gap-1.5 shadow-md cursor-pointer"
+              >
+                Salvar na Nuvem
+              </button>
             </div>
           </div>
         </div>
       )}
+
     </div>
   );
 }

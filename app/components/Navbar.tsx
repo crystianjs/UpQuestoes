@@ -33,6 +33,12 @@ export default function Navbar() {
       {/* Links de Navegação */}
       <div className="flex items-center gap-1.5 md:gap-3 overflow-x-auto max-w-full pb-2 md:pb-0 text-xs md:text-sm font-medium">
         <Link 
+          href="/home" 
+          className={`px-3 py-2 rounded-xl transition-all ${isActive('/home') ? 'bg-red-600 text-white font-bold shadow-lg shadow-red-600/20' : 'text-zinc-400 hover:text-white hover:bg-zinc-900'}`}
+        >
+          Home
+        </Link>
+        <Link 
           href="/desempenho" 
           className={`px-3 py-2 rounded-xl transition-all ${isActive('/desempenho') ? 'bg-red-600 text-white font-bold shadow-lg shadow-red-600/20' : 'text-zinc-400 hover:text-white hover:bg-zinc-900'}`}
         >

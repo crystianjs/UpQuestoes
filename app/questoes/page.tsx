@@ -211,7 +211,7 @@ export default function QuestoesPage() {
             <button 
               type="submit"
               disabled={salvando}
-              className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3.5 px-6 rounded-xl transition-colors shadow-lg shadow-red-600/20 disabled:opacity-50 cursor-pointer"
+              className="w-full bg-amber-400 hover:bg-amber-500 text-black font-bold py-3.5 px-6 rounded-xl transition-colors shadow-lg shadow-amber-400/20 disabled:opacity-50 cursor-pointer"
             >
               {salvando ? 'A guardar...' : 'Guardar Registo de Questões'}
             </button>

@@ -60,7 +60,7 @@ export default function Navbar() {
           href="/caderno-revisao" 
           className={`px-3 py-2 rounded-xl transition-all ${isActive('/caderno-revisao') ? 'bg-red-600 text-white font-bold shadow-lg shadow-red-600/20' : 'text-zinc-400 hover:text-white hover:bg-zinc-900'}`}
         >
-          Caderno de Revisão
+          Flashcards
         </Link>
         <Link 
           href="/mapas-mentais" 

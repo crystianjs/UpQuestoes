@@ -27,7 +27,7 @@ export default function LoginPage() {
       if (error) throw error;
 
       if (data.session) {
-        router.push('/desempenho');
+        router.push('/home');
       }
     } catch (err: any) {
       console.error('Erro no login:', err);

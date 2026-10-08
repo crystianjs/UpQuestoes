@@ -30,10 +30,11 @@ const mapaInicialExemplo = {
   ramos: [
     {
       id: "razao-proporcao-1",
-      titulo: "Questão 01 — Razão entre Homens e Mulheres",
+      titulo: "Razão entre Homens e Mulheres",
       artigos: "MATEMÁTICA BÁSICA",
       tag: "Proporcionalidade",
-      tipo: "exatas", // Define o estilo de renderização (passo a passo matemático)
+      assunto: "Razão e Proporção",
+      tipo: "exatas", 
       subnos: [
         {
           titulo: "Resolução Passo a Passo:",
@@ -44,23 +45,24 @@ const mapaInicialExemplo = {
         }
       ],
       modalInfo: {
-        title: "💡 Dica de Ouro VUNESP",
+        title: "Dica de Ouro VUNESP",
         tag: "Estratégia",
         casosPraticos: [
           {
-            titulo: "🏛 PADRÃO DA BANCA:",
+            titulo: "PADRÃO DA BANCA:",
             texto: "A VUNESP adora cobrar proporções diretas envolvendo divisão de quantidades em razão dada."
           }
         ],
-        conclusoes: ["✅ Sempre monte a fração na ordem exata enunciada no texto."],
-        pegadinha: "⚠️ Cuidado para não inverter numerador e denominador."
+        conclusoes: ["Sempre monte a fração na ordem exata enunciada no texto."],
+        pegadinha: "Cuidado para não inverter numerador e denominador."
       }
     }
   ]
 };
 
 const PROMPT_MESTRE_TEXTO = `Atue como Especialista e Mentor para o concurso do TJSP (Banca VUNESP). 
-Você deve gerar um JSON estruturado para a tela de revisão em tela cheia.
+Gere um JSON estruturado para a tela de revisão em tela cheia.
+IMPORTANTE: Cada ramo DEVE conter obrigatoriamente um campo "assunto" limpo e específico (ex: "Substantivo e Derivação Imprópria") que servirá de referência no topo e no filtro. NUNCA inclua emojis, ícones ou símbolos decorativos no campo "assunto", "tag" ou "titulo".
 
 ⚠️ **ATENÇÃO AO TIPO DE MATÉRIA**:
 1. Se a matéria for **Exatas (Matemática / Raciocínio Lógico)**: Defina o campo "tipo" como "exatas". Nos itens dos subnos, utilize formatação em passos matemáticos claros (ex: equações, razões, proporções).
@@ -73,10 +75,11 @@ Retorne EXCLUSIVAMENTE o JSON válido, seguindo esta estrutura exata:
   "banca": "VUNESP",
   "ramos": [
     {
-      "id": "id-unico-ex-matematica-1",
-      "titulo": "Questão 01 — [Tema da Questão]",
+      "id": "id-unico-ex-1",
+      "titulo": "Título do Conteúdo",
       "artigos": "BLOCO / TEMA",
       "tag": "Palavra-Chave",
+      "assunto": "Assunto Referência",
       "tipo": "exatas ou humanas",
       "subnos": [
         {
@@ -85,11 +88,11 @@ Retorne EXCLUSIVAMENTE o JSON válido, seguindo esta estrutura exata:
         }
       ],
       "modalInfo": {
-        "title": "💡 Dica Estratégica",
+        "title": "Dica Estratégica",
         "tag": "VUNESP",
         "casosPraticos": [{"titulo": "CASO", "texto": "..."}],
-        "conclusoes": ["✅ Conclusão"],
-        "pegadinha": "⚠️ Cuidado..."
+        "conclusoes": ["Conclusão"],
+        "pegadinha": "Cuidado..."
       }
     }
   ]
@@ -107,11 +110,15 @@ export default function MapaMentalPage() {
   const [copiadoPrompt, setCopiadoPrompt] = useState<boolean>(false);
   const [carregando, setCarregando] = useState<boolean>(true);
 
+  // Estados para edição inline do assunto do ramo
+  const [editandoRamoId, setEditandoRamoId] = useState<string | null>(null);
+  const [novoAssuntoInput, setNovoAssuntoInput] = useState<string>('');
+
   useEffect(() => {
     carregarDadosSupabase();
   }, []);
 
-  const carregarDadosSupabase = async () => {
+ const carregarDadosSupabase = async () => {
     try {
       setCarregando(true);
       const { data, error } = await supabase.from('mapas_mentais').select('*');
@@ -120,22 +127,31 @@ export default function MapaMentalPage() {
       if (data && data.length > 0) {
         const mapaFormatado: Record<string, any> = {};
         data.forEach((item: any) => {
+          let rawRamos = item.ramos;
+          if (typeof rawRamos === 'string') {
+            try { rawRamos = JSON.parse(rawRamos); } catch (e) { rawRamos = []; }
+          }
+          
+          // Garante que todo ramo tenha o campo "assunto" preenchido (se não tiver, herda o título limpo)
+          const ramosValidados = Array.isArray(rawRamos) ? rawRamos.filter(Boolean).map((r: any) => {
+            if (!r) return null;
+            const assuntoDefinitivo = r.assunto && r.assunto.trim() !== ""
+              ? r.assunto
+              : (r.titulo ? r.titulo.replace(/^[📌📍🚩⚡0-9.\-\)]+\s*/, '').trim() : "Geral");
+            return {
+              ...r,
+              assunto: assuntoDefinitivo
+            };
+          }) : [];
+
           mapaFormatado[item.disciplina] = {
             disciplina: item.disciplina,
             titulo: item.titulo,
             banca: item.banca,
-            ramos: item.ramos
+            ramos: ramosValidados
           };
         });
         setMapasPorDisciplina(mapaFormatado);
-      } else {
-        await supabase.from('mapas_mentais').upsert({
-          disciplina: mapaInicialExemplo.disciplina,
-          titulo: mapaInicialExemplo.titulo,
-          banca: mapaInicialExemplo.banca,
-          ramos: mapaInicialExemplo.ramos
-        }, { onConflict: 'disciplina' });
-        setMapasPorDisciplina({ [mapaInicialExemplo.disciplina]: mapaInicialExemplo });
       }
     } catch (e) {
       console.error("Erro ao carregar:", e);
@@ -166,12 +182,12 @@ export default function MapaMentalPage() {
       const parsed = JSON.parse(jsonInputText);
       if (parsed && parsed.ramos && Array.isArray(parsed.ramos)) {
         const mapaExistente = mapasPorDisciplina[modalDisciplinaAlvo];
-        let ramosFinais = [...parsed.ramos];
+        let ramosFinais = [...parsed.ramos.filter(Boolean)];
 
         if (mapaExistente && mapaExistente.ramos) {
-          const idsNovos = new Set(parsed.ramos.map((r: any) => r.id));
-          const ramosAntigosPreservados = mapaExistente.ramos.filter((r: any) => !idsNovos.has(r.id));
-          ramosFinais = [...ramosAntigosPreservados, ...parsed.ramos];
+          const idsNovos = new Set(parsed.ramos.filter(Boolean).map((r: any) => r.id));
+          const ramosAntigosPreservados = mapaExistente.ramos.filter((r: any) => r && !idsNovos.has(r.id));
+          ramosFinais = [...ramosAntigosPreservados, ...parsed.ramos.filter(Boolean)];
         }
 
         const payloadFinal = {
@@ -195,10 +211,29 @@ export default function MapaMentalPage() {
     }
   };
 
+  const salvarAssuntoEditado = async (ramoId: string) => {
+    if (!mapaAtual) return;
+
+    const ramosAtualizados = mapaAtual.ramos.map((r: any) => {
+      if (r && r.id === ramoId) {
+        return { ...r, assunto: novoAssuntoInput };
+      }
+      return r;
+    });
+
+    const payloadAtualizado = {
+      ...mapaAtual,
+      ramos: ramosAtualizados
+    };
+
+    await salvarNoSupabase(selectedDisciplina, payloadAtualizado);
+    setEditandoRamoId(null);
+  };
+
   const excluirRamo = async (ramoId: string) => {
     if (!mapaAtual) return;
     if (confirm("Deseja apagar este tópico de revisão?")) {
-      const novosRamos = mapaAtual.ramos.filter((r: any) => r.id !== ramoId);
+      const novosRamos = mapaAtual.ramos.filter((r: any) => r && r.id !== ramoId);
       if (novosRamos.length === 0) {
         await supabase.from('mapas_mentais').delete().eq('disciplina', selectedDisciplina);
         const novoEstado = { ...mapasPorDisciplina };
@@ -218,14 +253,34 @@ export default function MapaMentalPage() {
     setTimeout(() => setCopiadoPrompt(false), 3000);
   };
 
-  const mapaAtual = selectedDisciplina !== "Todas as Matérias" ? mapasPorDisciplina[selectedDisciplina] : null;
-  const ramosExibir = mapaAtual?.ramos ? mapaAtual.ramos.filter((r: any) => selectedAssunto === 'all' || r.id === selectedAssunto) : [];
+ const mapaAtual = selectedDisciplina !== "Todas as Matérias" ? mapasPorDisciplina[selectedDisciplina] : null;
+
+  // Extrai lista única garantindo que todo ramo tenha um assunto de referência (fallback para o título limpo)
+  const assuntosUnicos = mapaAtual?.ramos && Array.isArray(mapaAtual.ramos)
+    ? Array.from(new Set(mapaAtual.ramos.filter(Boolean).map((r: any) => {
+        if (!r) return null;
+        return r.assunto && r.assunto.trim() !== "" 
+          ? r.assunto 
+          : (r.titulo ? r.titulo.replace(/^[📌📍🚩⚡0-9.\-\)]+\s*/, '').trim() : "Geral");
+      }).filter(Boolean)))
+    : [];
+
+  // Filtra os ramos garantindo compatibilidade com o assunto selecionado
+  const ramosExibir = mapaAtual?.ramos && Array.isArray(mapaAtual.ramos) 
+    ? mapaAtual.ramos.filter((r: any) => {
+        if (!r) return false;
+        if (selectedAssunto === 'all') return true;
+        const assuntoRamo = r.assunto && r.assunto.trim() !== "" 
+          ? r.assunto 
+          : (r.titulo ? r.titulo.replace(/^[📌📍🚩⚡0-9.\-\)]+\s*/, '').trim() : "Geral");
+        return assuntoRamo === selectedAssunto;
+      }) 
+    : [];
 
   return (
     <div className="min-h-screen bg-black text-zinc-100 font-sans selection:bg-amber-400 selection:text-zinc-950">
       <Navbar />
 
-      {/* CONTAINER EM TELA CHEIA (FULL WIDTH) */}
       <main className="w-full px-4 sm:px-8 py-6 space-y-6">
         
         {/* Header Superior */}
@@ -254,7 +309,7 @@ export default function MapaMentalPage() {
           </div>
         </div>
 
-        {/* Filtros Limpos: Matéria e Select de Assuntos (Substituindo a barra de rolagem feia) */}
+        {/* Filtros Limpos: Matéria e Assunto */}
         <div className="bg-zinc-950 border border-zinc-800 p-4 rounded-2xl shadow-lg flex flex-col md:flex-row items-center gap-4">
           <div className="w-full md:w-1/2 flex items-center gap-2">
             <span className="text-xs font-bold text-zinc-400 whitespace-nowrap">Matéria:</span>
@@ -269,7 +324,7 @@ export default function MapaMentalPage() {
               <option value="Todas as Matérias">Todas as Matérias</option>
               {DISCIPLINAS_TJSP.map((disc) => (
                 <option key={disc} value={disc}>
-                  {disc} {mapasPorDisciplina[disc] ? "🟢" : "⚪"}
+                  {disc} {mapasPorDisciplina && mapasPorDisciplina[disc] ? "🟢" : "⚪"}
                 </option>
               ))}
             </select>
@@ -283,17 +338,17 @@ export default function MapaMentalPage() {
               disabled={selectedDisciplina === "Todas as Matérias" || !mapaAtual}
               className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 text-xs rounded-xl px-3 py-2.5 outline-none focus:border-amber-400 font-semibold disabled:opacity-40 cursor-pointer"
             >
-              <option value="all">Todos os Tópicos</option>
-              {mapaAtual?.ramos?.map((ramo: any) => (
-                <option key={ramo.id} value={ramo.id}>
-                  {ramo.titulo}
+              <option value="all">Todos os Assuntos</option>
+              {assuntosUnicos.map((assunto: any, idx: number) => (
+                <option key={idx} value={assunto}>
+                  {assunto}
                 </option>
               ))}
             </select>
           </div>
         </div>
 
-        {/* CONTAINER PRINCIPAL EM TELA CHEIA (ESTILO LINHAS DE CADERNO) */}
+        {/* CONTAINER PRINCIPAL EM TELA CHEIA */}
         <div className="bg-zinc-950 rounded-3xl border border-zinc-800 shadow-2xl relative overflow-hidden p-6 sm:p-10 min-h-[70vh]">
           
           {carregando ? (
@@ -320,78 +375,128 @@ export default function MapaMentalPage() {
             </div>
           ) : (
             <div className="space-y-12">
-              {ramosExibir.map((ramo: any) => (
-                <div 
-                  key={ramo.id}
-                  className="bg-zinc-900/60 rounded-2xl p-6 sm:p-8 border border-zinc-800/80 shadow-xl space-y-6 relative"
-                >
-                  {/* Cabeçalho do Bloco */}
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-amber-400/40 gap-3">
-                    <div className="space-y-1">
-                      <span className="text-xs font-bold uppercase tracking-wider text-amber-400 bg-amber-400/10 px-2.5 py-1 rounded-md border border-amber-400/20">
-                        {ramo.artigos}
-                      </span>
-                      <h2 className="text-lg sm:text-xl font-extrabold text-white tracking-tight pt-1">
-                        {ramo.titulo}
-                      </h2>
+              {ramosExibir.map((ramo: any) => {
+                if (!ramo) return null;
+                const estaEditando = editandoRamoId === ramo.id;
+                const assuntoExibicao = ramo.assunto || "Sem Assunto";
+
+                return (
+                  <div 
+                    key={ramo.id}
+                    className="bg-zinc-900/60 rounded-2xl p-6 sm:p-8 border border-zinc-800/80 shadow-xl space-y-6 relative"
+                  >
+                    {/* Cabeçalho do Bloco */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-amber-400/40 gap-3">
+                      <div className="space-y-1 w-full">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-bold uppercase tracking-wider text-amber-400 bg-amber-400/10 px-2.5 py-1 rounded-md border border-amber-400/20">
+                            {selectedDisciplina}
+                          </span>
+
+                          {/* Edição do Assunto */}
+                          {!estaEditando ? (
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-semibold text-zinc-300">
+                                • {assuntoExibicao}
+                              </span>
+                              <button
+                                onClick={() => {
+                                  setEditandoRamoId(ramo.id);
+                                  setNovoAssuntoInput(ramo.assunto || '');
+                                }}
+                                className="text-[10px] text-amber-400 hover:underline bg-zinc-900 px-2 py-0.5 rounded border border-amber-400/20 cursor-pointer"
+                              >
+                                ✏️ Editar Assunto
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2 mt-1">
+                              <input
+                                type="text"
+                                value={novoAssuntoInput}
+                                onChange={(e) => setNovoAssuntoInput(e.target.value)}
+                                className="bg-zinc-900 border border-amber-400 text-zinc-100 text-xs px-2.5 py-1 rounded-lg outline-none"
+                                placeholder="Novo assunto..."
+                              />
+                              <button
+                                onClick={() => salvarAssuntoEditado(ramo.id)}
+                                className="px-3 py-1 bg-amber-400 text-zinc-950 text-xs font-bold rounded-lg cursor-pointer"
+                              >
+                                Salvar
+                              </button>
+                              <button
+                                onClick={() => setEditandoRamoId(null)}
+                                className="px-2 py-1 bg-zinc-800 text-zinc-400 text-xs rounded-lg cursor-pointer"
+                              >
+                                Cancelar
+                              </button>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Título do Conteúdo */}
+                        <h2 className="text-lg sm:text-xl font-extrabold text-white tracking-tight pt-2">
+                          {ramo.titulo ? ramo.titulo.replace(/^[📌📍🚩⚡]\s*/, '') : "Tópico de Revisão"}
+                        </h2>
+                      </div>
+
+                      <div className="flex items-center gap-2 self-start sm:self-center">
+                        <span className="text-xs font-bold px-3 py-1 rounded-lg bg-zinc-950 text-amber-400 border border-amber-400/30 whitespace-nowrap">
+                          {ramo.tag}
+                        </span>
+                        <button
+                          onClick={() => excluirRamo(ramo.id)}
+                          className="text-zinc-500 hover:text-rose-400 bg-zinc-950 p-2 rounded-lg border border-zinc-800 hover:border-rose-500/40 transition-all text-xs cursor-pointer"
+                          title="Apagar este tópico"
+                        >
+                          ✕
+                        </button>
+                      </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold px-3 py-1 rounded-lg bg-zinc-950 text-amber-400 border border-amber-400/30">
-                        {ramo.tag}
-                      </span>
-                      <button
-                        onClick={() => excluirRamo(ramo.id)}
-                        className="text-zinc-500 hover:text-rose-400 bg-zinc-950 p-2 rounded-lg border border-zinc-800 hover:border-rose-500/40 transition-all text-xs cursor-pointer"
-                        title="Apagar este tópico"
+                    {/* CONTEÚDO */}
+                    <div className="space-y-6">
+                      {ramo.subnos && ramo.subnos.map((sub: any, idx: number) => (
+                        <div 
+                          key={idx} 
+                          className={`p-5 sm:p-6 rounded-xl bg-zinc-950 border-l-4 border-amber-400 border-t border-r border-b border-zinc-800/80 shadow-md space-y-3 ${ramo.tipo === 'exatas' ? 'font-mono' : ''}`}
+                        >
+                          {sub.titulo && (
+                            <h3 className="text-sm sm:text-base font-bold text-amber-300 leading-snug">
+                              {sub.titulo}
+                            </h3>
+                          )}
+                          {sub.descricao && (
+                            <p className="text-zinc-300 text-xs sm:text-sm leading-relaxed font-medium">
+                              {sub.descricao}
+                            </p>
+                          )}
+                          {sub.itens && sub.itens.length > 0 && (
+                            <ul className="text-xs sm:text-sm text-zinc-200 space-y-2.5 pt-2 border-t border-zinc-900 font-medium">
+                              {sub.itens.map((item: string, iIdx: number) => (
+                                <li key={iIdx} className="leading-relaxed flex items-start gap-2.5">
+                                  <span className="text-amber-400 font-bold select-none mt-0.5">•</span>
+                                  <span className="flex-1">{item}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Botão de Exemplo Prático */}
+                    <div className="pt-2">
+                      <button 
+                        onClick={() => setActiveModal(ramo.id)} 
+                        className="w-full py-3.5 bg-amber-400 hover:bg-amber-300 text-zinc-950 text-xs sm:text-sm font-black rounded-xl border border-amber-500 transition-all flex items-center justify-center gap-2 shadow-lg cursor-pointer"
                       >
-                        ✕
+                        💡 Ver Exemplo Prático e Pegadinha VUNESP
                       </button>
                     </div>
                   </div>
-
-                  {/* CONTEÚDO COM ESTILO DE LINHAS DE CADERNO */}
-                  <div className="space-y-6">
-                    {ramo.subnos.map((sub: any, idx: number) => (
-                      <div 
-                        key={idx} 
-                        className={`p-5 sm:p-6 rounded-xl bg-zinc-950 border-l-4 border-amber-400 border-t border-r border-b border-zinc-800/80 shadow-md space-y-3 ${ramo.tipo === 'exatas' ? 'font-mono' : ''}`}
-                      >
-                        {sub.titulo && (
-                          <h3 className="text-sm sm:text-base font-bold text-amber-300 leading-snug">
-                            {sub.titulo}
-                          </h3>
-                        )}
-                        {sub.descricao && (
-                          <p className="text-zinc-300 text-xs sm:text-sm leading-relaxed font-medium">
-                            {sub.descricao}
-                          </p>
-                        )}
-                        {sub.itens && sub.itens.length > 0 && (
-                          <ul className="text-xs sm:text-sm text-zinc-200 space-y-2.5 pt-2 border-t border-zinc-900 font-medium">
-                            {sub.itens.map((item: string, iIdx: number) => (
-                              <li key={iIdx} className="leading-relaxed flex items-start gap-2.5">
-                                <span className="text-amber-400 font-bold select-none mt-0.5">•</span>
-                                <span className="flex-1">{item}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Botão de Exemplo Prático */}
-                  <div className="pt-2">
-                    <button 
-                      onClick={() => setActiveModal(ramo.id)} 
-                      className="w-full py-3.5 bg-amber-400 hover:bg-amber-300 text-zinc-950 text-xs sm:text-sm font-black rounded-xl border border-amber-500 transition-all flex items-center justify-center gap-2 shadow-lg cursor-pointer"
-                    >
-                      💡 Ver Exemplo Prático e Pegadinha VUNESP
-                    </button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -404,7 +509,7 @@ export default function MapaMentalPage() {
               <h2 className="text-sm font-bold text-white">Prompt Mestre Inteligente (Humanas vs Exatas)</h2>
             </div>
             <p className="text-xs text-zinc-400">
-              Gera conteúdos otimizados conforme a natureza da matéria (passos matemáticos ou fichas conceituais).
+              Gera conteúdos estruturados focados no assunto de referência.
             </p>
           </div>
 
@@ -425,7 +530,7 @@ export default function MapaMentalPage() {
       {/* MODAL DE EXEMPLOS PRÁTICOS */}
       {activeModal && mapaAtual && (
         (() => {
-          const ramoModal = mapaAtual.ramos.find((r: any) => r.id === activeModal);
+          const ramoModal = mapaAtual.ramos.find((r: any) => r && r.id === activeModal);
           if (!ramoModal || !ramoModal.modalInfo) return null;
           const info = ramoModal.modalInfo;
           return (
@@ -467,7 +572,7 @@ export default function MapaMentalPage() {
                   {info.pegadinha && (
                     <div className="p-4 bg-zinc-900 rounded-2xl border border-amber-400/40 text-amber-200 space-y-1.5 shadow-lg">
                       <p className="font-bold uppercase tracking-wider text-amber-400">
-                        ⚠️ PEGADINHA VUNESP:
+                        PEGADINHA VUNESP:
                       </p>
                       <p className="leading-relaxed text-zinc-300 text-xs sm:text-sm">{info.pegadinha}</p>
                     </div>

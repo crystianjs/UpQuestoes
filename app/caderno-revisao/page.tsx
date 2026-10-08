@@ -31,7 +31,7 @@ const revisaoInicialExemplo = {
     {
       id: "fc-port-01",
       tag: "Classes Gramaticais",
-      assunto: "Morfologia",
+      assunto: "Pronome relativo",
       detalhes: "PEGADINHA VUNESP: A banca costuma tentar incluir interjeições e artigos como variáveis em graus compostos.",
       pergunta: "Quais são as 10 classes gramaticais da Língua Portuguesa?",
       respostaResumida: "Substantivo, Artigo, Adjetivo, Pronome, Numeral, Verbo, Advérbio, Preposição, Conjunção e Interjeição.",
@@ -41,7 +41,8 @@ const revisaoInicialExemplo = {
 };
 
 const PROMPT_MESTRE_FLASHCARD = `Atue como Especialista e Mentor para o concurso do TJSP (Banca VUNESP). 
-Gere um JSON estruturado para o Caderno de Revisão (Flashcards) contendo perguntas diretas, resposta resumida e detalhes/pegadinha da banca.
+Gere um JSON estruturado para o Caderno de Revisão (Flashcards). 
+IMPORTANTE: Traga um ASSUNTO OBJETIVO e limpo (ex: "Pronome relativo", "Art. 6 §1 + Direitos sociais", "Razão", "Função SOMA"). NUNCA inclua emojis, ícones ou símbolos decorativos no campo "assunto", "tag" ou "titulo".
 Retorne EXCLUSIVAMENTE o JSON válido, seguindo esta estrutura exata:
 {
   "disciplina": "Nome da Disciplina",
@@ -50,8 +51,8 @@ Retorne EXCLUSIVAMENTE o JSON válido, seguindo esta estrutura exata:
   "cards": [
     {
       "id": "fc-disc-001",
-      "tag": "Palavra-Chave / Assunto Curto",
-      "assunto": "Tema Principal",
+      "tag": "Palavra-Chave",
+      "assunto": "Assunto Objetivo (ex: Pronome relativo / Razão)",
       "pergunta": "Pergunta objetiva com foco na VUNESP?",
       "respostaResumida": "Explicação ou gabarito direto da resposta.",
       "detalhes": "PEGADINHA VUNESP: Explicação do ponto que a banca mais erra.",
@@ -71,6 +72,10 @@ export default function CadernoRevisaoPage() {
   const [jsonInputText, setJsonInputText] = useState<string>('');
   const [copiadoPrompt, setCopiadoPrompt] = useState<boolean>(false);
   const [carregando, setCarregando] = useState<boolean>(true);
+
+  // Estados para edição inline do assunto do card
+  const [editandoCardId, setEditandoCardId] = useState<string | null>(null);
+  const [novoAssuntoInput, setNovoAssuntoInput] = useState<string>('');
 
   // Controle de flashcards revelados
   const [respostasReveladas, setRespostasReveladas] = useState<Record<string, boolean>>({});
@@ -172,7 +177,6 @@ export default function CadernoRevisaoPage() {
     setRespostasReveladas(prev => ({ ...prev, [cardId]: !prev[cardId] }));
   };
 
-  // Salva o status de desempenho diretamente dentro do card e sincroniza com o Supabase
   const definirStatus = async (cardId: string, status: string) => {
     if (!revisaoAtual) return;
 
@@ -189,6 +193,25 @@ export default function CadernoRevisaoPage() {
     };
 
     await salvarNoSupabase(selectedDisciplina, payloadAtualizado);
+  };
+
+  const salvarAssuntoEditado = async (cardId: string) => {
+    if (!revisaoAtual) return;
+
+    const cardsAtualizados = revisaoAtual.cards.map((c: any) => {
+      if (c.id === cardId) {
+        return { ...c, assunto: novoAssuntoInput };
+      }
+      return c;
+    });
+
+    const payloadAtualizado = {
+      ...revisaoAtual,
+      cards: cardsAtualizados
+    };
+
+    await salvarNoSupabase(selectedDisciplina, payloadAtualizado);
+    setEditandoCardId(null);
   };
 
   const excluirCard = async (cardId: string) => {
@@ -214,8 +237,20 @@ export default function CadernoRevisaoPage() {
     setTimeout(() => setCopiadoPrompt(false), 3000);
   };
 
+  // Declarações corretas antes do render
   const revisaoAtual = selectedDisciplina !== "Todas as Matérias" ? revisoesPorDisciplina[selectedDisciplina] : null;
-  const cardsExibir = revisaoAtual?.cards ? revisaoAtual.cards.filter((r: any) => selectedAssunto === 'all' || r.id === selectedAssunto) : [];
+  
+  const assuntosUnicos = revisaoAtual?.cards && Array.isArray(revisaoAtual.cards)
+    ? Array.from(new Set(revisaoAtual.cards.map((c: any) => c.assunto || c.titulo || "Geral")))
+    : [];
+
+  const cardsExibir = revisaoAtual?.cards && Array.isArray(revisaoAtual.cards) 
+    ? revisaoAtual.cards.filter((r: any) => {
+        if (selectedAssunto === 'all') return true;
+        const nomeAssunto = r.assunto || r.titulo || "Geral";
+        return nomeAssunto === selectedAssunto;
+      }) 
+    : [];
 
   return (
     <div className="min-h-screen bg-black text-zinc-100 font-sans selection:bg-amber-400 selection:text-zinc-950">
@@ -249,7 +284,7 @@ export default function CadernoRevisaoPage() {
           </div>
         </div>
 
-        {/* Filtros Limpos: Matéria e Assunto */}
+        {/* Filtros Limpos: Matéria e Assunto Único */}
         <div className="bg-zinc-950 border border-zinc-800 p-4 rounded-2xl shadow-lg flex flex-col md:flex-row items-center gap-4">
           <div className="w-full md:w-1/2 flex items-center gap-2">
             <span className="text-xs font-bold text-zinc-400 whitespace-nowrap">Matéria:</span>
@@ -264,7 +299,7 @@ export default function CadernoRevisaoPage() {
               <option value="Todas as Matérias">Todas as Matérias</option>
               {DISCIPLINAS_TJSP.map((disc) => (
                 <option key={disc} value={disc}>
-                  {disc} {revisoesPorDisciplina[disc] ? "🟢" : "⚪"}
+                  {disc} {revisoesPorDisciplina && revisoesPorDisciplina[disc] ? "🟢" : "⚪"}
                 </option>
               ))}
             </select>
@@ -279,9 +314,9 @@ export default function CadernoRevisaoPage() {
               className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 text-xs rounded-xl px-3 py-2.5 outline-none focus:border-amber-400 font-semibold disabled:opacity-40 cursor-pointer"
             >
               <option value="all">Todos os Assuntos</option>
-              {revisaoAtual?.cards?.map((card: any) => (
-                <option key={card.id} value={card.id}>
-                  {card.titulo || card.tag}
+              {assuntosUnicos.map((assunto: any, idx: number) => (
+                <option key={idx} value={assunto}>
+                  {assunto}
                 </option>
               ))}
             </select>
@@ -317,7 +352,8 @@ export default function CadernoRevisaoPage() {
             <div className="space-y-10">
               {cardsExibir.map((card: any) => {
                 const revelado = respostasReveladas[card.id];
-                const statusAtual = card.statusAvaliacao; // Lido direto do card persistido
+                const statusAtual = card.statusAvaliacao;
+                const estaEditando = editandoCardId === card.id;
 
                 return (
                   <div 
@@ -326,17 +362,60 @@ export default function CadernoRevisaoPage() {
                   >
                     {/* Cabeçalho */}
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-amber-400/40 gap-3">
-                      <div className="space-y-1">
-                        <span className="text-xs font-bold uppercase tracking-wider text-amber-400 bg-amber-400/10 px-2.5 py-1 rounded-md border border-amber-400/20">
-                          {card.assunto || card.tema || card.artigos || "FLASHCARD"}
-                        </span>
-                        <h2 className="text-lg sm:text-xl font-extrabold text-white tracking-tight pt-1">
+                      <div className="space-y-1 w-full">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-bold uppercase tracking-wider text-amber-400 bg-amber-400/10 px-2.5 py-1 rounded-md border border-amber-400/20">
+                            {selectedDisciplina}
+                          </span>
+                          
+                          {/* Edição de Assunto */}
+                          {!estaEditando ? (
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-semibold text-zinc-300">
+                                • {card.assunto || "Assunto Geral"}
+                              </span>
+                              <button
+                                onClick={() => {
+                                  setEditandoCardId(card.id);
+                                  setNovoAssuntoInput(card.assunto || '');
+                                }}
+                                className="text-[10px] text-amber-400 hover:underline bg-zinc-900 px-2 py-0.5 rounded border border-amber-400/20 cursor-pointer"
+                              >
+                                ✏️ Editar Assunto
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2 mt-1">
+                              <input
+                                type="text"
+                                value={novoAssuntoInput}
+                                onChange={(e) => setNovoAssuntoInput(e.target.value)}
+                                className="bg-zinc-900 border border-amber-400 text-zinc-100 text-xs px-2.5 py-1 rounded-lg outline-none"
+                                placeholder="Novo assunto..."
+                              />
+                              <button
+                                onClick={() => salvarAssuntoEditado(card.id)}
+                                className="px-3 py-1 bg-amber-400 text-zinc-950 text-xs font-bold rounded-lg cursor-pointer"
+                              >
+                                Salvar
+                              </button>
+                              <button
+                                onClick={() => setEditandoCardId(null)}
+                                className="px-2 py-1 bg-zinc-800 text-zinc-400 text-xs rounded-lg cursor-pointer"
+                              >
+                                Cancelar
+                              </button>
+                            </div>
+                          )}
+                        </div>
+
+                        <h2 className="text-lg sm:text-xl font-extrabold text-white tracking-tight pt-2">
                           {card.pergunta || card.titulo || "Questão de Revisão"}
                         </h2>
                       </div>
 
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold px-3 py-1 rounded-lg bg-zinc-950 text-amber-400 border border-amber-400/30">
+                      <div className="flex items-center gap-2 self-start sm:self-center">
+                        <span className="text-xs font-bold px-3 py-1 rounded-lg bg-zinc-950 text-amber-400 border border-amber-400/30 whitespace-nowrap">
                           {card.tag}
                         </span>
                         <button
@@ -364,7 +443,9 @@ export default function CadernoRevisaoPage() {
                       ) : (
                         <div className="space-y-4">
                           <div className="p-5 sm:p-6 rounded-xl bg-zinc-950 border-l-4 border-amber-400 border-t border-r border-b border-zinc-800/80 shadow-md space-y-3">
-                            <span className="text-xs font-bold uppercase tracking-wider text-amber-400">Resposta:</span>
+                            <span className="text-xs font-bold uppercase tracking-wider text-amber-400">
+                              Resposta:
+                            </span>
                             <p className="text-zinc-200 text-xs sm:text-sm leading-relaxed font-semibold">
                               {card.respostaResumida || card.conteudo || card.resposta || "Resposta não especificada."}
                             </p>
@@ -443,7 +524,7 @@ export default function CadernoRevisaoPage() {
               <h2 className="text-sm font-bold text-white">Prompt Mestre para Flashcards</h2>
             </div>
             <p className="text-xs text-zinc-400">
-              Gera os cards rigorosamente no formato correto para o painel.
+              Gera os cards rigorosamente limpos, sem ícones no assunto ou título.
             </p>
           </div>
 
@@ -524,13 +605,13 @@ export default function CadernoRevisaoPage() {
 
             <div className="flex items-center gap-3 pr-10">
               <div className="w-12 h-12 rounded-2xl flex items-center justify-center bg-amber-400 text-zinc-950 font-bold shadow-inner flex-shrink-0">
-              🥷🏻
+                ⚡
               </div>
               <div>
                 <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full border bg-amber-400 text-zinc-950 border-amber-500">
                   Gerenciador em Nuvem
                 </span>
-                <h2 className="text-lg font-bold text-white mt-1">Criar novo flashcard</h2>
+                <h2 className="text-lg font-bold text-white mt-1">Adicionar / Atualizar Flashcard</h2>
               </div>
             </div>
 

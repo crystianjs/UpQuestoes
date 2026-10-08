@@ -11,16 +11,29 @@ export default function HomePage() {
 
       <main className="w-full px-4 sm:px-8 py-8 space-y-8 max-w-5xl mx-auto">
         
+        {/* Nova Seção de Destaque Superior (Fundo Amarelo, Texto Preto) */}
+        <div className="bg-amber-400 border border-amber-500 rounded-3xl p-6 sm:p-8 shadow-2xl text-zinc-950 text-center space-y-2 relative overflow-hidden">
+          <div className="absolute -right-6 -bottom-6 text-zinc-950/10 text-9xl font-black select-none pointer-events-none">
+            🚀
+          </div>
+          <span className="inline-block bg-zinc-950 text-amber-400 text-[11px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md">
+            FOCO TOTAL NO EDITAL • TJSP
+          </span>
+          <h2 className="text-xl sm:text-2xl font-black tracking-tight leading-snug pt-1">
+            Você tem disciplina para realizar o sonho dos outros ou vai lutar pelos seus próprios sonhos? 💭🚀
+          </h2>
+          <p className="text-xs sm:text-sm font-bold text-zinc-900 max-w-2xl mx-auto opacity-90">
+            Cada questão resolvida e cada flashcard revisado hoje te aproximam da sua nomeação como Escrevente.
+          </p>
+        </div>
+
         {/* Card Principal Estilo Radar de Concursos */}
         <div className="bg-zinc-950 border border-zinc-800 rounded-3xl p-6 sm:p-10 shadow-2xl relative overflow-hidden space-y-8">
           
-          {/* Topo do Radar */}
+          {/* Topo do Radar (Limpo, apenas TJSP e Tribunal de Justiça) */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-zinc-800">
             <div>
-              <span className="text-xs font-black uppercase tracking-widest text-black bg-amber-400 px-3 py-1 rounded-full border border-amber-400/30">
-                VOCÊ TEM DISCIPLINA PARA REALIZAR O SONHO DOS OUTROS?<br></br> LUTE PELOS SEUS SONHOS TAMBÉM!💭🚀
-              </span>
-              <div className="flex items-center gap-3 mt-3">
+              <div className="flex items-center gap-3">
                 <h1 className="text-4xl sm:text-5xl font-black text-white tracking-tight">
                   TJSP<span className="text-amber-400">.</span>
                 </h1>
@@ -139,7 +152,7 @@ export default function HomePage() {
                 Desempenho
               </Link>
               <Link 
-                href="/questoes" 
+                href="/caderno-revisao" 
                 className="w-full sm:w-auto px-5 py-3 bg-zinc-900 hover:bg-zinc-800 text-zinc-200 font-bold rounded-xl text-xs border border-zinc-700 transition-all text-center cursor-pointer"
               >
                 Flashcards

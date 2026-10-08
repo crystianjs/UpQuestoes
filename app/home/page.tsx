@@ -20,7 +20,7 @@ export default function HomePage() {
             FOCO TOTAL NO EDITAL • TJSP
           </span>
           <h2 className="text-xl sm:text-2xl font-black tracking-tight leading-snug pt-1">
-            Você tem disciplina para realizar o sonho dos outros ou vai lutar pelos seus próprios sonhos? 💭🚀
+            Você tem disciplina para realizar os sonhos dos outros, lute pelos seus sonhos também! 💭🚀
           </h2>
           <p className="text-xs sm:text-sm font-bold text-zinc-900 max-w-2xl mx-auto opacity-90">
             Cada questão resolvida e cada flashcard revisado hoje te aproximam da sua nomeação como Escrevente.

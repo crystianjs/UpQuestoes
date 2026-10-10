@@ -810,7 +810,7 @@ export default function RedacaoPage() {
                   <h3 className="text-sm font-bold text-amber-400">Novo Repertório</h3>
 
                   <div className="space-y-1.5">
-                    <label className="text-xs font-bold uppercase text-zinc-400">Nome (Filme / Escritor / Documentário / Lei)</label>
+                    <label className="text-xs font-bold uppercase text-zinc-400">Nome (Filme / Escritor / Documentário / Lei):</label>
                     <input
                       type="text"
                       value={novoNomeRep}
@@ -822,7 +822,7 @@ export default function RedacaoPage() {
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-xs font-bold uppercase text-zinc-400">Link Exemplo (Internet)</label>
+                    <label className="text-xs font-bold uppercase text-zinc-400">Link Exemplo (Internet):</label>
                     <input
                       type="url"
                       value={novoLinkRep}
@@ -833,7 +833,7 @@ export default function RedacaoPage() {
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-xs font-bold uppercase text-zinc-400">Descrição / Contexto de Uso</label>
+                    <label className="text-xs font-bold uppercase text-zinc-400">Descrição / Contexto de Uso:</label>
                     <textarea
                       value={novaDescRep}
                       onChange={(e) => setNovaDescRep(e.target.value)}
@@ -843,7 +843,7 @@ export default function RedacaoPage() {
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-xs font-bold uppercase text-zinc-400">Exemplo Prático (Aplicação na Redação)</label>
+                    <label className="text-xs font-bold uppercase text-zinc-400">Exemplo Prático (Aplicação na Redação):</label>
                     <textarea
                       value={novoExemploRep}
                       onChange={(e) => setNovoExemploRep(e.target.value)}

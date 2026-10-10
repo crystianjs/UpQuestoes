@@ -45,6 +45,12 @@ export default function Navbar() {
           Desempenho
         </Link>
         <Link 
+          href="/plano" 
+          className={`px-3 py-2 rounded-xl transition-all ${isActive('/plano') ? 'bg-red-600 text-white font-bold shadow-lg shadow-red-600/20' : 'text-zinc-400 hover:text-white hover:bg-zinc-900'}`}
+        >
+          Plano de Estudos
+        </Link>
+        <Link 
           href="/questoes" 
           className={`px-3 py-2 rounded-xl transition-all ${isActive('/questoes') ? 'bg-red-600 text-white font-bold shadow-lg shadow-red-600/20' : 'text-zinc-400 hover:text-white hover:bg-zinc-900'}`}
         >

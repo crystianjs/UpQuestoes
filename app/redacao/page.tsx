@@ -375,7 +375,7 @@ export default function RedacaoPage() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-zinc-100 font-sans selection:bg-red-600 selection:text-white">
+    <div className="min-h-screen bg-black text-zinc-100 font-sans selection:bg-amber-600 selection:text-white">
       <Navbar />
 
       <main className="max-w-4xl mx-auto px-6 py-8 space-y-8">
@@ -384,7 +384,7 @@ export default function RedacaoPage() {
         <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 shadow-xl flex flex-col md:flex-row justify-between items-center gap-4">
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-              <FileText className="w-6 h-6 text-red-500" />
+              <FileText className="w-6 h-6 text-amber-500" />
               Treino de Redação Padrão VUNESP
             </h1>
             <p className="text-sm text-zinc-400 mt-1">
@@ -399,7 +399,7 @@ export default function RedacaoPage() {
             onClick={() => { setModoRegistro('cronometro'); setErro(''); setSucesso(false); }}
             className={`py-3 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
               modoRegistro === 'cronometro'
-                ? 'bg-red-600 text-white shadow-lg shadow-red-600/20'
+                ? 'bg-amber-600 text-white shadow-lg shadow-amber-600/20'
                 : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
             }`}
           >
@@ -410,12 +410,12 @@ export default function RedacaoPage() {
             onClick={() => { setModoRegistro('manual'); setErro(''); setSucesso(false); }}
             className={`py-3 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
               modoRegistro === 'manual'
-                ? 'bg-red-600 text-white shadow-lg shadow-red-600/20'
+                ? 'bg-amber-600 text-white shadow-lg shadow-amber-600/20'
                 : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
             }`}
           >
             <PlusCircle className="w-4 h-4" />
-            Registo Manual & Nota
+            Registro Manual e Nota
           </button>
         </div>
 
@@ -463,7 +463,7 @@ export default function RedacaoPage() {
                 <button 
                   onClick={iniciarTreino}
                   disabled={salvando}
-                  className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-4 px-8 rounded-xl transition-all shadow-lg shadow-red-600/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 text-base"
+                  className="flex-1 bg-amber-600 hover:bg-amber-700 text-white font-bold py-4 px-8 rounded-xl transition-all shadow-lg shadow-amber-600/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 text-base"
                 >
                   <Play className="w-5 h-5 fill-current" />
                   Iniciar Treino e Cronómetro

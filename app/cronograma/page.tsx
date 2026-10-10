@@ -5,24 +5,8 @@ import { useRouter } from 'next/navigation';
 import Navbar from '../components/Navbar';
 import { supabase } from '@/lib/supabase';
 import { 
-  BookOpen, 
-  Briefcase, 
-  Utensils, 
-  Moon, 
-  Laptop, 
-  Smile, 
-  CheckCircle2, 
-  Circle, 
-  Calendar, 
-  Code, 
-  Trash2, 
-  Upload, 
-  Sparkles,
-  Quote,
-  Pencil,
-  Plus,
-  ArrowUp,
-  ArrowDown
+  BookOpen, Briefcase, Utensils, Moon, Laptop, Smile, 
+  CheckCircle2, Circle, Calendar, Trash2, Sparkles, Quote, Pencil, Plus, ArrowUp, ArrowDown
 } from 'lucide-react';
 
 const cronogramaPadrao = [
@@ -99,35 +83,17 @@ const cronogramaPadrao = [
   }
 ];
 
-const PROMPT_CRONOGRAMA_JSON = `Gere estritamente um array JSON válido contendo os dias da semana e suas respectivas tarefas para um cronograma semanal de alta performance. Siga exatamente esta estrutura:
-
-[
-  {
-    "dia": "Segunda-feira",
-    "id": "segunda",
-    "tarefas": [
-      { "id": "s1", "horario": "05h00 - 07h00", "titulo": "Descrição da Tarefa", "icone": "BookOpen", "concluida": false }
-    ]
-  }
-]
-Ícones permitidos no campo "icone": "BookOpen", "Briefcase", "Utensils", "Moon", "Laptop", "Smile".`;
-
 export default function CronogramaPage() {
   const router = useRouter();
   const [diasSemana, setDiasSemana] = useState<any[]>(cronogramaPadrao);
   const [diaAtualIndex, setDiaAtualIndex] = useState<number>(0);
   const [carregando, setCarregando] = useState<boolean>(true);
   const [userId, setUserId] = useState<string | null>(null);
-  
-  // Modais
-  const [showJsonModal, setShowJsonModal] = useState<boolean>(false);
-  const [jsonInputText, setJsonInputText] = useState<string>('');
-  const [copiadoPrompt, setCopiadoPrompt] = useState<boolean>(false);
 
-  // Estados do Modal de Edição de Tarefa Individual
   const [showEditModal, setShowEditModal] = useState<boolean>(false);
   const [editDiaId, setEditDiaId] = useState<string>('');
   const [editTarefaId, setEditTarefaId] = useState<string>('');
+  const [editDbId, setEditDbId] = useState<string | undefined>(undefined);
   const [editHorario, setEditHorario] = useState<string>('');
   const [editTitulo, setEditTitulo] = useState<string>('');
   const [editIcone, setEditIcone] = useState<string>('BookOpen');
@@ -154,26 +120,47 @@ export default function CronogramaPage() {
   const carregarCronogramaSupabase = async (uid: string) => {
     try {
       setCarregando(true);
-      const { data, error } = await supabase
+      
+      const { data } = await supabase
         .from('user_cronograma_progresso')
         .select('*')
         .eq('user_id', uid)
         .maybeSingle();
       
-      if (error) throw error;
-
+      let estruturaDias = cronogramaPadrao;
       if (data && data.dias) {
-        setDiasSemana(data.dias);
-      } else {
-        await supabase.from('user_cronograma_progresso').upsert({
-          user_id: uid,
-          dias: cronogramaPadrao,
-          updated_at: new Date().toISOString()
-        }, { onConflict: 'user_id' });
-        setDiasSemana(cronogramaPadrao);
+        estruturaDias = data.dias;
       }
+
+      const { data: tarefasPlano } = await supabase
+        .from('cronograma_tarefas')
+        .select('*')
+        .eq('user_id', uid);
+
+      if (tarefasPlano && tarefasPlano.length > 0) {
+        estruturaDias = estruturaDias.map((d: any) => {
+          const tarefasDoDia = tarefasPlano
+            .filter((tp: any) => (tp.dia_semana || 'segunda') === d.id)
+            .map((tp: any) => ({
+              id: `plano_${tp.id}`,
+              horario: tp.horario || '08h00 - 09h00',
+              titulo: `${tp.materia} — ${tp.assunto_titulo || (tp.tipo === 'revisao' ? 'Revisão' : 'Teórico')}`,
+              icone: tp.icone || 'BookOpen',
+              concluida: tp.concluido,
+              dbId: tp.id
+            }));
+
+          const semAntigasDoPlano = d.tarefas.filter((t: any) => !t.id.startsWith('plano_'));
+          return {
+            ...d,
+            tarefas: [...tarefasDoDia, ...semAntigasDoPlano]
+          };
+        });
+      }
+
+      setDiasSemana(estruturaDias);
     } catch (e) {
-      console.error("Erro ao carregar cronograma do Supabase:", e);
+      console.error("Erro ao carregar cronograma:", e);
     } finally {
       setCarregando(false);
     }
@@ -183,20 +170,16 @@ export default function CronogramaPage() {
     if (!userId) return;
     try {
       setDiasSemana(novoCronograma);
-      const { error } = await supabase.from('user_cronograma_progresso').upsert({
+      await supabase.from('user_cronograma_progresso').upsert({
         user_id: userId,
         dias: novoCronograma,
         updated_at: new Date().toISOString()
       }, { onConflict: 'user_id' });
-
-      if (error) throw error;
     } catch (e: any) {
-      console.error("Erro ao salvar no Supabase:", e);
-      alert("Erro ao salvar na nuvem: " + e.message);
+      console.error("Erro ao salvar:", e);
     }
   };
 
-  // Funções para alterar a ordem das tarefas (blocos) para cima ou para baixo
   const moverTarefaCima = (diaId: string, tarefaIndex: number) => {
     if (tarefaIndex === 0) return;
     const atualizado = diasSemana.map((dia) => {
@@ -227,7 +210,17 @@ export default function CronogramaPage() {
     salvarNoSupabase(atualizado);
   };
 
-  const toggleTarefa = (diaId: string, tarefaId: string) => {
+  const toggleTarefa = async (diaId: string, tarefaId: string, dbId?: string) => {
+    if (dbId && userId) {
+      const tarefaAtual = diasSemana.find(d => d.id === diaId)?.tarefas.find((t: any) => t.id === tarefaId);
+      if (tarefaAtual) {
+        await supabase
+          .from('cronograma_tarefas')
+          .update({ concluido: !tarefaAtual.concluida })
+          .eq('id', dbId);
+      }
+    }
+
     const atualizado = diasSemana.map((dia) => {
       if (dia.id === diaId) {
         const tarefasAtualizadas = dia.tarefas.map((t: any) => {
@@ -243,45 +236,29 @@ export default function CronogramaPage() {
     salvarNoSupabase(atualizado);
   };
 
-  const handleRemoverCronograma = async () => {
-    if (confirm("Tem certeza que deseja restaurar o cronograma para o padrão na nuvem?")) {
-      await salvarNoSupabase(cronogramaPadrao);
-      alert("Cronograma restaurado para o padrão!");
-    }
-  };
-
-  const handleSalvarNovoJson = async () => {
-    try {
-      const parsed = JSON.parse(jsonInputText);
-      if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].dia && parsed[0].tarefas) {
-        await salvarNoSupabase(parsed);
-        setShowJsonModal(false);
-        setJsonInputText('');
-        alert("Novo cronograma salvo com sucesso na nuvem!");
-      } else {
-        alert("O JSON precisa ser um array válido contendo os dias e tarefas.");
-      }
-    } catch (e) {
-      alert("Erro de sintaxe no JSON. Verifique as chaves e colchetes.");
-    }
-  };
-
-  const copiarPromptJson = () => {
-    navigator.clipboard.writeText(PROMPT_CRONOGRAMA_JSON);
-    setCopiadoPrompt(true);
-    setTimeout(() => setCopiadoPrompt(false), 3000);
-  };
-
   const abrirEdicaoTarefa = (diaId: string, tarefa: any) => {
     setEditDiaId(diaId);
     setEditTarefaId(tarefa.id);
+    setEditDbId(tarefa.dbId);
     setEditHorario(tarefa.horario);
     setEditTitulo(tarefa.titulo);
     setEditIcone(tarefa.icone || 'BookOpen');
     setShowEditModal(true);
   };
 
-  const salvarEdicaoTarefa = () => {
+  const salvarEdicaoTarefa = async () => {
+    if (editDbId && userId) {
+      await supabase
+        .from('cronograma_tarefas')
+        .update({
+          assunto_titulo: editTitulo,
+          horario: editHorario,
+          icone: editIcone,
+          dia_semana: editDiaId
+        })
+        .eq('id', editDbId);
+    }
+
     const atualizado = diasSemana.map((dia) => {
       if (dia.id === editDiaId) {
         const tarefasAtualizadas = dia.tarefas.map((t: any) => {
@@ -315,8 +292,11 @@ export default function CronogramaPage() {
     salvarNoSupabase(atualizado);
   };
 
-  const removerTarefa = (diaId: string, tarefaId: string) => {
+  const removerTarefa = async (diaId: string, tarefaId: string, dbId?: string) => {
     if (confirm("Deseja realmente excluir esta tarefa?")) {
+      if (dbId) {
+        await supabase.from('cronograma_tarefas').delete().eq('id', dbId);
+      }
       const atualizado = diasSemana.map((dia) => {
         if (dia.id === diaId) {
           return {
@@ -348,7 +328,6 @@ export default function CronogramaPage() {
 
       <main className="max-w-7xl mx-auto px-6 py-8 space-y-8">
         
-        {/* Header com Ações de Gerenciamento JSON */}
         <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
@@ -356,38 +335,18 @@ export default function CronogramaPage() {
                 <Sparkles className="w-3 h-3" /> Alta Performance
               </span>
               <span className="bg-emerald-500/20 text-emerald-400 text-xs font-bold px-2.5 py-0.5 rounded-full border border-emerald-500/30">
-                Isolado por ID na Nuvem 🟢
+                Sincronizado com o Plano de Estudos 🟢
               </span>
             </div>
             <h1 className="text-2xl font-bold text-white mt-1.5">
-              Cronograma Semanal de Estudos e Trabalho
+              Cronograma Semanal Integrado
             </h1>
             <p className="text-xs text-zinc-400 mt-0.5">
-              Acompanhe suas tarefas diárias, reordene os blocos (cima/baixo) e gerencie sua rotina.
+              As matérias e redações atribuídas no seu plano de estudos aparecem automaticamente nos dias selecionados.
             </p>
-          </div>
-
-          <div className="flex items-center gap-2.5 flex-wrap">
-            <button
-              onClick={() => {
-                setJsonInputText(JSON.stringify(diasSemana, null, 2));
-                setShowJsonModal(true);
-              }}
-              className="text-xs font-semibold px-4 py-2.5 rounded-xl border border-blue-500/40 bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 transition-all flex items-center gap-2 shadow-md cursor-pointer"
-            >
-              <Upload className="w-4 h-4 text-blue-400" /> Subir Novo Cronograma (JSON)
-            </button>
-
-            <button
-              onClick={handleRemoverCronograma}
-              className="text-xs font-semibold px-4 py-2.5 rounded-xl border border-rose-500/40 bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 transition-all flex items-center gap-2 shadow-md cursor-pointer"
-            >
-              <Trash2 className="w-4 h-4 text-rose-400" /> Restaurar Padrão
-            </button>
           </div>
         </div>
 
-        {/* Bloco de Destaque Sofisticado: Citações do Clóvis de Barros Filho */}
         <div className="bg-amber-400 border border-amber-300 rounded-2xl p-6 shadow-2xl relative overflow-hidden text-zinc-950">
           <div className="absolute -right-10 -bottom-10 text-amber-500/30 pointer-events-none">
             <Quote className="w-40 h-40" />
@@ -397,7 +356,7 @@ export default function CronogramaPage() {
               <Quote className="w-6 h-6" />
             </div>
             <div className="space-y-3">
-              <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-950 flex items-center gap-2">
+              <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-950">
                 <span>Inspiração e Mentalidade — Clóvis de Barros Filho</span>
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -412,10 +371,9 @@ export default function CronogramaPage() {
           </div>
         </div>
 
-        {/* Grid de Cards dos Dias da Semana */}
         {carregando ? (
           <div className="flex items-center justify-center p-12 text-zinc-400 text-xs">
-            Sincronizando cronograma com o Supabase...
+            Carregando cronograma e tarefas atribuídas...
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -441,7 +399,6 @@ export default function CronogramaPage() {
                   )}
 
                   <div>
-                    {/* Cabeçalho do Card limpo */}
                     <div className="flex items-center justify-between pb-3 border-b border-zinc-800/80 mb-4 pr-12">
                       <h3 className="text-base font-bold text-white flex items-center gap-2">
                         <Calendar className={`w-4 h-4 ${isHoje ? 'text-red-500' : 'text-blue-400'}`} />
@@ -469,11 +426,13 @@ export default function CronogramaPage() {
                           className={`p-3.5 rounded-xl border transition-all flex flex-col gap-3 group/item ${
                             tarefa.concluida 
                               ? 'bg-zinc-900/40 border-zinc-900/80 opacity-60' 
+                              : tarefa.id.startsWith('plano_') 
+                              ? 'bg-blue-950/20 border-blue-900/50 shadow-sm'
                               : 'bg-zinc-900/80 border-zinc-800/80 hover:border-zinc-700 hover:bg-zinc-900 shadow-sm'
                           }`}
                         >
                           <div 
-                            onClick={() => toggleTarefa(diaObj.id, tarefa.id)}
+                            onClick={() => toggleTarefa(diaObj.id, tarefa.id, tarefa.dbId)}
                             className="flex items-start gap-2.5 cursor-pointer min-w-0"
                           >
                             <div className="mt-0.5 shrink-0">
@@ -489,9 +448,11 @@ export default function CronogramaPage() {
                                 <div className="flex items-center gap-1.5 text-[11px] font-semibold text-amber-400">
                                   {renderIcone(tarefa.icone, "w-3.5 h-3.5")}
                                   <span>{tarefa.horario}</span>
+                                  {tarefa.id.startsWith('plano_') && (
+                                    <span className="text-[9px] bg-blue-500/20 text-blue-300 px-1.5 py-0.5 rounded border border-blue-500/30">Plano</span>
+                                  )}
                                 </div>
 
-                                {/* Botões para Mover Tarefa para Cima ou para Baixo */}
                                 <div className="flex items-center gap-0.5 bg-zinc-950/80 border border-zinc-800/80 rounded-md p-0.5">
                                   <button
                                     onClick={(e) => {
@@ -518,7 +479,7 @@ export default function CronogramaPage() {
                                 </div>
                               </div>
 
-                              <p className={`text-xs leading-relaxed transition-colors ${tarefa.concluida ? 'text-zinc-500 line-through' : 'text-zinc-200'}`}>
+                              <p className={`text-xs leading-relaxed transition-colors break-words whitespace-pre-wrap ${tarefa.concluida ? 'text-zinc-500 line-through' : 'text-zinc-200'}`}>
                                 {tarefa.titulo}
                               </p>
                             </div>
@@ -539,7 +500,7 @@ export default function CronogramaPage() {
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                toggleTarefa(diaObj.id, tarefa.id);
+                                toggleTarefa(diaObj.id, tarefa.id, tarefa.dbId);
                               }}
                               className={`px-2.5 py-1 rounded-lg border transition-all text-[11px] font-medium cursor-pointer ${
                                 tarefa.concluida
@@ -553,7 +514,7 @@ export default function CronogramaPage() {
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                removerTarefa(diaObj.id, tarefa.id);
+                                removerTarefa(diaObj.id, tarefa.id, tarefa.dbId);
                               }}
                               className="px-2.5 py-1 rounded-lg bg-zinc-800/90 text-zinc-400 hover:text-rose-400 hover:bg-rose-600/20 border border-zinc-700/85 transition-all text-[11px] font-medium flex items-center gap-1 cursor-pointer"
                               title="Excluir Tarefa"
@@ -626,7 +587,7 @@ export default function CronogramaPage() {
                   value={editTitulo}
                   onChange={(e) => setEditTitulo(e.target.value)}
                   rows={3}
-                  className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 text-xs rounded-xl p-3 outline-none focus:border-blue-500 resize-none"
+                  className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 text-xs rounded-xl p-3 outline-none focus:border-blue-500 resize-none whitespace-pre-wrap"
                   placeholder="Descrição da tarefa..."
                 />
               </div>
@@ -660,73 +621,6 @@ export default function CronogramaPage() {
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-xs transition-all shadow-lg shadow-blue-900/30 cursor-pointer"
               >
                 Salvar Alterações
-              </button>
-            </div>
-
-          </div>
-        </div>
-      )}
-
-      {/* MODAL DE SUBIR / GERENCIAR JSON */}
-      {showJsonModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-zinc-950 border border-zinc-800 rounded-3xl max-w-2xl w-full p-6 shadow-2xl relative space-y-4">
-            
-            <button 
-              onClick={() => setShowJsonModal(false)} 
-              className="absolute top-4 right-4 text-zinc-400 hover:text-white bg-zinc-900 w-9 h-9 flex items-center justify-center rounded-full border border-zinc-800 transition-all text-sm cursor-pointer"
-              title="Fechar"
-            >
-              ✕
-            </button>
-
-            <div className="flex items-center gap-2.5 pr-10">
-              <div className="w-9 h-9 rounded-xl bg-blue-500/20 border border-blue-500/40 flex items-center justify-center text-blue-400">
-                <Code className="w-5 h-5" />
-              </div>
-              <div>
-                <h2 className="text-base font-bold text-white">Subir Novo Cronograma em JSON</h2>
-                <p className="text-xs text-zinc-400">Cole a estrutura JSON formatada para atualizar instantaneamente o seu cronograma na nuvem.</p>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs font-semibold text-zinc-400">Estrutura JSON do Cronograma:</label>
-                  <button
-                    onClick={copiarPromptJson}
-                    className={`text-[11px] font-semibold px-2.5 py-1 rounded-lg border transition-all flex items-center gap-1.5 cursor-pointer ${
-                      copiadoPrompt 
-                        ? 'bg-emerald-600 text-white border-emerald-500' 
-                        : 'bg-zinc-900 text-zinc-300 border-zinc-800 hover:text-white'
-                    }`}
-                  >
-                    {copiadoPrompt ? 'Prompt Modelo Copiado!' : 'Copiar Modelo Prompt'}
-                  </button>
-                </div>
-                <textarea 
-                  value={jsonInputText}
-                  onChange={(e) => setJsonInputText(e.target.value)}
-                  rows={14}
-                  className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 text-xs font-mono rounded-xl p-3.5 outline-none focus:border-blue-500 resize-none leading-relaxed"
-                  placeholder="Cole aqui o JSON estruturado..."
-                ></textarea>
-              </div>
-            </div>
-
-            <div className="pt-2 border-t border-zinc-800 flex items-center justify-end gap-3">
-              <button 
-                onClick={() => setShowJsonModal(false)}
-                className="px-4 py-2.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 font-semibold rounded-xl text-xs transition-all border border-zinc-800 cursor-pointer"
-              >
-                Cancelar
-              </button>
-              <button 
-                onClick={handleSalvarNovoJson}
-                className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-xs transition-all shadow-lg shadow-blue-900/30 flex items-center gap-2 cursor-pointer"
-              >
-                <Upload className="w-4 h-4" /> Salvar na Nuvem
               </button>
             </div>
 

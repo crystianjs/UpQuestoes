@@ -2,11 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import Navbar from '../components/Navbar';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+import { supabase } from '@/lib/supabase';
+import { CheckCircle2, Circle, Plus, Trash2, Calendar } from 'lucide-react';
 
 const MATERIAS_TJSP = [
   "Língua Portuguesa",
@@ -20,213 +17,349 @@ const MATERIAS_TJSP = [
   "Raciocínio Lógico",
   "Informática",
   "Atualidades",
-  "Estatuto da Pessoa com Deficiência"
+  "Estatuto da Pessoa com Deficiência",
+  "Redação"
 ];
 
-const CICLO_REVISAO_PADRAO = MATERIAS_TJSP.map(m => ({
-  materia: m,
-  carga: m === "Língua Portuguesa" ? "10 min" : "10 min"
-}));
+const DIAS_OPCOES = [
+  { id: 'segunda', nome: 'Segunda-feira' },
+  { id: 'terca', nome: 'Terça-feira' },
+  { id: 'quarta', nome: 'Quarta-feira' },
+  { id: 'quinta', nome: 'Quinta-feira' },
+  { id: 'sexta', nome: 'Sexta-feira' },
+  { id: 'sabado', nome: 'Sábado' },
+  { id: 'domingo', nome: 'Domingo' }
+];
 
-const CICLO_TEORICO_PADRAO = MATERIAS_TJSP.map(m => ({
-  materia: m,
-  carga: ["Direito Constitucional", "Direito Administrativo", "Direito Penal", "Direito Processual Penal", "Direito Processual Civil", "Normas da Corregedoria"].includes(m) ? "2 horas" : "4 horas"
-}));
+interface TarefaCronograma {
+  id: string;
+  materia: string;
+  tipo: 'revisao' | 'teorico';
+  dia_semana: string;
+  horario: string;
+  assunto_titulo: string;
+  concluido: boolean;
+}
 
 export default function PlanoEstudosPage() {
-  const [cicloRevisao, setCicloRevisao] = useState(CICLO_REVISAO_PADRAO);
-  const [cicloTeorico, setCicloTeorico] = useState(CICLO_TEORICO_PADRAO);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [tarefasCronograma, setTarefasCronograma] = useState<TarefaCronograma[]>([]);
   
-  const [editando, setEditando] = useState(false);
+  const [novaMateria, setNovaMateria] = useState(MATERIAS_TJSP[0]);
+  const [novoTipo, setNovoTipo] = useState<'revisao' | 'teorico'>('teorico');
+  const [novoDia, setNovoDia] = useState('segunda');
+  const [novoHorario, setNovoHorario] = useState('08h00 - 09h00');
+  const [novoAssunto, setNovoAssunto] = useState('');
   const [carregando, setCarregando] = useState(true);
 
   useEffect(() => {
-    carregarDadosSupabase();
+    async function init() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        setUserId(session.user.id);
+        carregarCronograma(session.user.id);
+      }
+    }
+    init();
   }, []);
 
-  const carregarDadosSupabase = async () => {
+  const carregarCronograma = async (uid: string) => {
     try {
       setCarregando(true);
-      const { data, error } = await supabase.from('plano_estudos_tjsp').select('*');
-      if (error) throw error;
+      const { data, error } = await supabase
+        .from('cronograma_tarefas')
+        .select('*')
+        .eq('user_id', uid)
+        .order('created_at', { ascending: false });
 
-      if (data && data.length > 0) {
-        const rev = data.find((d: any) => d.tipo === 'revisao');
-        const teo = data.find((d: any) => d.tipo === 'teorico');
-
-        if (rev && rev.dados) setCicloRevisao(rev.dados);
-        if (teo && teo.dados) setCicloTeorico(teo.dados);
-      }
+      if (!error && data) setTarefasCronograma(data);
     } catch (e) {
-      console.error("Erro ao carregar do Supabase:", e);
+      console.error("Erro ao carregar:", e);
     } finally {
       setCarregando(false);
     }
   };
 
-  const salvarNoSupabase = async () => {
-    try {
-      await supabase.from('plano_estudos_tjsp').upsert([
-        { tipo: 'revisao', dados: cicloRevisao, updated_at: new Date().toISOString() },
-        { tipo: 'teorico', dados: cicloTeorico, updated_at: new Date().toISOString() }
-      ], { onConflict: 'tipo' });
+  const adicionarAoCronograma = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!userId) return;
 
-      setEditando(false);
-      alert('Alterações salvas com sucesso!');
+    try {
+      const tituloFinal = novoAssunto.trim() !== '' 
+        ? novoAssunto 
+        : `${novaMateria} (${novoTipo === 'revisao' ? 'Revisão' : 'Teórico'})`;
+
+      const { data, error } = await supabase
+        .from('cronograma_tarefas')
+        .insert([
+          {
+            user_id: userId,
+            materia: novaMateria,
+            tipo: novoTipo,
+            dia_semana: novoDia,
+            horario: novoHorario || '08h00 - 09h00',
+            assunto_titulo: tituloFinal,
+            concluido: false
+          }
+        ])
+        .select();
+
+      if (error) throw error;
+      if (data) {
+        setTarefasCronograma([data[0], ...tarefasCronograma]);
+        setNovoAssunto('');
+        setNovoHorario('08h00 - 09h00');
+        alert('Tarefa atribuída com sucesso ao cronograma!');
+      }
     } catch (e) {
-      alert('Erro ao salvar no banco. Verifique se a tabela foi criada.');
+      alert('Erro ao adicionar tarefa ao cronograma.');
     }
   };
 
-  const atualizarCargaRevisao = (index: number, novaCarga: string) => {
-    const novo = [...cicloRevisao];
-    novo[index].carga = novaCarga;
-    setCicloRevisao(novo);
+  const alternarConcluido = async (id: string, statusAtual: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('cronograma_tarefas')
+        .update({ concluido: !statusAtual })
+        .eq('id', id);
+
+      if (error) throw error;
+      setTarefasCronograma(
+        tarefasCronograma.map(t => t.id === id ? { ...t, concluido: !statusAtual } : t)
+      );
+    } catch (e) {
+      alert('Erro ao atualizar status.');
+    }
   };
 
-  const atualizarCargaTeorico = (index: number, novaCarga: string) => {
-    const novo = [...cicloTeorico];
-    novo[index].carga = novaCarga;
-    setCicloTeorico(novo);
+  const excluirTarefa = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('cronograma_tarefas')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      setTarefasCronograma(tarefasCronograma.filter(t => t.id !== id));
+    } catch (e) {
+      alert('Erro ao remover tarefa.');
+    }
   };
+
+  const formatarDiaExibicao = (diaId: string) => {
+    if (diaId === 'sabado') return 'Sábado';
+    if (diaId === 'domingo') return 'Domingo';
+    return `${diaId.charAt(0).toUpperCase() + diaId.slice(1)}-feira`;
+  };
+
+  const listaRevisoes = tarefasCronograma.filter(t => t.tipo === 'revisao');
+  const listaTeoricos = tarefasCronograma.filter(t => t.tipo === 'teorico');
 
   return (
     <div className="min-h-screen bg-black text-zinc-100 font-sans selection:bg-amber-400 selection:text-zinc-950">
       <Navbar />
 
-      <main className="max-w-4xl mx-auto px-4 py-8 space-y-12">
+      <main className="max-w-4xl mx-auto px-4 py-8 space-y-8">
         
-        {/* Cabeçalho e Botão de Editar */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-zinc-950 p-6 rounded-2xl border border-zinc-800 shadow-xl">
-          <div>
-            <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/30">
-              TJSP - VUNESP
-            </span>
-            <h1 className="text-2xl sm:text-3xl font-black text-white mt-1 tracking-tight">
-              Seus Ciclos de Estudo e Revisão
-            </h1>
-          </div>
-
-          <div className="flex items-center gap-3">
-            {editando ? (
-              <>
-                <button
-                  onClick={() => setEditando(false)}
-                  className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold text-xs rounded-xl transition-all cursor-pointer"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={salvarNoSupabase}
-                  className="px-5 py-2 bg-emerald-500 hover:bg-emerald-600 text-zinc-950 font-extrabold text-xs rounded-xl shadow-md transition-all cursor-pointer"
-                >
-                  Salvar na Nuvem
-                </button>
-              </>
-            ) : (
-              <button
-                onClick={() => setEditando(true)}
-                className="px-5 py-2.5 bg-amber-400 hover:bg-amber-500 text-zinc-950 font-black text-xs rounded-xl shadow-md transition-all cursor-pointer flex items-center gap-2"
-              >
-                Editar
-              </button>
-            )}
-          </div>
+        <div className="bg-zinc-950 p-6 rounded-2xl border border-zinc-800 shadow-xl">
+          <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/30">
+            TJSP - VUNESP
+          </span>
+          <h1 className="text-2xl font-black text-white mt-1 tracking-tight">
+            Plano de Estudos & Cronograma Atribuído
+          </h1>
+          <p className="text-xs text-zinc-400 mt-1">
+            Atribua matérias, redação, horários e assuntos específicos diretamente para o dia desejado.
+          </p>
         </div>
 
-        {carregando ? (
-          <div className="text-center py-20 text-zinc-500 text-sm">Carregando seus ciclos...</div>
-        ) : (
-          <div className="space-y-10">
-            
-            {/* 1. CICLO DE REVISÃO */}
-            <div className="bg-zinc-950 border border-zinc-800 rounded-3xl overflow-hidden shadow-2xl">
-              <div className="p-6 bg-gradient-to-r from-amber-600/20 to-transparent border-b border-zinc-800">
-                <p className="text-[11px] font-extrabold uppercase tracking-widest text-amber-400">O Ciclo de Estudos • TJSP</p>
-                <h2 className="text-2xl font-black text-white mt-0.5">CICLO DE REVISÃO</h2>
-                <p className="text-xs text-zinc-400 mt-1">A mesma grade. O que muda é a carga — revisar é mais rápido que assistir.</p>
-              </div>
+        <form onSubmit={adicionarAoCronograma} className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 shadow-xl space-y-4">
+          <h2 className="text-sm font-bold text-amber-400 uppercase tracking-wider flex items-center gap-2">
+            <Calendar className="w-4 h-4" /> Atribuir Nova Tarefa ao Cronograma
+          </h2>
 
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-zinc-900 border-b border-zinc-800 text-xs uppercase tracking-wider text-amber-400 font-bold">
-                      <th className="py-3.5 px-6">Matéria</th>
-                      <th className="py-3.5 px-6 text-right">Carga</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-zinc-900 text-xs sm:text-sm font-medium">
-                    {cicloRevisao.map((item, index) => (
-                      <tr key={index} className="hover:bg-zinc-900/40 transition-colors">
-                        <td className="py-4 px-6 text-zinc-200 font-semibold">{item.materia}</td>
-                        <td className="py-4 px-6 text-right">
-                          {editando ? (
-                            <input
-                              type="text"
-                              value={item.carga}
-                              onChange={(e) => atualizarCargaRevisao(index, e.target.value)}
-                              className="bg-zinc-900 border border-amber-400 text-amber-300 px-3 py-1 rounded-lg text-xs font-bold text-right outline-none w-36"
-                            />
-                          ) : (
-                            <span className="font-bold text-amber-400 bg-amber-400/10 px-3 py-1 rounded-lg border border-amber-400/20">
-                              {item.carga}
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="p-4 bg-zinc-900 border-t border-zinc-800 text-xs text-zinc-300 font-medium">
-                💡 <span className="font-bold text-white">10 minutos</span> Com o tempo vira 30, 40, uma hora — porque o caderno cresce.
-              </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold uppercase text-zinc-400">Matéria / Redação</label>
+              <select
+                value={novaMateria}
+                onChange={(e) => setNovaMateria(e.target.value)}
+                className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-xs text-white focus:border-amber-400 outline-none"
+              >
+                {MATERIAS_TJSP.map((mat) => (
+                  <option key={mat} value={mat}>{mat}</option>
+                ))}
+              </select>
             </div>
 
-            {/* 2. CICLO TEÓRICO */}
-            <div className="bg-zinc-950 border border-zinc-800 rounded-3xl overflow-hidden shadow-2xl">
-              <div className="p-6 bg-gradient-to-r from-blue-600/20 to-transparent border-b border-zinc-800">
-                <p className="text-[11px] font-extrabold uppercase tracking-widest text-blue-400">O Ciclo de Estudos • TJSP</p>
-                <h2 className="text-2xl font-black text-white mt-0.5">CICLO TEÓRICO</h2>
-                <p className="text-xs text-zinc-400 mt-1">Aqui você assiste à videoaula e escreve o seu resumo. Só passa pra próxima quando bater a hora.</p>
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold uppercase text-zinc-400">Tipo de Bloco</label>
+              <select
+                value={novoTipo}
+                onChange={(e) => setNovoTipo(e.target.value as 'revisao' | 'teorico')}
+                className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-xs text-white focus:border-amber-400 outline-none"
+              >
+                <option value="teorico">Aula / Teórico</option>
+                <option value="revisao">Revisão</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold uppercase text-zinc-400">Dia da Semana</label>
+              <select
+                value={novoDia}
+                onChange={(e) => setNovoDia(e.target.value)}
+                className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-xs text-white focus:border-amber-400 outline-none"
+              >
+                {DIAS_OPCOES.map((d) => (
+                  <option key={d.id} value={d.id}>{d.nome}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold uppercase text-zinc-400">Horário</label>
+              <input
+                type="text"
+                value={novoHorario}
+                onChange={(e) => setNovoHorario(e.target.value)}
+                placeholder="Ex: 08h00 - 10h00"
+                className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-xs text-white focus:border-amber-400 outline-none"
+                required
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold uppercase text-zinc-400">Assunto / Título</label>
+              <input
+                type="text"
+                value={novoAssunto}
+                onChange={(e) => setNovoAssunto(e.target.value)}
+                placeholder="Ex: Artigo 5º da CF/88"
+                className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-xs text-white focus:border-amber-400 outline-none"
+              />
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            className="w-full py-3.5 bg-amber-400 hover:bg-amber-500 text-zinc-950 font-black text-xs rounded-xl shadow transition flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <Plus className="w-4 h-4" /> Adicionar ao Cronograma
+          </button>
+        </form>
+
+        {carregando ? (
+          <div className="text-center py-12 text-zinc-500 text-xs">Carregando tarefas...</div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            <div className="bg-zinc-950 border border-zinc-800 rounded-3xl p-6 shadow-xl space-y-4">
+              <div className="border-b border-zinc-800 pb-3">
+                <span className="text-[10px] font-extrabold uppercase text-amber-400 bg-amber-400/10 px-2.5 py-1 rounded-full border border-amber-400/20">
+                  Ciclo Atribuído
+                </span>
+                <h3 className="text-lg font-black text-white mt-2">Revisões no Cronograma</h3>
               </div>
 
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-zinc-900 border-b border-zinc-800 text-xs uppercase tracking-wider text-blue-400 font-bold">
-                      <th className="py-3.5 px-6">Matéria</th>
-                      <th className="py-3.5 px-6 text-right">Carga</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-zinc-900 text-xs sm:text-sm font-medium">
-                    {cicloTeorico.map((item, index) => (
-                      <tr key={index} className="hover:bg-zinc-900/40 transition-colors">
-                        <td className="py-4 px-6 text-zinc-200 font-semibold">{item.materia}</td>
-                        <td className="py-4 px-6 text-right">
-                          {editando ? (
-                            <input
-                              type="text"
-                              value={item.carga}
-                              onChange={(e) => atualizarCargaTeorico(index, e.target.value)}
-                              className="bg-zinc-900 border border-blue-400 text-blue-300 px-3 py-1 rounded-lg text-xs font-bold text-right outline-none w-36"
-                            />
+              {listaRevisoes.length === 0 ? (
+                <p className="text-xs text-zinc-500 py-6 text-center">Nenhuma revisão atribuída ainda.</p>
+              ) : (
+                <div className="space-y-3">
+                  {listaRevisoes.map((item) => (
+                    <div 
+                      key={item.id} 
+                      className={`p-4 rounded-2xl border transition flex items-center justify-between gap-3 ${
+                        item.concluido 
+                          ? 'bg-emerald-950/20 border-emerald-800/40 opacity-75' 
+                          : 'bg-zinc-900/60 border-zinc-800'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 overflow-hidden">
+                        <button
+                          onClick={() => alternarConcluido(item.id, item.concluido)}
+                          className="text-amber-400 hover:text-amber-300 cursor-pointer"
+                        >
+                          {item.concluido ? (
+                            <CheckCircle2 className="w-5 h-5 text-emerald-400" />
                           ) : (
-                            <span className="font-bold text-blue-400 bg-blue-400/10 px-3 py-1 rounded-lg border border-blue-400/20">
-                              {item.carga}
-                            </span>
+                            <Circle className="w-5 h-5 text-zinc-500" />
                           )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                        </button>
+                        <div>
+                          <p className={`text-xs font-bold ${item.concluido ? 'line-through text-zinc-500' : 'text-zinc-200'}`}>
+                            {item.materia}
+                          </p>
+                          <p className="text-xs text-amber-400">{item.assunto_titulo}</p>
+                          <span className="text-[10px] text-zinc-400">{item.horario} • <strong>{formatarDiaExibicao(item.dia_semana)}</strong></span>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => excluirTarefa(item.id)}
+                        className="text-zinc-600 hover:text-rose-400 p-1 cursor-pointer"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="bg-zinc-950 border border-zinc-800 rounded-3xl p-6 shadow-xl space-y-4">
+              <div className="border-b border-zinc-800 pb-3">
+                <span className="text-[10px] font-extrabold uppercase text-blue-400 bg-blue-500/10 px-2.5 py-1 rounded-full border border-blue-500/20">
+                  Ciclo Atribuído
+                </span>
+                <h3 className="text-lg font-black text-white mt-2">Aulas / Teórico no Cronograma</h3>
               </div>
 
-              <div className="p-4 bg-zinc-900 border-t border-zinc-800 text-xs text-zinc-300 font-medium">
-                ⏱️ <span className="font-bold text-white">Foco total no cronograma.</span> Respeite o tempo estipulado para manter o ritmo constante.
-              </div>
+              {listaTeoricos.length === 0 ? (
+                <p className="text-xs text-zinc-500 py-6 text-center">Nenhuma aula atribuída ainda.</p>
+              ) : (
+                <div className="space-y-3">
+                  {listaTeoricos.map((item) => (
+                    <div 
+                      key={item.id} 
+                      className={`p-4 rounded-2xl border transition flex items-center justify-between gap-3 ${
+                        item.concluido 
+                          ? 'bg-emerald-950/20 border-emerald-800/40 opacity-75' 
+                          : 'bg-zinc-900/60 border-zinc-800'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 overflow-hidden">
+                        <button
+                          onClick={() => alternarConcluido(item.id, item.concluido)}
+                          className="text-blue-400 hover:text-blue-300 cursor-pointer"
+                        >
+                          {item.concluido ? (
+                            <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                          ) : (
+                            <Circle className="w-5 h-5 text-zinc-500" />
+                          )}
+                        </button>
+                        <div>
+                          <p className={`text-xs font-bold ${item.concluido ? 'line-through text-zinc-500' : 'text-zinc-200'}`}>
+                            {item.materia}
+                          </p>
+                          <p className="text-xs text-blue-400">{item.assunto_titulo}</p>
+                          <span className="text-[10px] text-zinc-400">{item.horario} • <strong>{formatarDiaExibicao(item.dia_semana)}</strong></span>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => excluirTarefa(item.id)}
+                        className="text-zinc-600 hover:text-rose-400 p-1 cursor-pointer"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
           </div>

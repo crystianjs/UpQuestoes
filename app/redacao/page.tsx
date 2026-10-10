@@ -658,7 +658,7 @@ export default function RedacaoPage() {
                 <h3 className="text-sm font-extrabold text-amber-300 uppercase tracking-wide">
                   1. PONTO DE PARTIDA
                 </h3>
-                <p className="text-xs sm:text-sm text-zinc-200 font-medium leading-relaxed">
+                <p className="text-xs sm:text-sm text-zinc-200 font-medium leading-relaxed break-words">
                   Você não precisa ter uma opinião pronta. Leia o tema e os textos de apoio. Que problema aparece ali?
                 </p>
               </div>
@@ -668,7 +668,7 @@ export default function RedacaoPage() {
                 <h3 className="text-sm font-extrabold text-amber-300 uppercase tracking-wide">
                   2. EXEMPLO PRÁTICO DE SEPARAÇÃO DE TEMA E RECORTE
                 </h3>
-                <div className="space-y-1.5 text-xs sm:text-sm text-zinc-300 bg-zinc-950 p-4 rounded-xl border border-zinc-800">
+                <div className="space-y-1.5 text-xs sm:text-sm text-zinc-300 bg-zinc-950 p-4 rounded-xl border border-zinc-800 break-words">
                   <p><strong className="text-white">Tema de treino:</strong> Desafios para ampliar o acesso à leitura no Brasil.</p>
                   <p><strong className="text-white">Assunto:</strong> Leitura.</p>
                   <p><strong className="text-white">Recorte:</strong> O que dificulta ampliar esse acesso?</p>
@@ -681,15 +681,15 @@ export default function RedacaoPage() {
                   3. PERGUNTE AO TEMA (SITUAÇÕES CONCRETAS)
                 </h3>
                 <ul className="text-xs sm:text-sm text-zinc-200 space-y-2 font-medium">
-                  <li className="flex items-center gap-2">
+                  <li className="flex items-center gap-2 break-words">
                     <span className="text-amber-400 font-bold">•</span>
                     Quem encontra barreiras?
                   </li>
-                  <li className="flex items-center gap-2">
+                  <li className="flex items-center gap-2 break-words">
                     <span className="text-amber-400 font-bold">•</span>
                     O que dificulta o acesso?
                   </li>
-                  <li className="flex items-center gap-2">
+                  <li className="flex items-center gap-2 break-words">
                     <span className="text-amber-400 font-bold">•</span>
                     O que isso provoca?
                   </li>
@@ -705,10 +705,10 @@ export default function RedacaoPage() {
                   4. LEVANTAMENTO DE HIPÓTESES
                 </h3>
                 <div className="space-y-2 text-xs sm:text-sm text-zinc-200">
-                  <div className="p-3 bg-zinc-950 rounded-xl border border-zinc-800/80">
+                  <div className="p-3 bg-zinc-950 rounded-xl border border-zinc-800/80 break-words">
                     • <strong>Livro caro</strong> → Custo
                   </div>
-                  <div className="p-3 bg-zinc-950 rounded-xl border border-zinc-800/80">
+                  <div className="p-3 bg-zinc-950 rounded-xl border border-zinc-800/80 break-words">
                     • <strong>Biblioteca distante</strong> → Dificuldade de acesso
                   </div>
                 </div>
@@ -724,14 +724,14 @@ export default function RedacaoPage() {
                 </h3>
                 <div className="p-4 bg-zinc-950 rounded-xl border border-zinc-800 space-y-2">
                   <p className="text-xs font-bold text-amber-400 uppercase">Sua tese pode nascer daí:</p>
-                  <blockquote className="text-xs sm:text-sm text-zinc-200 italic border-l-2 border-amber-400 pl-3">
+                  <blockquote className="text-xs sm:text-sm text-zinc-200 italic border-l-2 border-amber-400 pl-3 break-words">
                     "O custo dos livros e a dificuldade de acesso a bibliotecas limitam o acesso à leitura no Brasil."
                   </blockquote>
                 </div>
 
                 <div className="p-4 bg-zinc-950 rounded-xl border border-zinc-800 space-y-2">
                   <p className="text-xs font-bold text-amber-400 uppercase">Um começo possível para a Introdução:</p>
-                  <blockquote className="text-xs sm:text-sm text-zinc-200 italic border-l-2 border-amber-400 pl-3">
+                  <blockquote className="text-xs sm:text-sm text-zinc-200 italic border-l-2 border-amber-400 pl-3 break-words">
                     "A ampliação do acesso à leitura no Brasil enfrenta obstáculos. Entre eles, estão o custo dos livros e a dificuldade de acesso a bibliotecas."
                   </blockquote>
                 </div>
@@ -742,7 +742,7 @@ export default function RedacaoPage() {
                 <h3 className="text-sm font-extrabold text-amber-300 uppercase tracking-wide">
                   6. LÓGICA DO DESENVOLVIMENTO (EXPLIQUE O CAMINHO)
                 </h3>
-                <div className="flex flex-col items-center justify-center p-4 bg-zinc-950 rounded-xl border border-zinc-800 text-center space-y-2 text-xs sm:text-sm font-semibold text-zinc-200">
+                <div className="flex flex-col items-center justify-center p-4 bg-zinc-950 rounded-xl border border-zinc-800 text-center space-y-2 text-xs sm:text-sm font-semibold text-zinc-200 break-words">
                   <div>Biblioteca distante</div>
                   <div className="text-amber-400">↓</div>
                   <div>Trajeto exige tempo e transporte.</div>
@@ -757,15 +757,15 @@ export default function RedacaoPage() {
                   Checklist: Antes de Escrever
                 </h3>
                 <ul className="text-xs sm:text-sm text-zinc-200 space-y-2.5 font-medium">
-                  <li className="flex items-center gap-2">
+                  <li className="flex items-center gap-2 break-words">
                     <span className="text-amber-400 font-bold">☑</span>
                     Respondi ao recorte do tema?
                   </li>
-                  <li className="flex items-center gap-2">
+                  <li className="flex items-center gap-2 break-words">
                     <span className="text-amber-400 font-bold">☑</span>
                     Consigo explicar minha tese?
                   </li>
-                  <li className="flex items-center gap-2">
+                  <li className="flex items-center gap-2 break-words">
                     <span className="text-amber-400 font-bold">☑</span>
                     Meu repertório ajuda a análise?
                   </li>
@@ -838,7 +838,7 @@ export default function RedacaoPage() {
                       value={novaDescRep}
                       onChange={(e) => setNovaDescRep(e.target.value)}
                       placeholder="Explique como aplicar este repertório em temas de desigualdade, seca ou educação..."
-                      className="w-full h-24 bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-amber-400 resize-none"
+                      className="w-full h-24 bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-amber-400 resize-none whitespace-pre-wrap"
                     />
                   </div>
 
@@ -848,7 +848,7 @@ export default function RedacaoPage() {
                       value={novoExemploRep}
                       onChange={(e) => setNovoExemploRep(e.target.value)}
                       placeholder="Ex: 'Nesse contexto, a obra Vidas Secas retrata...'"
-                      className="w-full h-24 bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-amber-400 resize-none"
+                      className="w-full h-24 bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-amber-400 resize-none whitespace-pre-wrap"
                     />
                   </div>
 
@@ -876,23 +876,23 @@ export default function RedacaoPage() {
                   <p className="text-xs text-zinc-500 py-6 text-center">Nenhum repertório cadastrado ainda.</p>
                 ) : (
                   repertoriosList.map((item) => (
-                    <div key={item.id} className="p-4 bg-zinc-900/60 rounded-2xl border border-zinc-800 space-y-2.5 relative group">
+                    <div key={item.id} className="p-4 bg-zinc-900/60 rounded-2xl border border-zinc-800 space-y-2.5 relative group overflow-hidden">
                       <div className="flex items-start justify-between gap-2">
-                        <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                        <h4 className="text-sm font-bold text-white flex items-center gap-2 break-words max-w-[70%] sm:max-w-[80%]">
                           {item.nome}
                           {item.link && (
                             <a
                               href={item.link}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-amber-400 hover:text-amber-300 inline-flex items-center gap-1 text-[11px]"
+                              className="text-amber-400 hover:text-amber-300 inline-flex items-center gap-1 text-[11px] shrink-0"
                               title="Abrir link de exemplo"
                             >
                               <ExternalLink className="w-3.5 h-3.5" />
                             </a>
                           )}
                         </h4>
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1.5 shrink-0">
                           <button
                             onClick={() => abrirEdicaoRepertorio(item)}
                             className="px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-lg text-xs font-semibold transition inline-flex items-center gap-1"
@@ -912,13 +912,15 @@ export default function RedacaoPage() {
                       </div>
 
                       {item.descricao && (
-                        <p className="text-xs text-zinc-300 leading-relaxed"><strong className="text-zinc-400">Descrição:</strong> {item.descricao}</p>
+                        <p className="text-xs text-zinc-300 leading-relaxed break-words whitespace-pre-wrap">
+                          <strong className="text-zinc-400">Descrição:</strong> {item.descricao}
+                        </p>
                       )}
 
                       {item.exemplo_pratico && (
-                        <div className="p-3 bg-zinc-950 rounded-xl border border-zinc-800 text-xs text-amber-300/90 space-y-1">
+                        <div className="p-3 bg-zinc-950 rounded-xl border border-zinc-800 text-xs text-amber-300/90 space-y-1 overflow-hidden">
                           <p className="font-bold uppercase text-[10px] text-amber-400 tracking-wider">Exemplo Prático:</p>
-                          <p className="italic leading-relaxed">{item.exemplo_pratico}</p>
+                          <p className="italic leading-relaxed break-words whitespace-pre-wrap">{item.exemplo_pratico}</p>
                         </div>
                       )}
                     </div>
@@ -1038,7 +1040,7 @@ export default function RedacaoPage() {
                 <textarea
                   value={repertorioEmEdicao.descricao}
                   onChange={(e) => setRepertorioEmEdicao({ ...repertorioEmEdicao, descricao: e.target.value })}
-                  className="w-full h-20 bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-xs text-white focus:border-amber-400 focus:outline-none resize-none"
+                  className="w-full h-20 bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-xs text-white focus:border-amber-400 focus:outline-none resize-none whitespace-pre-wrap"
                 />
               </div>
 
@@ -1047,7 +1049,7 @@ export default function RedacaoPage() {
                 <textarea
                   value={repertorioEmEdicao.exemplo_pratico}
                   onChange={(e) => setRepertorioEmEdicao({ ...repertorioEmEdicao, exemplo_pratico: e.target.value })}
-                  className="w-full h-20 bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-xs text-white focus:border-amber-400 focus:outline-none resize-none"
+                  className="w-full h-20 bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-xs text-white focus:border-amber-400 focus:outline-none resize-none whitespace-pre-wrap"
                 />
               </div>
 

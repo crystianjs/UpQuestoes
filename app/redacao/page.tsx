@@ -466,7 +466,7 @@ export default function RedacaoPage() {
                   className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-4 px-8 rounded-xl transition-all shadow-lg shadow-red-600/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 text-base"
                 >
                   <Play className="w-5 h-5 fill-current" />
-                  Iniciar Treino & Cronómetro
+                  Iniciar Treino e Cronómetro
                 </button>
               ) : (
                 <button 
@@ -475,7 +475,7 @@ export default function RedacaoPage() {
                   className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 px-8 rounded-xl transition-all shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 text-base animate-pulse"
                 >
                   <Square className="w-5 h-5 fill-current" />
-                  Parar & Guardar Redação
+                  Parar e Guardar Redação
                 </button>
               )}
             </div>

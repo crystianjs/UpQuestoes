@@ -63,6 +63,7 @@ const mapaInicialExemplo = {
 const PROMPT_MESTRE_TEXTO = `Atue como Especialista e Mentor para o concurso do TJSP (Banca VUNESP). 
 Gere um JSON estruturado para a tela de revisão em tela cheia.
 IMPORTANTE: Cada ramo DEVE conter obrigatoriamente um campo "assunto" limpo e específico (ex: "Substantivo e Derivação Imprópria") que servirá de referência no topo e no filtro. NUNCA inclua emojis, ícones ou símbolos decorativos no campo "assunto", "tag" ou "titulo".
+ATENÇÃO AOS IDs: Crie IDs estritamente únicos para cada novo ramo (ex: use o nome do assunto em formato slug com sufixo de data/hora ou numeração sequencial segura, como "assunto-novo-1728000000"), garantindo que NUNCA sobrescrevam ramos existentes de outras importações.
 
 ⚠️ **ATENÇÃO AO TIPO DE MATÉRIA**:
 1. Se a matéria for **Exatas (Matemática / Raciocínio Lógico)**: Defina o campo "tipo" como "exatas". Nos itens dos subnos, utilize formatação em passos matemáticos claros (ex: equações, razões, proporções).
@@ -75,7 +76,7 @@ Retorne EXCLUSIVAMENTE o JSON válido, seguindo esta estrutura exata:
   "banca": "VUNESP",
   "ramos": [
     {
-      "id": "id-unico-ex-1",
+      "id": "id-unico-seguro-ex-1",
       "titulo": "Título do Conteúdo",
       "artigos": "BLOCO / TEMA",
       "tag": "Palavra-Chave",
@@ -118,7 +119,7 @@ export default function MapaMentalPage() {
     carregarDadosSupabase();
   }, []);
 
- const carregarDadosSupabase = async () => {
+  const carregarDadosSupabase = async () => {
     try {
       setCarregando(true);
       const { data, error } = await supabase.from('mapas_mentais').select('*');
@@ -132,7 +133,6 @@ export default function MapaMentalPage() {
             try { rawRamos = JSON.parse(rawRamos); } catch (e) { rawRamos = []; }
           }
           
-          // Garante que todo ramo tenha o campo "assunto" preenchido (se não tiver, herda o título limpo)
           const ramosValidados = Array.isArray(rawRamos) ? rawRamos.filter(Boolean).map((r: any) => {
             if (!r) return null;
             const assuntoDefinitivo = r.assunto && r.assunto.trim() !== ""
@@ -177,24 +177,42 @@ export default function MapaMentalPage() {
     }
   };
 
+  // BLINDAGEM DE IMPORTAÇÃO: Estratégia de Merge Seguro (Append por ID único)
   const handleCarregarJson = async () => {
     try {
       const parsed = JSON.parse(jsonInputText);
       if (parsed && parsed.ramos && Array.isArray(parsed.ramos)) {
         const mapaExistente = mapasPorDisciplina[modalDisciplinaAlvo];
-        let ramosFinais = [...parsed.ramos.filter(Boolean)];
+        let novosRamosValidos = parsed.ramos.filter(Boolean);
 
+        // Verificação de segurança contra IDs duplicados que poderiam sobrescrever dados
         if (mapaExistente && mapaExistente.ramos) {
-          const idsNovos = new Set(parsed.ramos.filter(Boolean).map((r: any) => r.id));
-          const ramosAntigosPreservados = mapaExistente.ramos.filter((r: any) => r && !idsNovos.has(r.id));
-          ramosFinais = [...ramosAntigosPreservados, ...parsed.ramos.filter(Boolean)];
+          const idsExistentes = new Set(mapaExistente.ramos.map((r: any) => r.id));
+          const idsConflitantes = novosRamosValidos.filter((r: any) => idsExistentes.has(r.id));
+
+          if (idsConflitantes.length > 0) {
+            const confirmar = confirm(`⚠️ ATENÇÃO: Foram encontrados ${idsConflitantes.length} ID(s) repetidos (ex: "${idsConflitantes[0].id}"). Deseja atualizar os dados existentes com os novos? (Cancelar irá abortar a importação para proteger seus dados).`);
+            if (!confirmar) {
+              return; // Bloqueia a importação e protege o estado atual
+            }
+          }
+
+          // Realiza o Merge Inteligente mantendo o histórico anterior e anexando/atualizando os novos
+          const ramosAtualizadosMap = new Map();
+          mapaExistente.ramos.forEach((r: any) => ramosAtualizadosMap.set(r.id, r));
+          
+          novosRamosValidos.forEach((r: any) => {
+            ramosAtualizadosMap.set(r.id, r); // Se o ID for novo, adiciona; se for igual, atualiza de forma segura
+          });
+
+          novosRamosValidos = Array.from(ramosAtualizadosMap.values());
         }
 
         const payloadFinal = {
           disciplina: modalDisciplinaAlvo,
           titulo: parsed.titulo || mapaExistente?.titulo || `Revisão: ${modalDisciplinaAlvo}`,
           banca: parsed.banca || 'VUNESP',
-          ramos: ramosFinais
+          ramos: novosRamosValidos
         };
 
         await salvarNoSupabase(modalDisciplinaAlvo, payloadFinal);
@@ -202,12 +220,12 @@ export default function MapaMentalPage() {
         setJsonInputText('');
         setSelectedDisciplina(modalDisciplinaAlvo);
         setSelectedAssunto('all');
-        alert(`Atualizado com sucesso para ${modalDisciplinaAlvo}!`);
+        alert(`Conteúdo incorporado com segurança para ${modalDisciplinaAlvo}!`);
       } else {
-        alert('O JSON precisa conter a chave "ramos".');
+        alert('O JSON precisa conter obrigatoriamente a chave "ramos".');
       }
     } catch (e) {
-      alert('Erro de sintaxe no JSON.');
+      alert('Erro de sintaxe no JSON. Verifique se o formato está correto.');
     }
   };
 
@@ -253,9 +271,8 @@ export default function MapaMentalPage() {
     setTimeout(() => setCopiadoPrompt(false), 3000);
   };
 
- const mapaAtual = selectedDisciplina !== "Todas as Matérias" ? mapasPorDisciplina[selectedDisciplina] : null;
+  const mapaAtual = selectedDisciplina !== "Todas as Matérias" ? mapasPorDisciplina[selectedDisciplina] : null;
 
-  // Extrai lista única garantindo que todo ramo tenha um assunto de referência (fallback para o título limpo)
   const assuntosUnicos = mapaAtual?.ramos && Array.isArray(mapaAtual.ramos)
     ? Array.from(new Set(mapaAtual.ramos.filter(Boolean).map((r: any) => {
         if (!r) return null;
@@ -265,7 +282,6 @@ export default function MapaMentalPage() {
       }).filter(Boolean)))
     : [];
 
-  // Filtra os ramos garantindo compatibilidade com o assunto selecionado
   const ramosExibir = mapaAtual?.ramos && Array.isArray(mapaAtual.ramos) 
     ? mapaAtual.ramos.filter((r: any) => {
         if (!r) return false;
@@ -283,11 +299,10 @@ export default function MapaMentalPage() {
 
       <main className="w-full px-4 sm:px-8 py-6 space-y-6">
         
-        {/* Header Superior */}
         <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
-              <span className="bg-blue-500/20 text-blue-400 text-xs font-bold px-2.5 py-0.5 rounded-full border border-blue-500/30">TJSP - VUNESP</span>
+              <span className="bg-blue-500/20 text-blue-400 text-xs font-bold px-2.5 py-0.5 rounded-full border border-blue-500/30">TJSP - VUNESP[cite: 21]</span>
               <span className="bg-amber-400 text-zinc-950 font-bold text-xs px-2.5 py-0.5 rounded-full">Modo Tela Cheia 🟢</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black text-white mt-1 tracking-tight">
@@ -309,7 +324,6 @@ export default function MapaMentalPage() {
           </div>
         </div>
 
-        {/* Filtros Limpos: Matéria e Assunto */}
         <div className="bg-zinc-950 border border-zinc-800 p-4 rounded-2xl shadow-lg flex flex-col md:flex-row items-center gap-4">
           <div className="w-full md:w-1/2 flex items-center gap-2">
             <span className="text-xs font-bold text-zinc-400 whitespace-nowrap">Matéria:</span>
@@ -348,7 +362,6 @@ export default function MapaMentalPage() {
           </div>
         </div>
 
-        {/* CONTAINER PRINCIPAL EM TELA CHEIA */}
         <div className="bg-zinc-950 rounded-3xl border border-zinc-800 shadow-2xl relative overflow-hidden p-6 sm:p-10 min-h-[70vh]">
           
           {carregando ? (
@@ -385,7 +398,6 @@ export default function MapaMentalPage() {
                     key={ramo.id}
                     className="bg-zinc-900/60 rounded-2xl p-6 sm:p-8 border border-zinc-800/80 shadow-xl space-y-6 relative"
                   >
-                    {/* Cabeçalho do Bloco */}
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-amber-400/40 gap-3">
                       <div className="space-y-1 w-full">
                         <div className="flex items-center gap-2 flex-wrap">
@@ -393,7 +405,6 @@ export default function MapaMentalPage() {
                             {selectedDisciplina}
                           </span>
 
-                          {/* Edição do Assunto */}
                           {!estaEditando ? (
                             <div className="flex items-center gap-2">
                               <span className="text-xs font-semibold text-zinc-300">
@@ -434,7 +445,6 @@ export default function MapaMentalPage() {
                           )}
                         </div>
 
-                        {/* Título do Conteúdo */}
                         <h2 className="text-lg sm:text-xl font-extrabold text-white tracking-tight pt-2">
                           {ramo.titulo ? ramo.titulo.replace(/^[📌📍🚩⚡]\s*/, '') : "Tópico de Revisão"}
                         </h2>
@@ -454,7 +464,6 @@ export default function MapaMentalPage() {
                       </div>
                     </div>
 
-                    {/* CONTEÚDO */}
                     <div className="space-y-6">
                       {ramo.subnos && ramo.subnos.map((sub: any, idx: number) => (
                         <div 
@@ -485,7 +494,6 @@ export default function MapaMentalPage() {
                       ))}
                     </div>
 
-                    {/* Botão de Exemplo Prático */}
                     <div className="pt-2">
                       <button 
                         onClick={() => setActiveModal(ramo.id)} 
@@ -501,7 +509,6 @@ export default function MapaMentalPage() {
           )}
         </div>
 
-        {/* Rodapé / Prompt Mestre */}
         <div className="bg-zinc-950 p-6 rounded-2xl border border-zinc-800 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
@@ -509,7 +516,7 @@ export default function MapaMentalPage() {
               <h2 className="text-sm font-bold text-white">Prompt Mestre Inteligente (Humanas vs Exatas)</h2>
             </div>
             <p className="text-xs text-zinc-400">
-              Gera conteúdos estruturados focados no assunto de referência.
+              Gera conteúdos estruturados com IDs seguros focados no assunto de referência.
             </p>
           </div>
 
@@ -527,7 +534,6 @@ export default function MapaMentalPage() {
 
       </main>
 
-      {/* MODAL DE EXEMPLOS PRÁTICOS */}
       {activeModal && mapaAtual && (
         (() => {
           const ramoModal = mapaAtual.ramos.find((r: any) => r && r.id === activeModal);
@@ -594,7 +600,6 @@ export default function MapaMentalPage() {
         })()
       )}
 
-      {/* MODAL DE INJEÇÃO DE JSON */}
       {showJsonModal && (
         <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="bg-zinc-950 border border-zinc-800 rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl relative space-y-4">
@@ -612,9 +617,9 @@ export default function MapaMentalPage() {
               </div>
               <div>
                 <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full border bg-amber-400 text-zinc-950 border-amber-500">
-                  Gerenciador em Nuvem
+                  Gerenciador em Nuvem (Blindado)
                 </span>
-                <h2 className="text-lg font-bold text-white mt-1">Criar novo mapa mental</h2>
+                <h2 className="text-lg font-bold text-white mt-1">Adicionar novo mapa / tópico</h2>
               </div>
             </div>
 
@@ -642,12 +647,12 @@ export default function MapaMentalPage() {
             </div>
 
             <div className="pt-2 border-t border-zinc-800 flex items-center justify-between">
-              <span className="text-[11px] text-zinc-500">Mescla os tópicos novos com os anteriores na nuvem.</span>
+              <span className="text-[11px] text-zinc-500">Mescla com segurança preservando seus tópicos salvos.</span>
               <button 
                 onClick={handleCarregarJson} 
                 className="px-5 py-2.5 bg-amber-400 hover:bg-amber-500 text-zinc-950 font-extrabold rounded-xl text-xs transition-all flex items-center gap-1.5 shadow-md cursor-pointer"
               >
-                Salvar na Nuvem
+                Salvar na Nuvem com Segurança
               </button>
             </div>
           </div>

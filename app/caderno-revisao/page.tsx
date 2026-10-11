@@ -43,6 +43,8 @@ const revisaoInicialExemplo = {
 const PROMPT_MESTRE_FLASHCARD = `Atue como Especialista e Mentor para o concurso do TJSP (Banca VUNESP). 
 Gere um JSON estruturado para o Caderno de Revisão (Flashcards). 
 IMPORTANTE: Traga um ASSUNTO OBJETIVO e limpo (ex: "Pronome relativo", "Art. 6 §1 + Direitos sociais", "Razão", "Função SOMA"). NUNCA inclua emojis, ícones ou símbolos decorativos no campo "assunto", "tag" ou "titulo".
+ATENÇÃO AOS IDs: Crie IDs estritamente únicos para cada novo card (ex: use o nome do assunto em formato slug com sufixo de data/hora ou numeração sequencial segura, como "fc-assunto-novo-1728000000"), garantindo que NUNCA sobrescrevam flashcards existentes de outras importações.
+
 Retorne EXCLUSIVAMENTE o JSON válido, seguindo esta estrutura exata:
 {
   "disciplina": "Nome da Disciplina",
@@ -50,7 +52,7 @@ Retorne EXCLUSIVAMENTE o JSON válido, seguindo esta estrutura exata:
   "banca": "VUNESP",
   "cards": [
     {
-      "id": "fc-disc-001",
+      "id": "fc-disc-001-seguro",
       "tag": "Palavra-Chave",
       "assunto": "Assunto Objetivo (ex: Pronome relativo / Razão)",
       "pergunta": "Pergunta objetiva com foco na VUNESP?",
@@ -138,25 +140,41 @@ export default function CadernoRevisaoPage() {
     }
   };
 
+  // BLINDAGEM DE IMPORTAÇÃO: Estratégia de Merge Seguro (Append/Update por ID único)
   const handleCarregarJson = async () => {
     try {
       const parsed = JSON.parse(jsonInputText);
       const listaCards = parsed.cards || parsed.ramos;
       if (parsed && listaCards && Array.isArray(listaCards)) {
         const existente = revisoesPorDisciplina[modalDisciplinaAlvo];
-        let cardsFinais = [...listaCards];
+        let novosCardsValidos = listaCards.filter(Boolean);
 
         if (existente && existente.cards) {
-          const idsNovos = new Set(listaCards.map((r: any) => r.id));
-          const preservados = existente.cards.filter((r: any) => !idsNovos.has(r.id));
-          cardsFinais = [...preservados, ...listaCards];
+          const idsExistentes = new Set(existente.cards.map((c: any) => c.id));
+          const idsConflitantes = novosCardsValidos.filter((c: any) => idsExistentes.has(c.id));
+
+          if (idsConflitantes.length > 0) {
+            const confirmar = confirm(`⚠️ ATENÇÃO: Foram encontrados ${idsConflitantes.length} ID(s) repetidos (ex: "${idsConflitantes[0].id}"). Deseja atualizar os flashcards existentes com os novos? (Cancelar irá abortar a importação para proteger seus dados).`);
+            if (!confirmar) {
+              return; // Bloqueia a importação e protege o estado atual
+            }
+          }
+
+          const cardsAtualizadosMap = new Map();
+          existente.cards.forEach((c: any) => cardsAtualizadosMap.set(c.id, c));
+          
+          novosCardsValidos.forEach((c: any) => {
+            cardsAtualizadosMap.set(c.id, c);
+          });
+
+          novosCardsValidos = Array.from(cardsAtualizadosMap.values());
         }
 
         const payloadFinal = {
           disciplina: modalDisciplinaAlvo,
           titulo: parsed.titulo || existente?.titulo || `Revisão: ${modalDisciplinaAlvo}`,
           banca: parsed.banca || 'VUNESP',
-          cards: cardsFinais
+          cards: novosCardsValidos
         };
 
         await salvarNoSupabase(modalDisciplinaAlvo, payloadFinal);
@@ -164,12 +182,12 @@ export default function CadernoRevisaoPage() {
         setJsonInputText('');
         setSelectedDisciplina(modalDisciplinaAlvo);
         setSelectedAssunto('all');
-        alert(`Atualizado com sucesso para ${modalDisciplinaAlvo}!`);
+        alert(`Flashcards incorporados com segurança para ${modalDisciplinaAlvo}!`);
       } else {
-        alert('O JSON precisa conter a chave "cards".');
+        alert('O JSON precisa conter obrigatoriamente a chave "cards".');
       }
     } catch (e) {
-      alert('Erro de sintaxe no JSON.');
+      alert('Erro de sintaxe no JSON. Verifique se o formato está correto.');
     }
   };
 
@@ -237,7 +255,6 @@ export default function CadernoRevisaoPage() {
     setTimeout(() => setCopiadoPrompt(false), 3000);
   };
 
-  // Declarações corretas antes do render
   const revisaoAtual = selectedDisciplina !== "Todas as Matérias" ? revisoesPorDisciplina[selectedDisciplina] : null;
   
   const assuntosUnicos = revisaoAtual?.cards && Array.isArray(revisaoAtual.cards)
@@ -258,11 +275,10 @@ export default function CadernoRevisaoPage() {
 
       <main className="w-full px-4 sm:px-8 py-6 space-y-6">
         
-        {/* Header Superior */}
         <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
-              <span className="bg-blue-500/20 text-blue-400 text-xs font-bold px-2.5 py-0.5 rounded-full border border-blue-500/30">TJSP - VUNESP</span>
+              <span className="bg-blue-500/20 text-blue-400 text-xs font-bold px-2.5 py-0.5 rounded-full border border-blue-500/30">TJSP - VUNESP[cite: 21]</span>
               <span className="bg-amber-400 text-zinc-950 font-bold text-xs px-2.5 py-0.5 rounded-full">Caderno de Revisão 🟢</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black text-white mt-1 tracking-tight">
@@ -284,7 +300,6 @@ export default function CadernoRevisaoPage() {
           </div>
         </div>
 
-        {/* Filtros Limpos: Matéria e Assunto Único */}
         <div className="bg-zinc-950 border border-zinc-800 p-4 rounded-2xl shadow-lg flex flex-col md:flex-row items-center gap-4">
           <div className="w-full md:w-1/2 flex items-center gap-2">
             <span className="text-xs font-bold text-zinc-400 whitespace-nowrap">Matéria:</span>
@@ -323,7 +338,6 @@ export default function CadernoRevisaoPage() {
           </div>
         </div>
 
-        {/* CONTAINER EM TELA CHEIA */}
         <div className="bg-zinc-950 rounded-3xl border border-zinc-800 shadow-2xl relative overflow-hidden p-6 sm:p-10 min-h-[70vh]">
           
           {carregando ? (
@@ -360,7 +374,6 @@ export default function CadernoRevisaoPage() {
                     key={card.id}
                     className="bg-zinc-900/60 rounded-2xl p-6 sm:p-8 border border-zinc-800/80 shadow-xl space-y-6 relative"
                   >
-                    {/* Cabeçalho */}
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-amber-400/40 gap-3">
                       <div className="space-y-1 w-full">
                         <div className="flex items-center gap-2 flex-wrap">
@@ -368,7 +381,6 @@ export default function CadernoRevisaoPage() {
                             {selectedDisciplina}
                           </span>
                           
-                          {/* Edição de Assunto */}
                           {!estaEditando ? (
                             <div className="flex items-center gap-2">
                               <span className="text-xs font-semibold text-zinc-300">
@@ -428,7 +440,6 @@ export default function CadernoRevisaoPage() {
                       </div>
                     </div>
 
-                    {/* Área da Resposta */}
                     <div className="space-y-4">
                       {!revelado ? (
                         <div className="p-6 rounded-xl bg-zinc-950 border border-zinc-800 text-center space-y-3">
@@ -463,7 +474,6 @@ export default function CadernoRevisaoPage() {
                       )}
                     </div>
 
-                    {/* Controles de Desempenho e Botão de Pegadinha VUNESP */}
                     <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-zinc-800">
                       <div className="flex items-center gap-2 w-full sm:w-auto">
                         <span className="text-xs font-bold text-zinc-400">Seu Desempenho:</span>
@@ -516,15 +526,14 @@ export default function CadernoRevisaoPage() {
           )}
         </div>
 
-        {/* Rodapé com Prompt Mestre para Flashcards */}
         <div className="bg-zinc-950 p-6 rounded-2xl border border-zinc-800 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <span className="bg-amber-400 text-zinc-950 font-bold text-xs px-2.5 py-0.5 rounded-full">Mentor VUNESP</span>
-              <h2 className="text-sm font-bold text-white">Prompt Mestre para Flashcards</h2>
+              <h2 className="text-sm font-bold text-white">Prompt Mestre para Flashcards (Blindado)</h2>
             </div>
             <p className="text-xs text-zinc-400">
-              Gera os cards rigorosamente limpos, sem ícones no assunto ou título.
+              Gera os cards rigorosamente limpos, com IDs seguros para evitar sobrescritas.
             </p>
           </div>
 
@@ -542,7 +551,6 @@ export default function CadernoRevisaoPage() {
 
       </main>
 
-      {/* MODAL DE DETALHES / PEGADINHAS */}
       {activeModal && revisaoAtual && (
         (() => {
           const cardModal = revisaoAtual.cards.find((r: any) => r.id === activeModal);
@@ -591,7 +599,6 @@ export default function CadernoRevisaoPage() {
         })()
       )}
 
-      {/* MODAL DE INJEÇÃO DE JSON */}
       {showJsonModal && (
         <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="bg-zinc-950 border border-zinc-800 rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl relative space-y-4">
@@ -609,7 +616,7 @@ export default function CadernoRevisaoPage() {
               </div>
               <div>
                 <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full border bg-amber-400 text-zinc-950 border-amber-500">
-                  Gerenciador em Nuvem
+                  Gerenciador em Nuvem (Blindado)
                 </span>
                 <h2 className="text-lg font-bold text-white mt-1">Adicionar / Atualizar Flashcard</h2>
               </div>
@@ -639,12 +646,12 @@ export default function CadernoRevisaoPage() {
             </div>
 
             <div className="pt-2 border-t border-zinc-800 flex items-center justify-between">
-              <span className="text-[11px] text-zinc-500">Mescla os novos cards com os anteriores na nuvem.</span>
+              <span className="text-[11px] text-zinc-500">Mescla com segurança preservando seus flashcards salvos.</span>
               <button 
                 onClick={handleCarregarJson} 
                 className="px-5 py-2.5 bg-amber-400 hover:bg-amber-500 text-zinc-950 font-extrabold rounded-xl text-xs transition-all flex items-center gap-1.5 shadow-md cursor-pointer"
               >
-                Salvar na Nuvem
+                Salvar na Nuvem com Segurança
               </button>
             </div>
           </div>

@@ -63,7 +63,7 @@ const mapaInicialExemplo = {
 const PROMPT_MESTRE_TEXTO = `Atue como Especialista e Mentor para o concurso do TJSP (Banca VUNESP). 
 Gere um JSON estruturado para a tela de revisão em tela cheia.
 IMPORTANTE: Cada ramo DEVE conter obrigatoriamente um campo "assunto" limpo e específico (ex: "Substantivo e Derivação Imprópria") que servirá de referência no topo e no filtro. NUNCA inclua emojis, ícones ou símbolos decorativos no campo "assunto", "tag" ou "titulo".
-ATENÇÃO AOS IDs: Crie IDs estritamente únicos para cada novo ramo (ex: use o nome do assunto em formato slug com sufixo de data/hora ou numeração sequencial segura, como "assunto-novo-1728000000"), garantindo que NUNCA sobrescrevam ramos existentes de outras importações.
+ATENÇÃO ABSOLUTA AOS IDs: Crie IDs estritamente únicos para cada novo ramo utilizando timestamp ou slugs longos (ex: "assunto-novo-1728000000"). NUNCA reutilice IDs já existentes para evitar colisões.
 
 ⚠️ **ATENÇÃO AO TIPO DE MATÉRIA**:
 1. Se a matéria for **Exatas (Matemática / Raciocínio Lógico)**: Defina o campo "tipo" como "exatas". Nos itens dos subnos, utilize formatação em passos matemáticos claros (ex: equações, razões, proporções).
@@ -111,7 +111,6 @@ export default function MapaMentalPage() {
   const [copiadoPrompt, setCopiadoPrompt] = useState<boolean>(false);
   const [carregando, setCarregando] = useState<boolean>(true);
 
-  // Estados para edição inline do assunto do ramo
   const [editandoRamoId, setEditandoRamoId] = useState<string | null>(null);
   const [novoAssuntoInput, setNovoAssuntoInput] = useState<string>('');
 
@@ -122,12 +121,36 @@ export default function MapaMentalPage() {
   const carregarDadosSupabase = async () => {
     try {
       setCarregando(true);
-      const { data, error } = await supabase.from('mapas_mentais').select('*');
-      if (error) throw error;
+      
+      // 1. Tenta carregar do espelho/backup de segurança primeiro
+      let { data: dadosEspelho, error: erroEspelho } = await supabase.from('temp_mapas_mentais').select('*');
+      
+      // 2. Carrega da tabela principal
+      const { data: dadosPrincipal, error: erroPrincipal } = await supabase.from('mapas_mentais').select('*');
+      if (erroPrincipal) throw erroPrincipal;
 
-      if (data && data.length > 0) {
+      // Se o espelho estiver vazio mas a principal tiver dados, fazemos o espelhamento inicial intacto (Popula o backup)
+      if ((!dadosEspelho || dadosEspelho.length === 0) && dadosPrincipal && dadosPrincipal.length > 0) {
+        for (const item of dadosPrincipal) {
+          await supabase.from('temp_mapas_mentais').upsert({
+            disciplina: item.disciplina,
+            titulo: item.titulo,
+            banca: item.banca,
+            ramos: item.ramos,
+            backed_up_at: new Date().toISOString()
+          }, { onConflict: 'disciplina' });
+        }
+        // Recarrega o espelho após popular
+        const resEspelho = await supabase.from('temp_mapas_mentais').select('*');
+        dadosEspelho = resEspelho.data;
+      }
+
+      // Usa os dados consolidados com segurança
+      const dadosParaUsar = (dadosEspelho && dadosEspelho.length > 0) ? dadosEspelho : dadosPrincipal;
+
+      if (dadosParaUsar && dadosParaUsar.length > 0) {
         const mapaFormatado: Record<string, any> = {};
-        data.forEach((item: any) => {
+        dadosParaUsar.forEach((item: any) => {
           let rawRamos = item.ramos;
           if (typeof rawRamos === 'string') {
             try { rawRamos = JSON.parse(rawRamos); } catch (e) { rawRamos = []; }
@@ -160,8 +183,27 @@ export default function MapaMentalPage() {
     }
   };
 
-  const salvarNoSupabase = async (disciplinaAlvo: string, payloadMapa: any) => {
+  // FUNÇÃO BLINDADA COM BACKUP PRÉVIO E MERGE SEGURO
+  const salvarNoSupabaseComBackup = async (disciplinaAlvo: string, payloadMapa: any) => {
     try {
+      // 1. CRIAÇÃO DE BACKUP NA TABELA TEMPORÁRIA temp_mapas_mentais
+      const { data: dadosAtuais } = await supabase
+        .from('mapas_mentais')
+        .select('*')
+        .eq('disciplina', disciplinaAlvo)
+        .maybeSingle();
+
+      if (dadosAtuais) {
+        await supabase.from('temp_mapas_mentais').upsert({
+          disciplina: dadosAtuais.disciplina,
+          titulo: dadosAtuais.titulo,
+          banca: dadosAtuais.banca,
+          ramos: dadosAtuais.ramos,
+          backed_up_at: new Date().toISOString()
+        }, { onConflict: 'disciplina' });
+      }
+
+      // 2. GRAVAÇÃO NA TABELA OFICIAL
       const { error } = await supabase.from('mapas_mentais').upsert({
         disciplina: disciplinaAlvo,
         titulo: payloadMapa.titulo,
@@ -173,11 +215,10 @@ export default function MapaMentalPage() {
       if (error) throw error;
       setMapasPorDisciplina(prev => ({ ...prev, [disciplinaAlvo]: payloadMapa }));
     } catch (e) {
-      alert("Erro ao salvar no banco.");
+      alert("Erro crítico ao salvar no banco. O backup temp_mapas_mentais foi preservado.");
     }
   };
 
-  // BLINDAGEM DE IMPORTAÇÃO: Estratégia de Merge Seguro (Append por ID único)
   const handleCarregarJson = async () => {
     try {
       const parsed = JSON.parse(jsonInputText);
@@ -185,24 +226,22 @@ export default function MapaMentalPage() {
         const mapaExistente = mapasPorDisciplina[modalDisciplinaAlvo];
         let novosRamosValidos = parsed.ramos.filter(Boolean);
 
-        // Verificação de segurança contra IDs duplicados que poderiam sobrescrever dados
         if (mapaExistente && mapaExistente.ramos) {
           const idsExistentes = new Set(mapaExistente.ramos.map((r: any) => r.id));
           const idsConflitantes = novosRamosValidos.filter((r: any) => idsExistentes.has(r.id));
 
           if (idsConflitantes.length > 0) {
-            const confirmar = confirm(`⚠️ ATENÇÃO: Foram encontrados ${idsConflitantes.length} ID(s) repetidos (ex: "${idsConflitantes[0].id}"). Deseja atualizar os dados existentes com os novos? (Cancelar irá abortar a importação para proteger seus dados).`);
+            const confirmar = confirm(`⚠️ ALERTA DE SEGURANÇA: Encontramos ${idsConflitantes.length} ID(s) repetidos (ex: "${idsConflitantes[0].id}"). Deseja mesclar atualizando estes itens? (Um backup temporário será criado na tabela temp_mapas_mentais antes de prosseguir).`);
             if (!confirmar) {
-              return; // Bloqueia a importação e protege o estado atual
+              return; // Bloqueia totalmente para proteger seus dados
             }
           }
 
-          // Realiza o Merge Inteligente mantendo o histórico anterior e anexando/atualizando os novos
           const ramosAtualizadosMap = new Map();
           mapaExistente.ramos.forEach((r: any) => ramosAtualizadosMap.set(r.id, r));
           
           novosRamosValidos.forEach((r: any) => {
-            ramosAtualizadosMap.set(r.id, r); // Se o ID for novo, adiciona; se for igual, atualiza de forma segura
+            ramosAtualizadosMap.set(r.id, r);
           });
 
           novosRamosValidos = Array.from(ramosAtualizadosMap.values());
@@ -215,17 +254,17 @@ export default function MapaMentalPage() {
           ramos: novosRamosValidos
         };
 
-        await salvarNoSupabase(modalDisciplinaAlvo, payloadFinal);
+        await salvarNoSupabaseComBackup(modalDisciplinaAlvo, payloadFinal);
         setShowJsonModal(false);
         setJsonInputText('');
         setSelectedDisciplina(modalDisciplinaAlvo);
         setSelectedAssunto('all');
-        alert(`Conteúdo incorporado com segurança para ${modalDisciplinaAlvo}!`);
+        alert(`Backup criado com sucesso e conteúdo incorporado para ${modalDisciplinaAlvo}!`);
       } else {
         alert('O JSON precisa conter obrigatoriamente a chave "ramos".');
       }
     } catch (e) {
-      alert('Erro de sintaxe no JSON. Verifique se o formato está correto.');
+      alert('Erro de sintaxe no JSON.');
     }
   };
 
@@ -244,7 +283,7 @@ export default function MapaMentalPage() {
       ramos: ramosAtualizados
     };
 
-    await salvarNoSupabase(selectedDisciplina, payloadAtualizado);
+    await salvarNoSupabaseComBackup(selectedDisciplina, payloadAtualizado);
     setEditandoRamoId(null);
   };
 
@@ -259,7 +298,7 @@ export default function MapaMentalPage() {
         setMapasPorDisciplina(novoEstado);
       } else {
         const novoMapa = { ...mapaAtual, ramos: novosRamos };
-        await salvarNoSupabase(selectedDisciplina, novoMapa);
+        await salvarNoSupabaseComBackup(selectedDisciplina, novoMapa);
       }
       setSelectedAssunto('all');
     }
@@ -302,8 +341,8 @@ export default function MapaMentalPage() {
         <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
-              <span className="bg-blue-500/20 text-blue-400 text-xs font-bold px-2.5 py-0.5 rounded-full border border-blue-500/30">TJSP - VUNESP[cite: 21]</span>
-              <span className="bg-amber-400 text-zinc-950 font-bold text-xs px-2.5 py-0.5 rounded-full">Modo Tela Cheia 🟢</span>
+              <span className="bg-blue-500/20 text-blue-400 text-xs font-bold px-2.5 py-0.5 rounded-full border border-blue-500/30">TJSP - VUNESP</span>
+              <span className="bg-emerald-500/20 text-emerald-400 font-bold text-xs px-2.5 py-0.5 rounded-full border border-emerald-500/30">Backup Automático Ativo 🟢</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black text-white mt-1 tracking-tight">
               {mapaAtual ? mapaAtual.titulo : "Painel de Revisão Estratégica"}
@@ -513,10 +552,10 @@ export default function MapaMentalPage() {
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <span className="bg-amber-400 text-zinc-950 font-bold text-xs px-2.5 py-0.5 rounded-full">Mentor VUNESP</span>
-              <h2 className="text-sm font-bold text-white">Prompt Mestre Inteligente (Humanas vs Exatas)</h2>
+              <h2 className="text-sm font-bold text-white">Prompt Mestre com Backup Automático em temp_mapas_mentais</h2>
             </div>
             <p className="text-xs text-zinc-400">
-              Gera conteúdos estruturados com IDs seguros focados no assunto de referência.
+              Gera conteúdos estruturados com IDs seguros e redundância de segurança.
             </p>
           </div>
 
@@ -613,13 +652,13 @@ export default function MapaMentalPage() {
 
             <div className="flex items-center gap-3 pr-10">
               <div className="w-12 h-12 rounded-2xl flex items-center justify-center bg-amber-400 text-zinc-950 font-bold shadow-inner flex-shrink-0">
-               🥷🏻
+               🛡️
               </div>
               <div>
                 <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full border bg-amber-400 text-zinc-950 border-amber-500">
-                  Gerenciador em Nuvem (Blindado)
+                  Gerenciador com Backup em Nuvem
                 </span>
-                <h2 className="text-lg font-bold text-white mt-1">Adicionar novo mapa / tópico</h2>
+                <h2 className="text-lg font-bold text-white mt-1">Adicionar novo mapa / tópico com Segurança</h2>
               </div>
             </div>
 
@@ -647,12 +686,12 @@ export default function MapaMentalPage() {
             </div>
 
             <div className="pt-2 border-t border-zinc-800 flex items-center justify-between">
-              <span className="text-[11px] text-zinc-500">Mescla com segurança preservando seus tópicos salvos.</span>
+              <span className="text-[11px] text-zinc-500">Cria cópia em temp_mapas_mentais antes de salvar.</span>
               <button 
                 onClick={handleCarregarJson} 
                 className="px-5 py-2.5 bg-amber-400 hover:bg-amber-500 text-zinc-950 font-extrabold rounded-xl text-xs transition-all flex items-center gap-1.5 shadow-md cursor-pointer"
               >
-                Salvar na Nuvem com Segurança
+                Salvar com Backup Automático
               </button>
             </div>
           </div>

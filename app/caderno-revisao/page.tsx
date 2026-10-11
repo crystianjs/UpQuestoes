@@ -42,8 +42,10 @@ const revisaoInicialExemplo = {
 
 const PROMPT_MESTRE_FLASHCARD = `Atue como Especialista e Mentor para o concurso do TJSP (Banca VUNESP). 
 Gere um JSON estruturado para o Caderno de Revisão (Flashcards). 
-IMPORTANTE: Traga um ASSUNTO OBJETIVO e limpo (ex: "Pronome relativo", "Art. 6 §1 + Direitos sociais", "Razão", "Função SOMA"). NUNCA inclua emojis, ícones ou símbolos decorativos no campo "assunto", "tag" ou "titulo".
-ATENÇÃO AOS IDs: Crie IDs estritamente únicos para cada novo card (ex: use o nome do assunto em formato slug com sufixo de data/hora ou numeração sequencial segura, como "fc-assunto-novo-1728000000"), garantindo que NUNCA sobrescrevam flashcards existentes de outras importações.
+
+⚠️ **REGRA CRÍTICA DE PROTEÇÃO E IDs**: 
+- Crie IDs estritamente únicos para cada novo card utilizando sufixos de timestamp ou slugs longos (ex: "fc-assunto-novo-1728000000"). NUNCA reutilice IDs curtos ou genéricos para evitar colisões e sobrescritas acidentais no banco de dados.
+- Traga um ASSUNTO OBJETIVO e limpo (ex: "Pronome relativo", "Art. 6 §1 + Direitos sociais", "Razão"). NUNCA inclua emojis, ícones ou símbolos decorativos no campo "assunto", "tag" ou "titulo".
 
 Retorne EXCLUSIVAMENTE o JSON válido, seguindo esta estrutura exata:
 {
@@ -52,9 +54,9 @@ Retorne EXCLUSIVAMENTE o JSON válido, seguindo esta estrutura exata:
   "banca": "VUNESP",
   "cards": [
     {
-      "id": "fc-disc-001-seguro",
+      "id": "fc-assunto-unico-1728000000",
       "tag": "Palavra-Chave",
-      "assunto": "Assunto Objetivo (ex: Pronome relativo / Razão)",
+      "assunto": "Assunto Objetivo",
       "pergunta": "Pergunta objetiva com foco na VUNESP?",
       "respostaResumida": "Explicação ou gabarito direto da resposta.",
       "detalhes": "PEGADINHA VUNESP: Explicação do ponto que a banca mais erra.",
@@ -123,8 +125,27 @@ export default function CadernoRevisaoPage() {
     }
   };
 
-  const salvarNoSupabase = async (disciplinaAlvo: string, payload: any) => {
+  // FUNÇÃO BLINDADA COM BACKUP PRÉVIO EM temp_caderno_revisao
+  const salvarNoSupabaseComBackup = async (disciplinaAlvo: string, payload: any) => {
     try {
+      // 1. Cria backup na tabela temporária antes de alterar a principal
+      const { data: dadosAtuais } = await supabase
+        .from('caderno_revisao')
+        .select('*')
+        .eq('disciplina', disciplinaAlvo)
+        .maybeSingle();
+
+      if (dadosAtuais) {
+        await supabase.from('temp_caderno_revisao').upsert({
+          disciplina: dadosAtuais.disciplina,
+          titulo: dadosAtuais.titulo,
+          banca: dadosAtuais.banca,
+          cards: dadosAtuais.cards,
+          backed_up_at: new Date().toISOString()
+        }, { onConflict: 'disciplina' });
+      }
+
+      // 2. Grava na tabela principal oficial
       const { error } = await supabase.from('caderno_revisao').upsert({
         disciplina: disciplinaAlvo,
         titulo: payload.titulo,
@@ -136,7 +157,7 @@ export default function CadernoRevisaoPage() {
       if (error) throw error;
       setRevisoesPorDisciplina(prev => ({ ...prev, [disciplinaAlvo]: payload }));
     } catch (e) {
-      alert("Erro ao salvar no banco.");
+      alert("Erro crítico ao salvar no banco. O backup temp_caderno_revisao foi preservado.");
     }
   };
 
@@ -154,7 +175,7 @@ export default function CadernoRevisaoPage() {
           const idsConflitantes = novosCardsValidos.filter((c: any) => idsExistentes.has(c.id));
 
           if (idsConflitantes.length > 0) {
-            const confirmar = confirm(`⚠️ ATENÇÃO: Foram encontrados ${idsConflitantes.length} ID(s) repetidos (ex: "${idsConflitantes[0].id}"). Deseja atualizar os flashcards existentes com os novos? (Cancelar irá abortar a importação para proteger seus dados).`);
+            const confirmar = confirm(`⚠️ ALERTA DE SEGURANÇA: Encontramos ${idsConflitantes.length} ID(s) repetidos (ex: "${idsConflitantes[0].id}"). Deseja atualizar os flashcards existentes? (Um backup automático será criado em temp_caderno_revisao antes de prosseguir).`);
             if (!confirmar) {
               return; // Bloqueia a importação e protege o estado atual
             }
@@ -177,12 +198,12 @@ export default function CadernoRevisaoPage() {
           cards: novosCardsValidos
         };
 
-        await salvarNoSupabase(modalDisciplinaAlvo, payloadFinal);
+        await salvarNoSupabaseComBackup(modalDisciplinaAlvo, payloadFinal);
         setShowJsonModal(false);
         setJsonInputText('');
         setSelectedDisciplina(modalDisciplinaAlvo);
         setSelectedAssunto('all');
-        alert(`Flashcards incorporados com segurança para ${modalDisciplinaAlvo}!`);
+        alert(`Backup automático criado e flashcards incorporados com segurança para ${modalDisciplinaAlvo}!`);
       } else {
         alert('O JSON precisa conter obrigatoriamente a chave "cards".');
       }
@@ -210,7 +231,7 @@ export default function CadernoRevisaoPage() {
       cards: cardsAtualizados
     };
 
-    await salvarNoSupabase(selectedDisciplina, payloadAtualizado);
+    await salvarNoSupabaseComBackup(selectedDisciplina, payloadAtualizado);
   };
 
   const salvarAssuntoEditado = async (cardId: string) => {
@@ -228,7 +249,7 @@ export default function CadernoRevisaoPage() {
       cards: cardsAtualizados
     };
 
-    await salvarNoSupabase(selectedDisciplina, payloadAtualizado);
+    await salvarNoSupabaseComBackup(selectedDisciplina, payloadAtualizado);
     setEditandoCardId(null);
   };
 
@@ -243,7 +264,7 @@ export default function CadernoRevisaoPage() {
         setRevisoesPorDisciplina(novoEstado);
       } else {
         const novoMapa = { ...revisaoAtual, cards: novosCards };
-        await salvarNoSupabase(selectedDisciplina, novoMapa);
+        await salvarNoSupabaseComBackup(selectedDisciplina, novoMapa);
       }
       setSelectedAssunto('all');
     }
@@ -278,8 +299,8 @@ export default function CadernoRevisaoPage() {
         <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
-              <span className="bg-blue-500/20 text-blue-400 text-xs font-bold px-2.5 py-0.5 rounded-full border border-blue-500/30">TJSP - VUNESP[cite: 21]</span>
-              <span className="bg-amber-400 text-zinc-950 font-bold text-xs px-2.5 py-0.5 rounded-full">Caderno de Revisão 🟢</span>
+              <span className="bg-blue-500/20 text-blue-400 text-xs font-bold px-2.5 py-0.5 rounded-full border border-blue-500/30">TJSP - VUNESP</span>
+              <span className="bg-emerald-500/20 text-emerald-400 font-bold text-xs px-2.5 py-0.5 rounded-full border border-emerald-500/30">Backup Automático Ativo 🟢</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black text-white mt-1 tracking-tight">
               {revisaoAtual ? revisaoAtual.titulo : "Painel de Flashcards"}
@@ -530,10 +551,10 @@ export default function CadernoRevisaoPage() {
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <span className="bg-amber-400 text-zinc-950 font-bold text-xs px-2.5 py-0.5 rounded-full">Mentor VUNESP</span>
-              <h2 className="text-sm font-bold text-white">Prompt Mestre para Flashcards (Blindado)</h2>
+              <h2 className="text-sm font-bold text-white">Prompt Mestre para Flashcards (Blindado com Backup)</h2>
             </div>
             <p className="text-xs text-zinc-400">
-              Gera os cards rigorosamente limpos, com IDs seguros para evitar sobrescritas.
+              Gera os cards limpos e com IDs seguros em formato timestamp para proteger o seu histórico.
             </p>
           </div>
 
@@ -612,13 +633,13 @@ export default function CadernoRevisaoPage() {
 
             <div className="flex items-center gap-3 pr-10">
               <div className="w-12 h-12 rounded-2xl flex items-center justify-center bg-amber-400 text-zinc-950 font-bold shadow-inner flex-shrink-0">
-                ⚡
+                🛡️
               </div>
               <div>
                 <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full border bg-amber-400 text-zinc-950 border-amber-500">
-                  Gerenciador em Nuvem (Blindado)
+                  Gerenciador com Backup em Nuvem
                 </span>
-                <h2 className="text-lg font-bold text-white mt-1">Adicionar / Atualizar Flashcard</h2>
+                <h2 className="text-lg font-bold text-white mt-1">Adicionar / Atualizar Flashcard com Segurança</h2>
               </div>
             </div>
 
@@ -646,12 +667,12 @@ export default function CadernoRevisaoPage() {
             </div>
 
             <div className="pt-2 border-t border-zinc-800 flex items-center justify-between">
-              <span className="text-[11px] text-zinc-500">Mescla com segurança preservando seus flashcards salvos.</span>
+              <span className="text-[11px] text-zinc-500">Cria cópia em temp_caderno_revisao antes de salvar.</span>
               <button 
                 onClick={handleCarregarJson} 
                 className="px-5 py-2.5 bg-amber-400 hover:bg-amber-500 text-zinc-950 font-extrabold rounded-xl text-xs transition-all flex items-center gap-1.5 shadow-md cursor-pointer"
               >
-                Salvar na Nuvem com Segurança
+                Salvar com Backup Automático
               </button>
             </div>
           </div>

@@ -87,6 +87,12 @@ export default function CronogramaPage() {
                 iconePadrao = 'HelpCircle';
               }
 
+              // Mapeia o estado diretamente da coluna 'status' ou retrocompatível com 'concluido'
+              let estadoFinal = tp.status;
+              if (!estadoFinal) {
+                estadoFinal = tp.concluido ? 'feito' : 'padrao';
+              }
+
               return {
                 id: `plano_${tp.id}`,
                 horario: tp.horario || '08h00 - 09h00',
@@ -95,7 +101,7 @@ export default function CronogramaPage() {
                 tipo: tp.tipo || 'teorico',
                 titulo: `${tp.materia} — ${tp.assunto_titulo || rotuloTipo}`,
                 icone: tp.icone || iconePadrao,
-                estado: tp.concluido ? 'feito' : 'padrao',
+                estado: estadoFinal, // 'padrao' | 'feito' | 'nao_feito'
                 dbId: tp.id
               };
             });
@@ -207,27 +213,7 @@ export default function CronogramaPage() {
     else if (tarefaAtual.estado === 'nao_feito') proximoEstado = 'padrao';
     else proximoEstado = 'feito';
 
-    const isConcluidoDb = proximoEstado === 'feito';
-    if (dbId && userId) {
-      await supabase
-        .from('cronograma_tarefas')
-        .update({ concluido: isConcluidoDb })
-        .eq('id', dbId);
-    }
-
-    const atualizado = diasSemana.map((dia) => {
-      if (dia.id === diaId) {
-        const tarefasAtualizadas = dia.tarefas.map((t: any) => {
-          if (t.id === tarefaId) {
-            return { ...t, estado: proximoEstado };
-          }
-          return t;
-        });
-        return { ...dia, tarefas: tarefasAtualizadas };
-      }
-      return dia;
-    });
-    salvarNoSupabase(atualizado);
+    await definirEstadoEspecifico(diaId, tarefaId, proximoEstado, dbId);
   };
 
   const definirEstadoEspecifico = async (diaId: string, tarefaId: string, novoEstado: string, dbId?: string) => {
@@ -235,7 +221,10 @@ export default function CronogramaPage() {
     if (dbId && userId) {
       await supabase
         .from('cronograma_tarefas')
-        .update({ concluido: isConcluidoDb })
+        .update({ 
+          concluido: isConcluidoDb,
+          status: novoEstado 
+        })
         .eq('id', dbId);
     }
 
@@ -426,7 +415,7 @@ export default function CronogramaPage() {
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <blockquote className="bg-zinc-950/90 border border-amber-500/30 rounded-xl p-3.5 text-xs italic text-amber-300 shadow-md">
-                  &ldquo;Notem bem: não tem milagre se você não tiver se prepared.&rdquo;
+                  &ldquo;Notem bem: não tem milagre se você não tiver se preparado.&rdquo;
                 </blockquote>
                 <blockquote className="bg-zinc-950/90 border border-amber-500/30 rounded-xl p-3.5 text-xs italic text-amber-300 shadow-md">
                   &ldquo;Algumas conquistas são sempre antecedidas de algumas dores.&rdquo;

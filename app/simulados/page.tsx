@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import Navbar from '../components/Navbar';
-import { Award, Plus, CheckCircle2, XCircle, Calendar, BarChart2, Target, Code, Copy, Check, Trash2, Sparkles } from 'lucide-react';
+import { Award, Plus, CheckCircle2, XCircle, Calendar, BarChart2, Target, Code, Copy, Check, Trash2, Sparkles, Pencil } from 'lucide-react';
 
 interface Simulado {
   id: string;
@@ -31,23 +31,38 @@ export default function SimuladosPage() {
   const [loading, setLoading] = useState(true);
   const [aGuardar, setAGuardar] = useState(false);
   
-  // Modal único
+  // Modais de Criação e Edição
   const [modalOpen, setModalOpen] = useState(false);
+  const [modalEditMelhoriaOpen, setModalEditMelhoriaOpen] = useState(false);
+  const [modalEditSimuladoOpen, setModalEditSimuladoOpen] = useState(false);
   const [copiado, setCopiado] = useState(false);
 
-  // Estados do formulário de simulado
+  // Estados do formulário de criação
   const [titulo, setTitulo] = useState('');
   const [acertos, setAcertos] = useState('');
   const [total, setTotal] = useState('100');
 
-  // Estados dos Pontos de Melhoria (dentro do modal)
+  // Estados dos Pontos de Melhoria (Criação)
   const [incluirMelhorias, setIncluirMelhorias] = useState(false);
-  const [modoJson, setModoJson] = useState(true); // Começa direto em JSON por ser mais prático
+  const [modoJson, setModoJson] = useState(true);
   const [novaMateria, setNovaMateria] = useState('');
   const [errosInput, setErrosInput] = useState('');
   const [acertosInput, setAcertosInput] = useState('');
   const [assuntoInput, setAssuntoInput] = useState('');
   const [jsonInput, setJsonInput] = useState('');
+
+  // Estados para Edição de Ponto de Melhoria
+  const [editMelhoriaId, setEditMelhoriaId] = useState('');
+  const [editMateria, setEditMateria] = useState('');
+  const [editAcertos, setEditAcertos] = useState(0);
+  const [editErros, setEditErros] = useState(0);
+  const [editAssunto, setEditAssunto] = useState('');
+
+  // Estados para Edição de Simulado
+  const [editSimuladoId, setEditSimuladoId] = useState('');
+  const [editSimTitulo, setEditSimTitulo] = useState('');
+  const [editSimAcertos, setEditSimAcertos] = useState(0);
+  const [editSimTotal, setEditSimTotal] = useState(100);
 
   useEffect(() => {
     carregarDados();
@@ -75,6 +90,7 @@ export default function SimuladosPage() {
     }
   }
 
+  // --- FUNÇÃO DE SALVAR NOVO SIMULADO ---
   async function handleSalvarTudo(e: React.FormEvent) {
     e.preventDefault();
     if (aGuardar) return;
@@ -93,7 +109,6 @@ export default function SimuladosPage() {
 
       if (incluirMelhorias && modoJson && jsonInput.trim()) {
         try {
-          // Limpar blocos de markdown caso venham colados por engano (```json ... ```)
           let textoLimpo = jsonInput.trim();
           if (textoLimpo.startsWith('```')) {
             textoLimpo = textoLimpo.replace(/^```(json)?/, '').replace(/```$/, '').trim();
@@ -102,7 +117,6 @@ export default function SimuladosPage() {
           const parsed = JSON.parse(textoLimpo);
           const arrayParsed = Array.isArray(parsed) ? parsed : [parsed];
           
-          // Calcular o total de acertos e total de questões somando todas as matérias do JSON
           const somaAcertosJson = arrayParsed.reduce((acc, item) => acc + (Number(item.quantidade_acertos) || 0), 0);
           const somaErrosJson = arrayParsed.reduce((acc, item) => acc + (Number(item.quantidade_erros) || 0), 0);
           
@@ -140,7 +154,6 @@ export default function SimuladosPage() {
 
       const notaCalculada = numTotal > 0 ? Number(((numAcertos / numTotal) * 10).toFixed(2)) : 0;
 
-      // 1. Inserir o Simulado
       const { error: erroSimulado } = await supabase.from('simulados').insert([
         {
           user_id: user.id,
@@ -157,7 +170,6 @@ export default function SimuladosPage() {
         return;
       }
 
-      // 2. Inserir TODOS os Pontos de Melhoria do Array
       if (incluirMelhorias && itensParaInserir.length > 0) {
         const { error: erroMelhoria } = await supabase.from('pontos_melhoria').insert(itensParaInserir);
         if (erroMelhoria) {
@@ -167,7 +179,6 @@ export default function SimuladosPage() {
         }
       }
 
-      // Limpar formulário e fechar modal
       setTitulo('');
       setAcertos('');
       setTotal('100');
@@ -186,6 +197,79 @@ export default function SimuladosPage() {
       alert('Erro inesperado ao guardar dados.');
     } finally {
       setAGuardar(false);
+    }
+  }
+
+  // --- FUNÇÕES DE EDIÇÃO DE PONTO DE MELHORIA ---
+  function abrirEdicaoMelhoria(m: PontoMelhoria) {
+    setEditMelhoriaId(m.id);
+    setEditMateria(m.materia);
+    setEditAcertos(m.quantidade_acertos);
+    setEditErros(m.quantidade_erros);
+    setEditAssunto(m.assunto_estudar);
+    setModalEditMelhoriaOpen(true);
+  }
+
+  async function handleSalvarEdicaoMelhoria(e: React.FormEvent) {
+    e.preventDefault();
+    try {
+      const { error } = await supabase
+        .from('pontos_melhoria')
+        .update({
+          materia: editMateria,
+          quantidade_acertos: Number(editAcertos),
+          quantidade_erros: Number(editErros),
+          assunto_estudar: editAssunto
+        })
+        .eq('id', editMelhoriaId);
+
+      if (error) {
+        alert(`Erro ao atualizar: ${error.message}`);
+        return;
+      }
+
+      setModalEditMelhoriaOpen(false);
+      carregarDados();
+    } catch (err) {
+      console.error('Erro ao atualizar melhoria:', err);
+    }
+  }
+
+  // --- FUNÇÕES DE EDIÇÃO DE SIMULADO ---
+  function abrirEdicaoSimulado(sim: Simulado) {
+    setEditSimuladoId(sim.id);
+    setEditSimTitulo(sim.titulo);
+    setEditSimAcertos(sim.acertos);
+    setEditSimTotal(sim.total_questoes);
+    setModalEditSimuladoOpen(true);
+  }
+
+  async function handleSalvarEdicaoSimulado(e: React.FormEvent) {
+    e.preventDefault();
+    try {
+      const ac = Number(editSimAcertos);
+      const tot = Number(editSimTotal);
+      const notaCalculada = tot > 0 ? Number(((ac / tot) * 10).toFixed(2)) : 0;
+
+      const { error } = await supabase
+        .from('simulados')
+        .update({
+          titulo: editSimTitulo,
+          acertos: ac,
+          total_questoes: tot,
+          nota: notaCalculada
+        })
+        .eq('id', editSimuladoId);
+
+      if (error) {
+        alert(`Erro ao atualizar simulado: ${error.message}`);
+        return;
+      }
+
+      setModalEditSimuladoOpen(false);
+      carregarDados();
+    } catch (err) {
+      console.error('Erro ao atualizar simulado:', err);
     }
   }
 
@@ -312,6 +396,17 @@ Analise o meu desempenho recente e gere um payload JSON estrito (retorne APENAS 
                         <span className="text-emerald-400 font-semibold">✓ {m.quantidade_acertos}</span>
                         <span className="text-red-400 font-semibold">✕ {m.quantidade_erros}</span>
                       </div>
+                      
+                      {/* Botão Editar */}
+                      <button
+                        onClick={() => abrirEdicaoMelhoria(m)}
+                        title="Editar ponto de melhoria"
+                        className="text-zinc-500 hover:text-amber-400 transition-colors cursor-pointer p-1"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+
+                      {/* Botão Apagar */}
                       <button
                         onClick={() => apagarMelhoria(m.id)}
                         title="Apagar ponto de melhoria"
@@ -361,6 +456,16 @@ Analise o meu desempenho recente e gere um payload JSON estrito (retorne APENAS 
                         <span className="text-xs bg-red-950/40 border border-red-600/30 text-red-400 px-2.5 py-1 rounded-lg font-semibold">
                           Nota: {sim.nota}
                         </span>
+
+                        {/* Botão Editar Simulado */}
+                        <button
+                          onClick={() => abrirEdicaoSimulado(sim)}
+                          title="Editar simulado"
+                          className="text-zinc-500 hover:text-amber-400 transition-colors cursor-pointer p-1"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+
                         <button
                           onClick={() => apagarSimulado(sim.id)}
                           title="Apagar simulado"
@@ -392,7 +497,7 @@ Analise o meu desempenho recente e gere um payload JSON estrito (retorne APENAS 
           )}
         </div>
 
-        {/* Modal Unificado */}
+        {/* Modal Unificado (Adicionar Novo) */}
         {modalOpen && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl max-w-lg w-full p-6 space-y-5 shadow-2xl my-8">
@@ -574,6 +679,153 @@ Analise o meu desempenho recente e gere um payload JSON estrito (retorne APENAS 
                     className="px-5 py-2 rounded-xl text-xs font-bold bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-600/20 cursor-pointer disabled:opacity-50"
                   >
                     {aGuardar ? 'A guardar...' : 'Guardar Registo'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Modal de Edição de Ponto de Melhoria */}
+        {modalEditMelhoriaOpen && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+              <div className="flex justify-between items-center border-b border-zinc-800 pb-3">
+                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                  <Pencil className="w-4 h-4 text-amber-400" /> Editar Ponto de Melhoria
+                </h3>
+                <button onClick={() => setModalEditMelhoriaOpen(false)} className="text-zinc-400 hover:text-white cursor-pointer">
+                  <XCircle className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSalvarEdicaoMelhoria} className="space-y-3">
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-400 mb-1">Matéria</label>
+                  <input
+                    type="text"
+                    required
+                    value={editMateria}
+                    onChange={(e) => setEditMateria(e.target.value)}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-red-600"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-zinc-400 mb-1">Acertos</label>
+                    <input
+                      type="number"
+                      required
+                      value={editAcertos}
+                      onChange={(e) => setEditAcertos(Number(e.target.value))}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-red-600"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-zinc-400 mb-1">Erros</label>
+                    <input
+                      type="number"
+                      required
+                      value={editErros}
+                      onChange={(e) => setEditErros(Number(e.target.value))}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-red-600"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-400 mb-1">Assunto a ser estudado</label>
+                  <textarea
+                    rows={3}
+                    required
+                    value={editAssunto}
+                    onChange={(e) => setEditAssunto(e.target.value)}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-red-600 resize-none"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2 pt-3 border-t border-zinc-800">
+                  <button
+                    type="button"
+                    onClick={() => setModalEditMelhoriaOpen(false)}
+                    className="px-4 py-2 rounded-xl text-xs font-semibold bg-zinc-800 hover:bg-zinc-700 text-zinc-300 cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-zinc-950 shadow-md cursor-pointer"
+                  >
+                    Salvar Alterações
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Modal de Edição de Simulado */}
+        {modalEditSimuladoOpen && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+              <div className="flex justify-between items-center border-b border-zinc-800 pb-3">
+                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                  <Pencil className="w-4 h-4 text-amber-400" /> Editar Simulado
+                </h3>
+                <button onClick={() => setModalEditSimuladoOpen(false)} className="text-zinc-400 hover:text-white cursor-pointer">
+                  <XCircle className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSalvarEdicaoSimulado} className="space-y-3">
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-400 mb-1">Título do Simulado</label>
+                  <input
+                    type="text"
+                    required
+                    value={editSimTitulo}
+                    onChange={(e) => setEditSimTitulo(e.target.value)}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-red-600"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-zinc-400 mb-1">Acertos</label>
+                    <input
+                      type="number"
+                      required
+                      value={editSimAcertos}
+                      onChange={(e) => setEditSimAcertos(Number(e.target.value))}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-red-600"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-zinc-400 mb-1">Total de Questões</label>
+                    <input
+                      type="number"
+                      required
+                      value={editSimTotal}
+                      onChange={(e) => setEditSimTotal(Number(e.target.value))}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-red-600"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-3 border-t border-zinc-800">
+                  <button
+                    type="button"
+                    onClick={() => setModalEditSimuladoOpen(false)}
+                    className="px-4 py-2 rounded-xl text-xs font-semibold bg-zinc-800 hover:bg-zinc-700 text-zinc-300 cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-zinc-950 shadow-md cursor-pointer"
+                  >
+                    Salvar Alterações
                   </button>
                 </div>
               </form>

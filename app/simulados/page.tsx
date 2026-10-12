@@ -449,11 +449,18 @@ Analise o meu desempenho recente e gere um payload JSON estrito (retorne APENAS 
               {simulados.map((sim) => {
                 const percentual = sim.total_questoes > 0 ? Math.round((sim.acertos / sim.total_questoes) * 100) : 0;
                 return (
-                  <div key={sim.id} className="bg-zinc-900/80 border border-zinc-800 rounded-2xl p-6 space-y-4 shadow-xl relative">
-                    <div className="flex justify-between items-start">
-                      <h3 className="font-bold text-base text-white pr-6">{sim.titulo}</h3>
-                      <div className="flex items-center gap-2 absolute top-6 right-6">
-                        <span className="text-xs bg-red-950/40 border border-red-600/30 text-red-400 px-2.5 py-1 rounded-lg font-semibold">
+                  <div key={sim.id} className="bg-zinc-900/80 border border-zinc-800 rounded-2xl p-6 space-y-4 shadow-xl relative flex flex-col justify-between">
+                    
+                    {/* Topo Ajustado para EVITAR Colisão de Texto/Nota */}
+                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1 pr-2">
+                        <h3 className="font-bold text-base text-white leading-snug break-words">
+                          {sim.titulo}
+                        </h3>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0 self-start">
+                        <span className="text-xs bg-red-950/40 border border-red-600/30 text-red-400 px-2.5 py-1 rounded-lg font-semibold whitespace-nowrap">
                           Nota: {sim.nota}
                         </span>
 
@@ -553,7 +560,7 @@ Analise o meu desempenho recente e gere um payload JSON estrito (retorne APENAS 
                   ) : (
                     <div className="text-[11px] text-zinc-400 bg-zinc-950 border border-zinc-800 p-3 rounded-xl flex items-center gap-2">
                       <Sparkles className="w-4 h-4 text-red-500 shrink-0" />
-                      <span>O total de acertos e de questões do simulado será calculado automaticamente com base no JSON inserido abaixo.</span>
+                      <span>O total de acertos e de questões do simulado será calculated automaticamente com base no JSON inserido abaixo.</span>
                     </div>
                   )}
                 </div>

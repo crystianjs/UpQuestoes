@@ -35,7 +35,8 @@ const revisaoInicialExemplo = {
       detalhes: "PEGADINHA VUNESP: A banca costuma tentar incluir interjeições e artigos como variáveis em graus compostos.",
       pergunta: "Quais são as 10 classes gramaticais da Língua Portuguesa?",
       respostaResumida: "Substantivo, Artigo, Adjetivo, Pronome, Numeral, Verbo, Advérbio, Preposição, Conjunção e Interjeição.",
-      statusAvaliacao: null
+      statusAvaliacao: null,
+      importante: false
     }
   ]
 };
@@ -60,7 +61,8 @@ Retorne EXCLUSIVAMENTE o JSON válido, seguindo esta estrutura exata:
       "pergunta": "Pergunta objetiva com foco na VUNESP?",
       "respostaResumida": "Explicação ou gabarito direto da resposta.",
       "detalhes": "PEGADINHA VUNESP: Explicação do ponto que a banca mais erra.",
-      "statusAvaliacao": null
+      "statusAvaliacao": null,
+      "importante": false
     }
   ]
 }`;
@@ -125,10 +127,8 @@ export default function CadernoRevisaoPage() {
     }
   };
 
-  // FUNÇÃO BLINDADA COM BACKUP PRÉVIO EM temp_caderno_revisao
   const salvarNoSupabaseComBackup = async (disciplinaAlvo: string, payload: any) => {
     try {
-      // 1. Cria backup na tabela temporária antes de alterar a principal
       const { data: dadosAtuais } = await supabase
         .from('caderno_revisao')
         .select('*')
@@ -145,7 +145,6 @@ export default function CadernoRevisaoPage() {
         }, { onConflict: 'disciplina' });
       }
 
-      // 2. Grava na tabela principal oficial
       const { error } = await supabase.from('caderno_revisao').upsert({
         disciplina: disciplinaAlvo,
         titulo: payload.titulo,
@@ -161,7 +160,6 @@ export default function CadernoRevisaoPage() {
     }
   };
 
-  // BLINDAGEM DE IMPORTAÇÃO: Estratégia de Merge Seguro (Append/Update por ID único)
   const handleCarregarJson = async () => {
     try {
       const parsed = JSON.parse(jsonInputText);
@@ -175,10 +173,8 @@ export default function CadernoRevisaoPage() {
           const idsConflitantes = novosCardsValidos.filter((c: any) => idsExistentes.has(c.id));
 
           if (idsConflitantes.length > 0) {
-            const confirmar = confirm(`⚠️ ALERTA DE SEGURANÇA: Encontramos ${idsConflitantes.length} ID(s) repetidos (ex: "${idsConflitantes[0].id}"). Deseja atualizar os flashcards existentes? (Um backup automático será criado em temp_caderno_revisao antes de prosseguir).`);
-            if (!confirmar) {
-              return; // Bloqueia a importação e protege o estado atual
-            }
+            const confirmar = confirm(`⚠️ ALERTA DE SEGURANÇA: Encontramos ${idsConflitantes.length} ID(s) repetidos. Deseja atualizar os flashcards existentes?`);
+            if (!confirmar) return;
           }
 
           const cardsAtualizadosMap = new Map();
@@ -203,7 +199,7 @@ export default function CadernoRevisaoPage() {
         setJsonInputText('');
         setSelectedDisciplina(modalDisciplinaAlvo);
         setSelectedAssunto('all');
-        alert(`Backup automático criado e flashcards incorporados com segurança para ${modalDisciplinaAlvo}!`);
+        alert(`Flashcards incorporados com segurança para ${modalDisciplinaAlvo}!`);
       } else {
         alert('O JSON precisa conter obrigatoriamente a chave "cards".');
       }
@@ -222,6 +218,24 @@ export default function CadernoRevisaoPage() {
     const cardsAtualizados = revisaoAtual.cards.map((c: any) => {
       if (c.id === cardId) {
         return { ...c, statusAvaliacao: status };
+      }
+      return c;
+    });
+
+    const payloadAtualizado = {
+      ...revisaoAtual,
+      cards: cardsAtualizados
+    };
+
+    await salvarNoSupabaseComBackup(selectedDisciplina, payloadAtualizado);
+  };
+
+  const toggleImportante = async (cardId: string) => {
+    if (!revisaoAtual) return;
+
+    const cardsAtualizados = revisaoAtual.cards.map((c: any) => {
+      if (c.id === cardId) {
+        return { ...c, importante: !c.importante };
       }
       return c;
     });
@@ -389,6 +403,7 @@ export default function CadernoRevisaoPage() {
                 const revelado = respostasReveladas[card.id];
                 const statusAtual = card.statusAvaliacao;
                 const estaEditando = editandoCardId === card.id;
+                const ehImportante = card.importante === true;
 
                 return (
                   <div 
@@ -447,10 +462,23 @@ export default function CadernoRevisaoPage() {
                         </h2>
                       </div>
 
-                      <div className="flex items-center gap-2 self-start sm:self-center">
+                      <div className="flex items-center gap-2 self-start sm:self-center shrink-0">
+                        {/* Botão Importante */}
+                        <button
+                          onClick={() => toggleImportante(card.id)}
+                          className={`text-xs font-extrabold px-3 py-1 rounded-lg border transition-all cursor-pointer shadow-md ${
+                            ehImportante
+                              ? 'bg-amber-400 text-zinc-950 border-amber-300 ring-2 ring-amber-400/50'
+                              : 'bg-zinc-950 text-amber-400/70 border-amber-500/30 hover:text-amber-400 hover:border-amber-400/50'
+                          }`}
+                        >
+                          ⭐ Importante
+                        </button>
+
                         <span className="text-xs font-bold px-3 py-1 rounded-lg bg-zinc-950 text-amber-400 border border-amber-400/30 whitespace-nowrap">
                           {card.tag}
                         </span>
+
                         <button
                           onClick={() => excluirCard(card.id)}
                           className="text-zinc-500 hover:text-rose-400 bg-zinc-950 p-2 rounded-lg border border-zinc-800 hover:border-rose-500/40 transition-all text-xs cursor-pointer"

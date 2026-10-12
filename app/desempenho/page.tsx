@@ -55,13 +55,12 @@ export default function DesempenhoPage() {
 
       const userId = session.user.id;
 
-      // Execução em paralelo
-      const [qRes, rRes, sRes, fRes, cardsBaseRes] = await Promise.all([
+      // Execução em paralelo consultando o caderno_revisao oficial
+      const [qRes, rRes, sRes, revRes] = await Promise.all([
         supabase.from('user_questions').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
         supabase.from('redaccoes').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
         supabase.from('simulados').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
-        supabase.from('flashcards_progresso').select('*').eq('user_id', userId),
-        supabase.from('flashcards').select('*') // Puxa também a base inteira de flashcards para comparar
+        supabase.from('caderno_revisao').select('*')
       ]);
 
       if (qRes.data) setQuestoes(qRes.data);
@@ -70,43 +69,29 @@ export default function DesempenhoPage() {
 
       try {
         let listaCards: Array<{ id: string; assunto: string; disciplina: string; status: string; pergunta: string }> = [];
-        const progressoMap = new Map();
 
-        if (fRes.data) {
-          fRes.data.forEach((p: any) => {
-            progressoMap.set(p.card_id || p.id, p);
-          });
-        }
+        if (revRes.data && revRes.data.length > 0) {
+          revRes.data.forEach((item: any) => {
+            let rawCards = item.cards;
+            if (typeof rawCards === 'string') {
+              try { rawCards = JSON.parse(rawCards); } catch (e) { rawCards = []; }
+            }
 
-        // Se houver registros na tabela dedicada de progresso
-        if (fRes.data && fRes.data.length > 0) {
-          fRes.data.forEach((item: any) => {
-            listaCards.push({
-              id: item.card_id || item.id,
-              assunto: item.assunto || 'Preposição e Semântica',
-              disciplina: item.disciplina || item.materia || 'Língua Portuguesa',
-              status: item.status || 'pendente',
-              pergunta: item.pergunta || item.frente || 'Card cadastrado'
-            });
-          });
-        }
-
-        // Se houver cartões na base geral que ainda não foram avaliados
-        if (cardsBaseRes.data && cardsBaseRes.data.length > 0) {
-          cardsBaseRes.data.forEach((card: any) => {
-            if (!progressoMap.has(card.id)) {
-              listaCards.push({
-                id: card.id,
-                assunto: card.assunto || 'Preposição e Semântica',
-                disciplina: card.disciplina || card.materia || 'Língua Portuguesa',
-                status: 'pendente',
-                pergunta: card.pergunta || card.frente || 'Novo Card'
+            if (Array.isArray(rawCards)) {
+              rawCards.forEach((card: any) => {
+                listaCards.push({
+                  id: card.id || Math.random().toString(),
+                  assunto: card.assunto || card.titulo || 'Assunto Geral',
+                  disciplina: item.disciplina || 'Geral',
+                  status: card.statusAvaliacao || 'pendente',
+                  pergunta: card.pergunta || card.conteudo || 'Pergunta'
+                });
               });
             }
           });
         }
 
-        // Ordenação inteligente: ruim -> medio -> bom -> pendente
+        // Ordenação priorizando os que precisam de revisão (ruim -> medio -> bom -> pendente)
         listaCards.sort((a, b) => {
           const peso: Record<string, number> = { ruim: 1, medio: 2, bom: 3, pendente: 4 };
           return (peso[a.status] || 5) - (peso[b.status] || 5);
@@ -123,7 +108,7 @@ export default function DesempenhoPage() {
         setFlashcardsListados(listaCards);
         setFlashcardsStats({ bom: b, medio: m, ruim: r, pendente: p, total: listaCards.length });
       } catch (e) {
-        console.error("Erro ao carregar flashcards", e);
+        console.error("Erro ao processar flashcards para o desempenho:", e);
       }
 
       setLoading(false);
@@ -216,19 +201,19 @@ export default function DesempenhoPage() {
             <Filter className="w-4 h-4 text-zinc-400 ml-2" />
             <button 
               onClick={() => setFiltroPeriodo('todas')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${filtroPeriodo === 'todas' ? 'bg-amber-500 text-black font-bold shadow' : 'text-zinc-400 hover:text-white'}`}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${filtroPeriodo === 'todas' ? 'bg-amber-500 text-black font-bold shadow' : 'text-zinc-400 hover:text-white'}`}
             >
               Geral
             </button>
             <button 
               onClick={() => setFiltroPeriodo('semana')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${filtroPeriodo === 'semana' ? 'bg-amber-500 text-black font-bold shadow' : 'text-zinc-400 hover:text-white'}`}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${filtroPeriodo === 'semana' ? 'bg-amber-500 text-black font-bold shadow' : 'text-zinc-400 hover:text-white'}`}
             >
               Esta Semana
             </button>
             <button 
               onClick={() => setFiltroPeriodo('mes')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${filtroPeriodo === 'mes' ? 'bg-amber-500 text-black font-bold shadow' : 'text-zinc-400 hover:text-white'}`}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${filtroPeriodo === 'mes' ? 'bg-amber-500 text-black font-bold shadow' : 'text-zinc-400 hover:text-white'}`}
             >
               Este Mês
             </button>
@@ -272,7 +257,7 @@ export default function DesempenhoPage() {
               {/* Card de Flashcards */}
               <div className="bg-gradient-to-br from-amber-950/60 via-zinc-950 to-zinc-950 border border-amber-500/60 rounded-2xl p-5 shadow-xl relative overflow-hidden sm:col-span-2 lg:col-span-1">
                 <div className="absolute top-0 left-0 w-1.5 h-full bg-amber-500"></div>
-                <p className="text-[11px] font-bold uppercase tracking-wider text-amber-400">Flashcards Cadastrados</p>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-amber-400">Flashcards Totais</p>
                 <h3 className="text-2xl font-black text-white mt-1.5">{flashcardsStats.total}</h3>
                 <span className="text-[10px] text-amber-300 mt-1 block">🟢 {flashcardsStats.bom} | 🟡 {flashcardsStats.medio} | 🔴 {flashcardsStats.ruim}</span>
               </div>
@@ -298,7 +283,7 @@ export default function DesempenhoPage() {
               {flashcardsListados.length === 0 ? (
                 <div className="text-center py-10 space-y-2">
                   <HelpCircle className="w-10 h-10 text-amber-500/50 mx-auto" />
-                  <p className="text-xs text-zinc-400">Nenhum flashcard cadastrado ainda.</p>
+                  <p className="text-xs text-zinc-400">Nenhum flashcard cadastrado no caderno ainda.</p>
                   <button 
                     onClick={() => router.push('/caderno-revisao')}
                     className="px-4 py-2 bg-amber-500 text-black font-bold text-xs rounded-xl hover:bg-amber-400 transition-all shadow cursor-pointer"

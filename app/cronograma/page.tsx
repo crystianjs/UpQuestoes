@@ -13,73 +13,37 @@ const cronogramaPadrao = [
   {
     dia: "Segunda-feira",
     id: "segunda",
-    tarefas: [
-      { id: "s1", horario: "05h00 - 07h00", titulo: "Bloco de Ouro 1 ( 1 Video aula + 5 exercícios )", icone: "BookOpen", concluida: false },
-      { id: "s2", horario: "07h45 - 19h00", titulo: "Período de Trabalho (incluindo transporte)", icone: "Briefcase", concluida: false },
-      { id: "s3", horario: "19h00 - 20h00", titulo: "Chegada em casa, banho e jantar", icone: "Utensils", concluida: false },
-      { id: "s4", horario: "20h00 - 21h40", titulo: "Bloco de Ouro 2 (Questões e Revisões)", icone: "BookOpen", concluida: false },
-      { id: "s5", horario: "22h00", titulo: "Dormir", icone: "Moon", concluida: false }
-    ]
+    tarefas: []
   },
   {
     dia: "Terça-feira",
     id: "terca",
-    tarefas: [
-      { id: "t1", horario: "05h00 - 07h00", titulo: "Bloco de Ouro 1 ( 1 Video aula + 5 exercícios )", icone: "BookOpen", concluida: false },
-      { id: "t2", horario: "07h45 - 19h00", titulo: "Período de Trabalho (incluindo transporte)", icone: "Briefcase", concluida: false },
-      { id: "t3", horario: "19h00 - 20h00", titulo: "Chegada em casa, banho e jantar", icone: "Utensils", concluida: false },
-      { id: "t4", horario: "20h00 - 21h40", titulo: "Bloco de Ouro 2 (Questões e Revisões)", icone: "BookOpen", concluida: false },
-      { id: "t5", horario: "22h00", titulo: "Dormir", icone: "Moon", concluida: false }
-    ]
+    tarefas: []
   },
   {
     dia: "Quarta-feira",
     id: "quarta",
-    tarefas: [
-      { id: "q1", horario: "05h00 - 07h00", titulo: "Bloco de Ouro 1 ( 1 Video aula + 5 exercícios )", icone: "BookOpen", concluida: false },
-      { id: "q2", horario: "07h45 - 19h00", titulo: "Período de Trabalho (incluindo transporte)", icone: "Briefcase", concluida: false },
-      { id: "q3", horario: "19h00 - 20h00", titulo: "Chegada em casa, banho e jantar", icone: "Utensils", concluida: false },
-      { id: "q4", horario: "20h00 - 21h40", titulo: "Bloco de Ouro 2 (Questões e Revisões)", icone: "BookOpen", concluida: false },
-      { id: "q5", horario: "22h00", titulo: "Dormir", icone: "Moon", concluida: false }
-    ]
+    tarefas: []
   },
   {
     dia: "Quinta-feira",
     id: "quinta",
-    tarefas: [
-      { id: "qu1", horario: "05h00 - 07h00", titulo: "Bloco de Ouro 1 ( 1 Video aula + 5 exercícios )", icone: "BookOpen", concluida: false },
-      { id: "qu2", horario: "07h45 - 19h00", titulo: "Período de Trabalho (incluindo transporte)", icone: "Briefcase", concluida: false },
-      { id: "qu3", horario: "19h00 - 20h00", titulo: "Chegada em casa, banho e jantar", icone: "Utensils", concluida: false },
-      { id: "qu4", horario: "20h00 - 21h40", titulo: "Bloco de Ouro 2 (Questões e Revisões)", icone: "BookOpen", concluida: false },
-      { id: "qu5", horario: "22h00", titulo: "Dormir", icone: "Moon", concluida: false }
-    ]
+    tarefas: []
   },
   {
     dia: "Sexta-feira",
     id: "sexta",
-    tarefas: [
-      { id: "sex1", horario: "05h00 - 07h00", titulo: "Bloco de Ouro 1 ( 1 Video aula + 5 exercícios )", icone: "BookOpen", concluida: false },
-      { id: "sex2", horario: "07h45 - 19h00", titulo: "Período de Trabalho (incluindo transporte)", icone: "Briefcase", concluida: false },
-      { id: "sex3", horario: "19h00 - 20h00", titulo: "Chegada em casa, banho e jantar", icone: "Utensils", concluida: false },
-      { id: "sex4", horario: "20h00 - 21h40", titulo: "Bloco de Ouro 2 (Questões e Revisões)", icone: "BookOpen", concluida: false },
-      { id: "sex5", horario: "22h00", titulo: "Dormir", icone: "Moon", concluida: false }
-    ]
+    tarefas: []
   },
   {
     dia: "Sábado",
     id: "sabado",
-    tarefas: [
-      { id: "sab1", horario: "09h00 - 12h00", titulo: "Treino Especial de Redação", icone: "BookOpen", concluida: false },
-      { id: "sab2", horario: "12h00 em diante", titulo: "Descanso Total e Lazer", icone: "Smile", concluida: false }
-    ]
+    tarefas: []
   },
   {
     dia: "Domingo",
     id: "domingo",
-    tarefas: [
-      { id: "dom1", horario: "10h00", titulo: "Simulado e Ajustes", icone: "BookOpen", concluida: false },
-      { id: "dom2", horario: "Tarde/Noite", titulo: "Lazer e Organização Semanal", icone: "Smile", concluida: false }
-    ]
+    tarefas: []
   }
 ];
 
@@ -180,33 +144,42 @@ export default function CronogramaPage() {
     }
   };
 
-  // AÇÃO 1: RESETAR PROGRESSO (Zerar todos os checks mantendo as tarefas)
-  const handleResetarProgresso = async () => {
-    if (!confirm("Deseja zerar todos os checks do cronograma? As tarefas serão mantidas, mas o progresso voltará para 0%.")) return;
-    
-    const atualizado = diasSemana.map((dia) => ({
-      ...dia,
-      tarefas: dia.tarefas.map((t: any) => ({ ...t, concluida: false }))
-    }));
+  // BOTÃO 1: RESETAR CRONOGRAMA COMPLETO (Apaga tarefas locais e do plano de estudos)
+  const handleResetarCronograma = async () => {
+    if (!userId) return;
+    if (!confirm("Deseja realmente resetar e apagar TODAS as tarefas do cronograma para deixa-lo limpo?")) return;
 
-    await salvarNoSupabase(atualizado);
-    alert("Progresso zerado com sucesso!");
+    try {
+      setCarregando(true);
+
+      // 1. Apaga tarefas vinculadas à tabela cronograma_tarefas no Supabase
+      await supabase
+        .from('cronograma_tarefas')
+        .delete()
+        .eq('user_id', userId);
+
+      // 2. Apaga a estrutura salva em user_cronograma_progresso
+      const cronogramaVazio = [
+        { dia: "Segunda-feira", id: "segunda", tarefas: [] },
+        { dia: "Terça-feira", id: "terca", tarefas: [] },
+        { dia: "Quarta-feira", id: "quarta", tarefas: [] },
+        { dia: "Quinta-feira", id: "quinta", tarefas: [] },
+        { dia: "Sexta-feira", id: "sexta", tarefas: [] },
+        { dia: "Sábado", id: "sabado", tarefas: [] },
+        { dia: "Domingo", id: "domingo", tarefas: [] }
+      ];
+
+      await salvarNoSupabase(cronogramaVazio);
+      alert("Cronograma totalmente resetado e limpo com sucesso!");
+    } catch (e) {
+      alert("Erro ao resetar o cronograma.");
+      console.error(e);
+    } finally {
+      setCarregando(false);
+    }
   };
 
-  // AÇÃO 2: DEIXAR TUDO VAZIO OU CARREGAR EXEMPLOS
-  const handleDeixarVazio = async () => {
-    if (!confirm("Deseja limpar todas as tarefas de todos os dias para preencher do zero?")) return;
-
-    const atualizado = diasSemana.map((dia) => ({
-      ...dia,
-      tarefas: []
-    }));
-
-    await salvarNoSupabase(atualizado);
-    alert("Cronograma esvaziado! Você pode adicionar novas tarefas ou inserir caixas de exemplo.");
-  };
-
-  // AÇÃO 3: INSERIR CAIXAS DE EXEMPLO RÁPIDAS
+  // BOTÃO 2: APLICAR EXEMPLOS
   const handleCarregarExemplos = async () => {
     const atualizado = diasSemana.map((dia) => {
       if (dia.id === "segunda" || dia.id === "terca" || dia.id === "quarta" || dia.id === "quinta" || dia.id === "sexta") {
@@ -219,11 +192,28 @@ export default function CronogramaPage() {
           ]
         };
       }
+      if (dia.id === "sabado") {
+        return {
+          ...dia,
+          tarefas: [
+            { id: 'ex_4_' + Math.random(), horario: "09h00 - 12h00", titulo: "Treino Especial de Redação VUNESP", icone: "BookOpen", concluida: false },
+            { id: 'ex_5_' + Math.random(), horario: "12h00 em diante", titulo: "Descanso Total e Lazer", icone: "Smile", concluida: false }
+          ]
+        };
+      }
+      if (dia.id === "domingo") {
+        return {
+          ...dia,
+          tarefas: [
+            { id: 'ex_6_' + Math.random(), horario: "10h00", titulo: "Simulado e Ajustes de Desempenho", icone: "BookOpen", concluida: false }
+          ]
+        };
+      }
       return dia;
     });
 
     await salvarNoSupabase(atualizado);
-    alert("Caixas de exemplo inseridas com sucesso!");
+    alert("Exemplos aplicados com sucesso!");
   };
 
   const moverTarefaCima = (diaId: string, tarefaIndex: number) => {
@@ -374,7 +364,7 @@ export default function CronogramaPage() {
 
       <main className="max-w-7xl mx-auto px-6 py-8 space-y-8">
         
-        {/* Cabeçalho com Botões de Ação no Banco */}
+        {/* Cabeçalho com os 2 botões idênticos à imagem */}
         <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 shadow-xl flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
@@ -389,16 +379,16 @@ export default function CronogramaPage() {
               Cronograma Semanal Integrado
             </h1>
             <p className="text-xs text-zinc-400 mt-0.5">
-              As matérias e redações atribuídas no seu plano de estudos aparecem automaticamente nos dias selecionados[cite: 12].
+              As matérias e redações atribuídas no seu plano de estudos aparecem automaticamente nos dias selecionados[cite: 12, 13].
             </p>
           </div>
 
-          {/* BOTÕES DE RESET / VAZIO / EXEMPLOS */}
+          {/* OS 2 BOTÕES MANTIDOS */}
           <div className="flex items-center gap-2 flex-wrap">
             <button
-              onClick={handleDeixarVazio}
+              onClick={handleResetarCronograma}
               className="px-4 py-2.5 bg-zinc-900 hover:bg-rose-950/40 text-rose-400 border border-rose-500/30 hover:border-rose-500 font-extrabold text-xs rounded-xl transition-all shadow-md flex items-center gap-1.5 cursor-pointer"
-              title="Apaga todas as tarefas para preencher do zero"
+              title="Zera absolutamente tudo e limpa o banco"
             >
               Resetar Cronograma
             </button>
@@ -426,10 +416,10 @@ export default function CronogramaPage() {
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <blockquote className="bg-zinc-950/90 border border-amber-500/30 rounded-xl p-3.5 text-xs italic text-amber-300 shadow-md">
-                  &ldquo;Notem bem: não tem milagre se você não tiver se preparado.&rdquo;[cite: 11]
+                  &ldquo;Notem bem: não tem milagre se você não tiver se preparado.&rdquo;[cite: 11, 13]
                 </blockquote>
                 <blockquote className="bg-zinc-950/90 border border-amber-500/30 rounded-xl p-3.5 text-xs italic text-amber-300 shadow-md">
-                  &ldquo;Algumas conquistas são sempre antecedidas de algumas dores.&rdquo;[cite: 11]
+                  &ldquo;Algumas conquistas são sempre antecedidas de algumas dores.&rdquo;[cite: 11, 13]
                 </blockquote>
               </div>
             </div>

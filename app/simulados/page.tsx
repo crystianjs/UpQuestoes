@@ -350,7 +350,7 @@ Analise o meu desempenho recente e gere um payload JSON estrito (retorne APENAS 
           </div>
           <button
             onClick={() => setModalOpen(true)}
-            className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-red-600/20 transition-all cursor-pointer"
+            className="flex items-center gap-2 bg-red-600 hover:bg-amber-700 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-red-600/20 transition-all cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             Adicionar Simulado
@@ -369,9 +369,9 @@ Analise o meu desempenho recente e gere um payload JSON estrito (retorne APENAS 
             </div>
             <button
               onClick={copiarPrompt}
-              className="text-xs bg-zinc-950 border border-zinc-700 hover:border-red-500 text-zinc-300 px-3.5 py-2 rounded-xl flex items-center gap-2 transition-all cursor-pointer"
+              className="text-xs bg-zinc-950 border border-zinc-700 hover:border-amber-500 text-zinc-300 px-3.5 py-2 rounded-xl flex items-center gap-2 transition-all cursor-pointer"
             >
-              {copiado ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-red-500" />}
+              {copiado ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-amber-500" />}
               {copiado ? 'Prompt Copiado!' : 'Copiar Prompt para IA'}
             </button>
           </div>

@@ -430,7 +430,7 @@ Analise o meu desempenho recente e gere um payload JSON estrito (retorne APENAS 
         {/* Listagem de Simulados */}
         <div className="space-y-4 pt-4 border-t border-zinc-800/80">
           <h2 className="text-lg font-bold text-white flex items-center gap-2">
-            <BarChart2 className="w-5 h-5 text-red-600" />
+            <BarChart2 className="w-5 h-5 text-amber-600" />
             Histórico de Simulados
           </h2>
 
@@ -683,7 +683,7 @@ Analise o meu desempenho recente e gere um payload JSON estrito (retorne APENAS 
                   <button
                     type="submit"
                     disabled={aGuardar}
-                    className="px-5 py-2 rounded-xl text-xs font-bold bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-600/20 cursor-pointer disabled:opacity-50"
+                    className="px-5 py-2 rounded-xl text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white shadow-lg shadow-amber-600/20 cursor-pointer disabled:opacity-50"
                   >
                     {aGuardar ? 'A guardar...' : 'Guardar Registo'}
                   </button>

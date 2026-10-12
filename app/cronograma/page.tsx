@@ -379,7 +379,7 @@ export default function CronogramaPage() {
               Cronograma Semanal Integrado
             </h1>
             <p className="text-xs text-zinc-400 mt-0.5">
-              As matérias e redações atribuídas no seu plano de estudos aparecem automaticamente nos dias selecionados[cite: 12, 13].
+              As matérias e redações atribuídas no seu plano de estudos aparecem automaticamente nos dias selecionados.
             </p>
           </div>
 
@@ -416,10 +416,10 @@ export default function CronogramaPage() {
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <blockquote className="bg-zinc-950/90 border border-amber-500/30 rounded-xl p-3.5 text-xs italic text-amber-300 shadow-md">
-                  &ldquo;Notem bem: não tem milagre se você não tiver se preparado.&rdquo;[cite: 11, 13]
+                  &ldquo;Notem bem: não tem milagre se você não tiver se preparado.&rdquo;
                 </blockquote>
                 <blockquote className="bg-zinc-950/90 border border-amber-500/30 rounded-xl p-3.5 text-xs italic text-amber-300 shadow-md">
-                  &ldquo;Algumas conquistas são sempre antecedidas de algumas dores.&rdquo;[cite: 11, 13]
+                  &ldquo;Algumas conquistas são sempre antecedidas de algumas dores.&rdquo;
                 </blockquote>
               </div>
             </div>

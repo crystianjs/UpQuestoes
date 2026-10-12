@@ -180,6 +180,52 @@ export default function CronogramaPage() {
     }
   };
 
+  // AÇÃO 1: RESETAR PROGRESSO (Zerar todos os checks mantendo as tarefas)
+  const handleResetarProgresso = async () => {
+    if (!confirm("Deseja zerar todos os checks do cronograma? As tarefas serão mantidas, mas o progresso voltará para 0%.")) return;
+    
+    const atualizado = diasSemana.map((dia) => ({
+      ...dia,
+      tarefas: dia.tarefas.map((t: any) => ({ ...t, concluida: false }))
+    }));
+
+    await salvarNoSupabase(atualizado);
+    alert("Progresso zerado com sucesso!");
+  };
+
+  // AÇÃO 2: DEIXAR TUDO VAZIO OU CARREGAR EXEMPLOS
+  const handleDeixarVazio = async () => {
+    if (!confirm("Deseja limpar todas as tarefas de todos os dias para preencher do zero?")) return;
+
+    const atualizado = diasSemana.map((dia) => ({
+      ...dia,
+      tarefas: []
+    }));
+
+    await salvarNoSupabase(atualizado);
+    alert("Cronograma esvaziado! Você pode adicionar novas tarefas ou inserir caixas de exemplo.");
+  };
+
+  // AÇÃO 3: INSERIR CAIXAS DE EXEMPLO RÁPIDAS
+  const handleCarregarExemplos = async () => {
+    const atualizado = diasSemana.map((dia) => {
+      if (dia.id === "segunda" || dia.id === "terca" || dia.id === "quarta" || dia.id === "quinta" || dia.id === "sexta") {
+        return {
+          ...dia,
+          tarefas: [
+            { id: 'ex_1_' + Math.random(), horario: "05h00 - 07h00", titulo: "Bloco de Ouro 1 (Vídeo aula + Exercícios VUNESP)", icone: "BookOpen", concluida: false },
+            { id: 'ex_2_' + Math.random(), horario: "07h45 - 19h00", titulo: "Período de Trabalho e Deslocamento", icone: "Briefcase", concluida: false },
+            { id: 'ex_3_' + Math.random(), horario: "20h00 - 21h40", titulo: "Bloco de Ouro 2 (Questões UpQuest-es + Flashcards)", icone: "BookOpen", concluida: false }
+          ]
+        };
+      }
+      return dia;
+    });
+
+    await salvarNoSupabase(atualizado);
+    alert("Caixas de exemplo inseridas com sucesso!");
+  };
+
   const moverTarefaCima = (diaId: string, tarefaIndex: number) => {
     if (tarefaIndex === 0) return;
     const atualizado = diasSemana.map((dia) => {
@@ -328,7 +374,8 @@ export default function CronogramaPage() {
 
       <main className="max-w-7xl mx-auto px-6 py-8 space-y-8">
         
-        <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        {/* Cabeçalho com Botões de Ação no Banco */}
+        <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 shadow-xl flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
               <span className="bg-red-600/20 text-red-400 text-xs font-bold px-2.5 py-0.5 rounded-full border border-red-500/30 flex items-center gap-1">
@@ -342,8 +389,34 @@ export default function CronogramaPage() {
               Cronograma Semanal Integrado
             </h1>
             <p className="text-xs text-zinc-400 mt-0.5">
-              As matérias e redações atribuídas no seu plano de estudos aparecem automaticamente nos dias selecionados.
+              As matérias e redações atribuídas no seu plano de estudos aparecem automaticamente nos dias selecionados[cite: 12].
             </p>
+          </div>
+
+          {/* BOTÕES DE RESET / VAZIO / EXEMPLOS */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={handleResetarProgresso}
+              className="px-4 py-2.5 bg-amber-400 hover:bg-amber-500 text-zinc-950 font-extrabold text-xs rounded-xl transition-all shadow-md flex items-center gap-1.5 cursor-pointer"
+              title="Zera todos os checks mantendo as tarefas cadastradas"
+            >
+              🔄 Zerar Progresso (0%)
+            </button>
+
+            <button
+              onClick={handleDeixarVazio}
+              className="px-4 py-2.5 bg-zinc-900 hover:bg-rose-950/40 text-rose-400 border border-rose-500/30 hover:border-rose-500 font-extrabold text-xs rounded-xl transition-all shadow-md flex items-center gap-1.5 cursor-pointer"
+              title="Apaga todas as tarefas para preencher do zero"
+            >
+              🗑️ Deixar Tudo Vazio
+            </button>
+
+            <button
+              onClick={handleCarregarExemplos}
+              className="px-4 py-2.5 bg-zinc-900 hover:bg-zinc-800 text-amber-400 border border-amber-400/30 font-bold text-xs rounded-xl transition-all shadow-md flex items-center gap-1.5 cursor-pointer"
+            >
+              📦 Inserir Exemplos
+            </button>
           </div>
         </div>
 
@@ -361,10 +434,10 @@ export default function CronogramaPage() {
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <blockquote className="bg-zinc-950/90 border border-amber-500/30 rounded-xl p-3.5 text-xs italic text-amber-300 shadow-md">
-                  &ldquo;Notem bem: não tem milagre se você não tiver se preparado.&rdquo;
+                  &ldquo;Notem bem: não tem milagre se você não tiver se preparado.&rdquo;[cite: 11]
                 </blockquote>
                 <blockquote className="bg-zinc-950/90 border border-amber-500/30 rounded-xl p-3.5 text-xs italic text-amber-300 shadow-md">
-                  &ldquo;Algumas conquistas são sempre antecedidas de algumas dores.&rdquo;
+                  &ldquo;Algumas conquistas são sempre antecedidas de algumas dores.&rdquo;[cite: 11]
                 </blockquote>
               </div>
             </div>

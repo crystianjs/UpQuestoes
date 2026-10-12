@@ -396,26 +396,18 @@ export default function CronogramaPage() {
           {/* BOTÕES DE RESET / VAZIO / EXEMPLOS */}
           <div className="flex items-center gap-2 flex-wrap">
             <button
-              onClick={handleResetarProgresso}
-              className="px-4 py-2.5 bg-amber-400 hover:bg-amber-500 text-zinc-950 font-extrabold text-xs rounded-xl transition-all shadow-md flex items-center gap-1.5 cursor-pointer"
-              title="Zera todos os checks mantendo as tarefas cadastradas"
-            >
-              🔄 Zerar Progresso (0%)
-            </button>
-
-            <button
               onClick={handleDeixarVazio}
               className="px-4 py-2.5 bg-zinc-900 hover:bg-rose-950/40 text-rose-400 border border-rose-500/30 hover:border-rose-500 font-extrabold text-xs rounded-xl transition-all shadow-md flex items-center gap-1.5 cursor-pointer"
               title="Apaga todas as tarefas para preencher do zero"
             >
-              🗑️ Deixar Tudo Vazio
+              Resetar Cronograma
             </button>
 
             <button
               onClick={handleCarregarExemplos}
               className="px-4 py-2.5 bg-zinc-900 hover:bg-zinc-800 text-amber-400 border border-amber-400/30 font-bold text-xs rounded-xl transition-all shadow-md flex items-center gap-1.5 cursor-pointer"
             >
-              📦 Inserir Exemplos
+              Aplicar Exemplos
             </button>
           </div>
         </div>

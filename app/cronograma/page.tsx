@@ -71,7 +71,9 @@ export default function CronogramaPage() {
       const { data: tarefasPlano } = await supabase
         .from('cronograma_tarefas')
         .select('*')
-        .eq('user_id', uid);
+        .eq('user_id', uid)
+        .order('ordem', { ascending: true })
+        .order('created_at', { ascending: true });
 
       if (tarefasPlano && tarefasPlano.length > 0) {
         estruturaDias = estruturaDias.map((d: any) => {
@@ -87,7 +89,6 @@ export default function CronogramaPage() {
                 iconePadrao = 'HelpCircle';
               }
 
-              // Mapeia o estado diretamente da coluna 'status' ou retrocompatível com 'concluido'
               let estadoFinal = tp.status;
               if (!estadoFinal) {
                 estadoFinal = tp.concluido ? 'feito' : 'padrao';
@@ -101,7 +102,7 @@ export default function CronogramaPage() {
                 tipo: tp.tipo || 'teorico',
                 titulo: `${tp.materia} — ${tp.assunto_titulo || rotuloTipo}`,
                 icone: tp.icone || iconePadrao,
-                estado: estadoFinal, // 'padrao' | 'feito' | 'nao_feito'
+                estado: estadoFinal,
                 dbId: tp.id
               };
             });
@@ -243,22 +244,40 @@ export default function CronogramaPage() {
     salvarNoSupabase(atualizado);
   };
 
-  const moverTarefaCima = (diaId: string, tarefaIndex: number) => {
+  const atualizarOrdemNoBanco = async (tarefasDoDia: any[]) => {
+    if (!userId || !tarefasDoDia) return;
+    for (let i = 0; i < tarefasDoDia.length; i++) {
+      const tarefa = tarefasDoDia[i];
+      if (tarefa.dbId) {
+        await supabase
+          .from('cronograma_tarefas')
+          .update({ ordem: i })
+          .eq('id', tarefa.dbId);
+      }
+    }
+  };
+
+  const moverTarefaCima = async (diaId: string, tarefaIndex: number) => {
     if (tarefaIndex === 0) return;
+    let novasTarefasDia: any[] = [];
     const atualizado = diasSemana.map((dia) => {
       if (dia.id === diaId) {
         const novasTarefas = [...dia.tarefas];
         const temp = novasTarefas[tarefaIndex];
         novasTarefas[tarefaIndex] = novasTarefas[tarefaIndex - 1];
         novasTarefas[tarefaIndex - 1] = temp;
+        novasTarefasDia = novasTarefas;
         return { ...dia, tarefas: novasTarefas };
       }
       return dia;
     });
+    setDiasSemana(atualizado);
     salvarNoSupabase(atualizado);
+    await atualizarOrdemNoBanco(novasTarefasDia);
   };
 
-  const moverTarefaBaixo = (diaId: string, tarefaIndex: number) => {
+  const moverTarefaBaixo = async (diaId: string, tarefaIndex: number) => {
+    let novasTarefasDia: any[] = [];
     const atualizado = diasSemana.map((dia) => {
       if (dia.id === diaId) {
         if (tarefaIndex === dia.tarefas.length - 1) return dia;
@@ -266,11 +285,14 @@ export default function CronogramaPage() {
         const temp = novasTarefas[tarefaIndex];
         novasTarefas[tarefaIndex] = novasTarefas[tarefaIndex + 1];
         novasTarefas[tarefaIndex + 1] = temp;
+        novasTarefasDia = novasTarefas;
         return { ...dia, tarefas: novasTarefas };
       }
       return dia;
     });
+    setDiasSemana(atualizado);
     salvarNoSupabase(atualizado);
+    await atualizarOrdemNoBanco(novasTarefasDia);
   };
 
   const abrirEdicaoTarefa = (diaId: string, tarefa: any) => {

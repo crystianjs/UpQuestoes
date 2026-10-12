@@ -633,7 +633,7 @@ export default function CadernoRevisaoPage() {
 
             <div className="flex items-center gap-3 pr-10">
               <div className="w-12 h-12 rounded-2xl flex items-center justify-center bg-amber-400 text-zinc-950 font-bold shadow-inner flex-shrink-0">
-                🛡️
+                🥷
               </div>
               <div>
                 <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full border bg-amber-400 text-zinc-950 border-amber-500">

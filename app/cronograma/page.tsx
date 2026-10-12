@@ -6,7 +6,7 @@ import Navbar from '../components/Navbar';
 import { supabase } from '@/lib/supabase';
 import { 
   BookOpen, Briefcase, Utensils, Moon, Laptop, Smile, 
-  CheckCircle2, Circle, XCircle, Calendar, Trash2, Sparkles, Quote, Pencil, Plus, ArrowUp, ArrowDown, HelpCircle
+  CheckCircle2, Circle, XCircle, Calendar, Trash2, Sparkles, Quote, Pencil, Plus, ArrowUp, ArrowDown, HelpCircle, ExternalLink, Play, Square, Clock, ArrowRight, RotateCcw, X
 } from 'lucide-react';
 
 const cronogramaPadrao = [
@@ -34,6 +34,19 @@ export default function CronogramaPage() {
   const [editTitulo, setEditTitulo] = useState<string>('');
   const [editIcone, setEditIcone] = useState<string>('BookOpen');
 
+  // Fluxo de Etapas do Cronômetro
+  const [tarefaAtivaModal, setTarefaAtivaModal] = useState<any | null>(null);
+  const [etapaModal, setEtapaModal] = useState<number>(0); // 1: Links, 2: Circuito Loop, 3: Cronômetro
+  const [circuitoIniciado, setCircuitoIniciado] = useState<boolean | null>(null);
+
+  // Estados de Execução do Cronômetro
+  const [cronometroAtivoId, setCronometroAtivoId] = useState<string | null>(null);
+  const [segundosDecorridos, setSegundosDecorridos] = useState<number>(0);
+  const [duracaoTotalSegundos, setDuracaoTotalSegundos] = useState<number>(0);
+  const [cronometroRodando, setCronometroRodando] = useState<boolean>(false);
+  const [showModalFim, setShowModalFim] = useState<boolean>(false);
+  const [tempoFinalFormatado, setTempoFinalFormatado] = useState<string>('');
+
   useEffect(() => {
     async function init() {
       const { data: { session } } = await supabase.auth.getSession();
@@ -52,6 +65,98 @@ export default function CronogramaPage() {
     }
     init();
   }, [router]);
+
+  // Efeito do Cronômetro
+  useEffect(() => {
+    let intervalo: any = null;
+    if (cronometroRodando) {
+      intervalo = setInterval(() => {
+        setSegundosDecorridos(prev => prev + 1);
+      }, 1000);
+    } else {
+      clearInterval(intervalo);
+    }
+    return () => clearInterval(intervalo);
+  }, [cronometroRodando]);
+
+  // Função para ler "05h00 - 07h30" ou usar o padrão do tipo
+  const extrairSegundosDoHorario = (horarioStr: string, tipo: string): number => {
+    try {
+      if (horarioStr && horarioStr.includes('-')) {
+        const partes = horarioStr.split('-').map(p => p.trim());
+        if (partes.length === 2) {
+          const parseHoraMinuto = (str: string) => {
+            const limpo = str.toLowerCase().replace('h', ':').replace('min', '');
+            const subPartes = limpo.split(':');
+            const h = parseInt(subPartes[0]) || 0;
+            const m = parseInt(subPartes[1]) || 0;
+            return h * 3600 + m * 60;
+          };
+          const inicioSeg = parseHoraMinuto(partes[0]);
+          const fimSeg = parseHoraMinuto(partes[1]);
+          if (fimSeg > inicioSeg) {
+            return fimSeg - inicioSeg;
+          }
+        }
+      }
+    } catch (e) {
+      console.log("Falha ao extrair horário, aplicando padrão...");
+    }
+
+    if (tipo === 'revisao') return 1 * 3600;
+    if (tipo === 'questao') return 50 * 60;
+    return 2.5 * 3600;
+  };
+
+  const iniciarFluxoAbertura = (tarefa: any) => {
+    setTarefaAtivaModal(tarefa);
+    const duracao = extrairSegundosDoHorario(tarefa.horario, tarefa.tipo);
+    setDuracaoTotalSegundos(duracao);
+    setEtapaModal(1);
+  };
+
+  const avancarParaEtapa2 = () => {
+    setEtapaModal(2);
+  };
+
+  const responderCircuitoLoop = (sim: boolean) => {
+    setCircuitoIniciado(sim);
+    setEtapaModal(3);
+    setCronometroAtivoId(tarefaAtivaModal.id);
+    setSegundosDecorridos(0);
+    setCronometroRodando(false);
+  };
+
+  const iniciarContagemCronometro = () => {
+    setCronometroRodando(true);
+  };
+
+  const cancelarEVoltarAoInicio = () => {
+    setCronometroRodando(false);
+    setSegundosDecorridos(0);
+    setCronometroAtivoId(null);
+    setEtapaModal(0);
+    setTarefaAtivaModal(null);
+  };
+
+  const zerarCronometro = () => {
+    setSegundosDecorridos(0);
+  };
+
+  const encerrarEstudo = () => {
+    setCronometroRodando(false);
+    setTempoFinalFormatado(formatarTempo(segundosDecorridos));
+    setEtapaModal(0);
+    setTarefaAtivaModal(null);
+    setShowModalFim(true);
+  };
+
+  const formatarTempo = (segundos: number) => {
+    const hrs = Math.floor(segundos / 3600);
+    const mins = Math.floor((segundos % 3600) / 60);
+    const secs = segundos % 60;
+    return `${hrs > 0 ? String(hrs).padStart(2, '0') + ':' : ''}${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  };
 
   const carregarCronogramaSupabase = async (uid: string) => {
     try {
@@ -96,7 +201,7 @@ export default function CronogramaPage() {
 
               return {
                 id: `plano_${tp.id}`,
-                horario: tp.horario || '08h00 - 09h00',
+                horario: tp.horario || '05h00 - 07h30',
                 materia: tp.materia,
                 assunto: tp.assunto_titulo || rotuloTipo,
                 tipo: tp.tipo || 'teorico',
@@ -174,26 +279,9 @@ export default function CronogramaPage() {
         return {
           ...dia,
           tarefas: [
-            { id: 'ex_1_' + Math.random(), horario: "05h00 - 07h00", titulo: "Bloco de Ouro 1 (Vídeo aula + Exercícios VUNESP)", icone: "BookOpen", estado: 'padrao' },
-            { id: 'ex_2_' + Math.random(), horario: "07h45 - 19h00", titulo: "Período de Trabalho e Deslocamento", icone: "Briefcase", estado: 'padrao' },
-            { id: 'ex_3_' + Math.random(), horario: "20h00 - 21h40", titulo: "Bloco de Ouro 2 (Questões UpQuest-es + Flashcards)", icone: "BookOpen", estado: 'padrao' }
-          ]
-        };
-      }
-      if (dia.id === "sabado") {
-        return {
-          ...dia,
-          tarefas: [
-            { id: 'ex_4_' + Math.random(), horario: "09h00 - 12h00", titulo: "Treino Especial de Redação VUNESP", icone: "BookOpen", estado: 'padrao' },
-            { id: 'ex_5_' + Math.random(), horario: "12h00 em diante", titulo: "Descanso Total e Lazer", icone: "Smile", estado: 'padrao' }
-          ]
-        };
-      }
-      if (dia.id === "domingo") {
-        return {
-          ...dia,
-          tarefas: [
-            { id: 'ex_6_' + Math.random(), horario: "10h00", titulo: "Simulado e Ajustes de Desempenho", icone: "BookOpen", estado: 'padrao' }
+            { id: 'ex_1_' + Math.random(), horario: "05h00 - 07h30", titulo: "Bloco 1 (Vídeo aula + Exercícios VUNESP)", icone: "BookOpen", estado: 'padrao', tipo: 'teorico' },
+            { id: 'ex_2_' + Math.random(), horario: "20h00 - 21h00", titulo: "Revisão do conteúdo estudado", icone: "BookOpen", estado: 'padrao', tipo: 'revisao' },
+            { id: 'ex_3_' + Math.random(), horario: "21h00 - 21h50", titulo: "Bloco 2 (Questões UpQuest-es + Flashcards)", icone: "HelpCircle", estado: 'padrao', tipo: 'questao' }
           ]
         };
       }
@@ -342,7 +430,7 @@ export default function CronogramaPage() {
           ...dia,
           tarefas: [
             ...dia.tarefas,
-            { id: novaId, horario: "Novo Horário", titulo: "Nova Tarefa de Estudo", icone: "BookOpen", estado: 'padrao' }
+            { id: novaId, horario: "05h00 - 07h30", titulo: "Nova Tarefa de Estudo", icone: "BookOpen", estado: 'padrao', tipo: 'teorico' }
           ]
         };
       }
@@ -381,6 +469,14 @@ export default function CronogramaPage() {
       default: return <BookOpen className={className} />;
     }
   };
+
+  // Cálculo do Progresso do Círculo SVG
+  const percentualProgresso = duracaoTotalSegundos > 0 
+    ? Math.min((segundosDecorridos / duracaoTotalSegundos) * 100, 100)
+    : 0;
+  const raioCirculo = 70;
+  const circunferencia = 2 * Math.PI * raioCirculo;
+  const strokeDashoffset = circunferencia - (percentualProgresso / 100) * circunferencia;
 
   return (
     <div className="min-h-screen bg-black text-zinc-100 font-sans selection:bg-red-600 selection:text-white">
@@ -591,45 +687,57 @@ export default function CronogramaPage() {
                               </div>
                             </div>
 
-                            <div className="flex items-center justify-between pt-2 border-t border-zinc-800/60">
+                            <div className="pt-2 border-t border-zinc-800/60 flex flex-col gap-2">
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  abrirEdicaoTarefa(diaObj.id, tarefa);
+                                  iniciarFluxoAbertura(tarefa);
                                 }}
-                                className="px-2.5 py-1 rounded-lg bg-zinc-800/90 text-zinc-300 hover:text-white hover:bg-blue-600/30 border border-zinc-700/85 transition-all text-[11px] font-medium flex items-center gap-1 cursor-pointer"
-                                title="Editar Tarefa"
+                                className="w-full py-2 bg-amber-400 hover:bg-amber-300 text-zinc-950 font-black rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all shadow-md uppercase cursor-pointer"
                               >
-                                <Pencil className="w-3 h-3 text-blue-400" /> Editar
+                                <Play className="w-3.5 h-3.5 fill-current" /> Iniciar Estudo
                               </button>
 
-                              <div className="flex items-center gap-1.5">
+                              <div className="flex items-center justify-between">
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    const novoSt = isNaoFeito ? 'padrao' : 'nao_feito';
-                                    definirEstadoEspecifico(diaObj.id, tarefa.id, novoSt, tarefa.dbId);
+                                    abrirEdicaoTarefa(diaObj.id, tarefa);
                                   }}
-                                  className={`px-2.5 py-1 rounded-lg border transition-all text-[11px] font-medium flex items-center gap-1 cursor-pointer ${
-                                    isNaoFeito
-                                      ? 'bg-rose-600 text-white border-rose-500 shadow-md shadow-rose-950'
-                                      : 'bg-zinc-800 text-zinc-400 border-zinc-700 hover:bg-rose-950/50 hover:text-rose-300 hover:border-rose-800'
-                                  }`}
-                                  title="Marcar como Não Feito"
+                                  className="px-2.5 py-1 rounded-lg bg-zinc-800/90 text-zinc-300 hover:text-white hover:bg-blue-600/30 border border-zinc-700/85 transition-all text-[11px] font-medium flex items-center gap-1 cursor-pointer"
+                                  title="Editar Tarefa"
                                 >
-                                  ❌ Não feito
+                                  <Pencil className="w-3 h-3 text-blue-400" /> Editar
                                 </button>
 
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    removerTarefa(diaObj.id, tarefa.id, tarefa.dbId);
-                                  }}
-                                  className="px-2 py-1 rounded-lg bg-zinc-800/90 text-zinc-400 hover:text-rose-400 hover:bg-rose-600/20 border border-zinc-700/85 transition-all text-[11px] font-medium flex items-center gap-1 cursor-pointer"
-                                  title="Excluir Tarefa"
-                                >
-                                  <Trash2 className="w-3 h-3 text-rose-400" />
-                                </button>
+                                <div className="flex items-center gap-1.5">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const novoSt = isNaoFeito ? 'padrao' : 'nao_feito';
+                                      definirEstadoEspecifico(diaObj.id, tarefa.id, novoSt, tarefa.dbId);
+                                    }}
+                                    className={`px-2.5 py-1 rounded-lg border transition-all text-[11px] font-medium flex items-center gap-1 cursor-pointer ${
+                                      isNaoFeito
+                                        ? 'bg-rose-600 text-white border-rose-500 shadow-md shadow-rose-950'
+                                        : 'bg-zinc-800 text-zinc-400 border-zinc-700 hover:bg-rose-950/50 hover:text-rose-300 hover:border-rose-800'
+                                    }`}
+                                    title="Marcar como Não Feito"
+                                  >
+                                    ❌ Não feito
+                                  </button>
+
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      removerTarefa(diaObj.id, tarefa.id, tarefa.dbId);
+                                    }}
+                                    className="px-2 py-1 rounded-lg bg-zinc-800/90 text-zinc-400 hover:text-rose-400 hover:bg-rose-600/20 border border-zinc-700/85 transition-all text-[11px] font-medium flex items-center gap-1 cursor-pointer"
+                                    title="Excluir Tarefa"
+                                  >
+                                    <Trash2 className="w-3 h-3 text-rose-400" />
+                                  </button>
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -658,6 +766,227 @@ export default function CronogramaPage() {
 
       </main>
 
+      {/* POP-UP ETAPA 1: Links para Plataformas */}
+      {etapaModal === 1 && tarefaAtivaModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-zinc-950 border border-blue-500/40 rounded-3xl max-w-md w-full p-6 shadow-2xl relative space-y-4 text-center">
+            
+            <button 
+              onClick={cancelarEVoltarAoInicio}
+              className="absolute top-4 right-4 text-zinc-400 hover:text-white bg-zinc-900 w-8 h-8 flex items-center justify-center rounded-full border border-zinc-800 transition-all text-xs cursor-pointer"
+              title="Cancelar e Voltar"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-blue-400 mx-auto">
+              <ExternalLink className="w-6 h-6" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-white">Plataformas de Estudo 🚀</h2>
+              <p className="text-xs text-zinc-400 mt-1">Acesse os links para iniciar o seu bloco:</p>
+            </div>
+
+            <div className="space-y-2 pt-2">
+              <a
+                href="https://braboconcursos.entregadigital.app.br/produtos/1549"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full py-2.5 px-4 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/30 text-xs font-bold flex items-center justify-between transition-all"
+              >
+                <span>Brabo Concursos (Aulas)</span>
+                <ExternalLink className="w-4 h-4" />
+              </a>
+
+              <a
+                href="https://app.circuitoloop.com.br/dashboard"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full py-2.5 px-4 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 text-xs font-bold flex items-center justify-between transition-all"
+              >
+                <span>Circuito Loop (Acompanhamento)</span>
+                <ExternalLink className="w-4 h-4" />
+              </a>
+            </div>
+
+            <div className="pt-2 border-t border-zinc-800 flex items-center justify-between gap-2">
+              <button
+                onClick={cancelarEVoltarAoInicio}
+                className="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 text-rose-400 hover:text-rose-300 font-semibold rounded-xl text-xs transition-all border border-zinc-800 cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={avancarParaEtapa2}
+                className="px-5 py-2.5 bg-amber-400 hover:bg-amber-300 text-zinc-950 font-black rounded-xl text-xs flex items-center gap-1.5 transition-all shadow-md cursor-pointer uppercase"
+              >
+                Avançar <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* POP-UP ETAPA 2: Circuito Loop ativado? */}
+      {etapaModal === 2 && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-zinc-950 border border-amber-400/50 rounded-3xl max-w-md w-full p-6 shadow-2xl relative space-y-4 text-center">
+            
+            <button 
+              onClick={cancelarEVoltarAoInicio}
+              className="absolute top-4 right-4 text-zinc-400 hover:text-white bg-zinc-900 w-8 h-8 flex items-center justify-center rounded-full border border-zinc-800 transition-all text-xs cursor-pointer"
+              title="Cancelar e Voltar"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="w-12 h-12 rounded-2xl bg-amber-400/10 border border-amber-400/30 flex items-center justify-center text-amber-400 mx-auto">
+              <Clock className="w-6 h-6 animate-pulse" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-white">Circuito Loop</h2>
+              <p className="text-xs text-zinc-300 mt-2 leading-relaxed">
+                Você iniciou o cronômetro no <strong className="text-purple-400">Circuito Loop</strong> também?
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              <button
+                onClick={() => responderCircuitoLoop(true)}
+                className="py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-xl text-xs transition-all shadow-lg cursor-pointer uppercase"
+              >
+                Sim, Já Iniciei 👍
+              </button>
+              <button
+                onClick={() => responderCircuitoLoop(false)}
+                className="py-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold rounded-xl text-xs transition-all border border-zinc-700 cursor-pointer uppercase"
+              >
+                Não / Agora Não
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* POP-UP ETAPA 3: Cronômetro Redondo */}
+      {etapaModal === 3 && tarefaAtivaModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-zinc-950 border border-amber-400/50 rounded-3xl max-w-md w-full p-6 shadow-2xl relative space-y-5 text-center">
+            
+            <button 
+              onClick={cancelarEVoltarAoInicio}
+              className="absolute top-4 right-4 text-zinc-400 hover:text-white bg-zinc-900 w-8 h-8 flex items-center justify-center rounded-full border border-zinc-800 transition-all text-xs cursor-pointer"
+              title="Cancelar e Voltar"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div>
+              <span className="text-[10px] font-bold text-amber-400 bg-amber-400/10 border border-amber-400/30 px-2.5 py-0.5 rounded-full">
+                {tarefaAtivaModal.horario} (Meta: {formatarTempo(duracaoTotalSegundos)})
+              </span>
+              <h2 className="text-base font-bold text-white mt-2 line-clamp-2">{tarefaAtivaModal.titulo}</h2>
+            </div>
+
+            {/* Círculo do Cronômetro SVG */}
+            <div className="relative w-48 h-48 mx-auto flex items-center justify-center">
+              <svg className="w-full h-full transform -rotate-90" viewBox="0 0 160 160">
+                <circle
+                  cx="80"
+                  cy="80"
+                  r={raioCirculo}
+                  className="text-zinc-900"
+                  strokeWidth="10"
+                  stroke="currentColor"
+                  fill="transparent"
+                />
+                <circle
+                  cx="80"
+                  cy="80"
+                  r={raioCirculo}
+                  className="text-amber-400 transition-all duration-1000 ease-linear"
+                  strokeWidth="10"
+                  strokeDasharray={circunferencia}
+                  strokeDashoffset={strokeDashoffset}
+                  strokeLinecap="round"
+                  stroke="currentColor"
+                  fill="transparent"
+                />
+              </svg>
+
+              <div className="absolute flex flex-col items-center justify-center text-center">
+                <span className="text-3xl font-black text-amber-400 font-mono tracking-wider">
+                  {formatarTempo(segundosDecorridos)}
+                </span>
+                <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest mt-0.5">
+                  Tempo Decorrido
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              {!cronometroRodando ? (
+                <button
+                  onClick={iniciarContagemCronometro}
+                  className="w-full py-3 bg-amber-400 hover:bg-amber-300 text-zinc-950 font-black rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all shadow-lg cursor-pointer uppercase"
+                >
+                  <Play className="w-4 h-4 fill-current" /> Iniciar Cronômetro
+                </button>
+              ) : (
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={zerarCronometro}
+                    className="py-2.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 font-bold rounded-xl text-xs flex items-center justify-center gap-1 transition-all border border-zinc-800 cursor-pointer uppercase"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" /> Zerar
+                  </button>
+                  <button
+                    onClick={encerrarEstudo}
+                    className="py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-black rounded-xl text-xs flex items-center justify-center gap-1 transition-all shadow-lg cursor-pointer uppercase"
+                  >
+                    <Square className="w-3.5 h-3.5 fill-current" /> Encerrar
+                  </button>
+                </div>
+              )}
+
+              <button
+                onClick={cancelarEVoltarAoInicio}
+                className="w-full py-2 bg-transparent hover:bg-zinc-900 text-zinc-500 hover:text-rose-400 font-semibold rounded-xl text-xs transition-all cursor-pointer flex items-center justify-center gap-1"
+              >
+                <X className="w-3.5 h-3.5" /> Cancelar e Voltar
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* POP-UP FINAL: Encerrar Circuito Loop */}
+      {showModalFim && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-zinc-950 border border-rose-500/50 rounded-3xl max-w-md w-full p-6 shadow-2xl relative space-y-4 text-center">
+            <div className="w-12 h-12 rounded-2xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-500 mx-auto">
+              <Square className="w-6 h-6" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-white">Estudo Encerrado! 🎯</h2>
+              <p className="text-xs text-amber-400 font-bold mt-1">Tempo total registrado: {tempoFinalFormatado}</p>
+              <p className="text-xs text-zinc-300 mt-2 leading-relaxed">
+                Não se esqueça de encerrar também o seu cronômetro no <strong className="text-purple-400">Circuito Loop</strong>!
+              </p>
+            </div>
+            <div className="pt-2">
+              <button
+                onClick={() => setShowModalFim(false)}
+                className="w-full py-3 bg-rose-600 hover:bg-rose-500 text-white font-black rounded-xl text-xs transition-all shadow-lg cursor-pointer uppercase"
+              >
+                Concluído 🚀
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Edição de Tarefa */}
       {showEditModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-zinc-950 border border-zinc-800 rounded-3xl max-w-md w-full p-6 shadow-2xl relative space-y-4">
@@ -687,7 +1016,7 @@ export default function CronogramaPage() {
                   value={editHorario}
                   onChange={(e) => setEditHorario(e.target.value)}
                   className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 text-xs rounded-xl p-3 outline-none focus:border-blue-500"
-                  placeholder="Ex: 05h00 - 07h00"
+                  placeholder="Ex: 05h00 - 07h30"
                 />
               </div>
 

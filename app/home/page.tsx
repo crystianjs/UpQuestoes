@@ -4,6 +4,7 @@ import React from 'react';
 import Navbar from '../components/Navbar';
 import FraseMotivadora from '../components/FraseMotivadora';
 import Link from 'next/link';
+import Image from 'next/image';
 
 export default function HomePage() {
   return (
@@ -26,9 +27,117 @@ export default function HomePage() {
           <h2 className="text-xl sm:text-2xl font-black tracking-tight leading-snug pt-1">
             Você tem disciplina para realizar os sonhos dos outros, lute pelos seus sonhos também! 💭🚀
           </h2>
-          <p className="text-xs sm:text-sm font-bold text-zinc-900 max-w-2xl mx-auto opacity-90">
-            Cada questão resolvida e cada flashcard revisado hoje te aproximam da sua nomeação como Escrevente.
-          </p>
+        </div>
+
+        {/* NOVA SEÇÃO: O PORQUÊ DE ESTARMOS A ESTUDAR */}
+        <div className="bg-zinc-950 border border-zinc-800 rounded-3xl p-6 sm:p-10 shadow-2xl space-y-8 relative overflow-hidden">
+          <div className="flex items-center gap-3 pb-4 border-b border-zinc-800">
+            <span className="p-2.5 rounded-2xl bg-amber-400/10 border border-amber-400/30 text-amber-400 text-lg">
+              🥷
+            </span>
+            <div>
+              <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+                MOTIVOS PARA ESTUDAR E CONQUISTAR A VAGA🥹🙏
+              </h2>
+              <p className="text-xs text-zinc-400 font-medium">
+                O combustível diário para manter a disciplina nos momentos difíceis.
+              </p>
+            </div>
+          </div>
+
+          {/* Os 4 Motivos */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="p-5 rounded-2xl bg-zinc-900/90 border border-zinc-800 hover:border-amber-400/50 transition-all space-y-2">
+              <span className="text-xs font-black text-amber-400 tracking-wider uppercase">Motivo 01</span>
+              <p className="text-sm font-bold text-zinc-200 leading-snug">
+                Hoje, se você perder o emprego, tem segurança financeira garantida?
+              </p>
+            </div>
+
+            <div className="p-5 rounded-2xl bg-zinc-900/90 border border-zinc-800 hover:border-amber-400/50 transition-all space-y-2">
+              <span className="text-xs font-black text-amber-400 tracking-wider uppercase">Motivo 02</span>
+              <p className="text-sm font-bold text-zinc-200 leading-snug">
+                Você se sujeita a qualquer tratamento indesejado apenas por conta da necessidade do salário?
+              </p>
+            </div>
+
+            <div className="p-5 rounded-2xl bg-zinc-900/90 border border-zinc-800 hover:border-amber-400/50 transition-all space-y-2">
+              <span className="text-xs font-black text-amber-400 tracking-wider uppercase">Motivo 03</span>
+              <p className="text-sm font-bold text-zinc-200 leading-snug">
+                Você vive segundo o que os outros determinam sobre a sua vida e o seu tempo?
+              </p>
+            </div>
+
+            <div className="p-5 rounded-2xl bg-zinc-900/90 border border-zinc-800 hover:border-amber-400/50 transition-all space-y-2">
+              <span className="text-xs font-black text-amber-400 tracking-wider uppercase">Motivo 04</span>
+              <p className="text-sm font-bold text-zinc-200 leading-snug">
+                Querer fazer um rolê, aproveitar a vida e simplesmente não ter dinheiro para isso.
+              </p>
+            </div>
+          </div>
+
+          {/* Galeria de Fotos / Metas (Família, Carro, Estabilidade) */}
+          <div className="pt-2">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-400 mb-4">
+              Nossas Metas e Pilares • Para quem e pelo que lutamos
+            </h3>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              
+              {/* Família */}
+              <div className="group relative h-48 rounded-2xl overflow-hidden border border-zinc-800 bg-zinc-900 flex items-end p-4">
+                <Image 
+                  src="/familia.jpeg" 
+                  alt="Família" 
+                  fill 
+                  className="object-cover group-hover:scale-105 transition-transform duration-500 opacity-70 group-hover:opacity-90"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/40 to-transparent"></div>
+                <div className="relative z-10">
+                  <span className="text-[10px] font-black text-amber-400 uppercase tracking-widest bg-zinc-950/80 px-2 py-0.5 rounded border border-zinc-800">
+                    Base de Tudo
+                  </span>
+                  <h4 className="text-sm font-bold text-white mt-1">A Família</h4>
+                </div>
+              </div>
+
+              {/* Carro do Sonho */}
+              <div className="group relative h-48 rounded-2xl overflow-hidden border border-zinc-800 bg-zinc-900 flex items-end p-4">
+                <Image 
+                  src="/polo-tracker.jpg" 
+                  alt="Carro do Sonho" 
+                  fill 
+                  className="object-cover group-hover:scale-105 transition-transform duration-500 opacity-70 group-hover:opacity-90"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/40 to-transparent"></div>
+                <div className="relative z-10">
+                  <span className="text-[10px] font-black text-amber-400 uppercase tracking-widest bg-zinc-950/80 px-2 py-0.5 rounded border border-zinc-800">
+                    Conquista
+                  </span>
+                  <h4 className="text-sm font-bold text-white mt-1">O Carro dos Sonhos</h4>
+                </div>
+              </div>
+
+              {/* Estabilidade */}
+              <div className="group relative h-48 rounded-2xl overflow-hidden border border-zinc-800 bg-zinc-900 flex items-end p-4">
+                <Image 
+                  src="/cracha.jpg" 
+                  alt="Estabilidade" 
+                  fill 
+                  className="object-cover group-hover:scale-105 transition-transform duration-500 opacity-70 group-hover:opacity-90"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/40 to-transparent"></div>
+                <div className="relative z-10">
+                  <span className="text-[10px] font-black text-amber-400 uppercase tracking-widest bg-zinc-950/80 px-2 py-0.5 rounded border border-zinc-800">
+                    Liberdade
+                  </span>
+                  <h4 className="text-sm font-bold text-white mt-1">Estabilidade e Paz</h4>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
         </div>
 
         {/* Card Principal Estilo Radar de Concursos */}
@@ -44,7 +153,7 @@ export default function HomePage() {
                 <span className="inline-block w-3 h-3 rounded-full bg-amber-400 animate-pulse"></span>
               </div>
               <p className="text-sm font-semibold text-zinc-400 mt-1">
-                Tribunal de Justiça de São Paulo
+                Tribunal de Justiça de São Paulo: 
               </p>
             </div>
 
@@ -53,7 +162,7 @@ export default function HomePage() {
                 Em Estudo 🚀
               </span>
               <span className="text-xs font-bold text-zinc-400 bg-zinc-900 px-3 py-1 rounded-lg border border-zinc-800">
-                Escrevente Técnico Judiciário
+                Escrevente Técnico Judiciário: 
               </span>
             </div>
           </div>
@@ -64,26 +173,26 @@ export default function HomePage() {
             {/* Remuneração */}
             <div className="md:col-span-2 bg-zinc-900/80 border border-zinc-800 p-6 rounded-2xl shadow-inner space-y-2 flex flex-col justify-center">
               <span className="text-xs font-bold uppercase tracking-wider text-zinc-400">
-                Remuneração Inicial (com alimentação e transporte)
+                Remuneração Inicial (com alimentação e transporte): 
               </span>
               <div className="text-3xl sm:text-4xl font-black text-amber-400 tracking-tight">
-                R$ 8.519,54
+                R$ 8.519,54: 
               </div>
               <p className="text-xs text-zinc-400 font-medium pt-1">
-                R$ 6.345,94 + R$ 1.760 alimentação + R$ 413,60 transporte (22 dias)
+                R$ 6.345,94 + R$ 1.760 alimentação + R$ 413,60 transporte (22 dias): 
               </p>
             </div>
 
             {/* Escolaridade */}
             <div className="bg-zinc-900/80 border border-zinc-800 p-6 rounded-2xl shadow-inner space-y-2 flex flex-col justify-center">
               <span className="text-xs font-bold uppercase tracking-wider text-zinc-400">
-                Escolaridade Exigida
+                Escolaridade Exigida: 
               </span>
               <div className="text-lg sm:text-xl font-extrabold text-white">
-                Ensino Médio
+                Ensino Médio: 
               </div>
               <span className="text-xs font-semibold text-amber-400">
-                Requisito padrão Escrevente
+                Requisito padrão Escrevente: 
               </span>
             </div>
 
@@ -93,43 +202,43 @@ export default function HomePage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             
             <div className="bg-zinc-900/80 border border-zinc-800 p-6 rounded-2xl shadow-inner space-y-1">
-              <span className="text-xs font-bold uppercase tracking-wider text-zinc-400">Vagas Previstas</span>
-              <div className="text-3xl font-black text-white">720</div>
-              <p className="text-xs text-zinc-500">Cargos criados pela LC nº 1.429</p>
+              <span className="text-xs font-bold uppercase tracking-wider text-zinc-400">Vagas Previstas: </span>
+              <div className="text-3xl font-black text-white">720: </div>
+              <p className="text-xs text-zinc-500">Cargos criados pela LC nº 1.429: </p>
             </div>
 
             <div className="bg-zinc-900/80 border border-zinc-800 p-6 rounded-2xl shadow-inner space-y-1">
-              <span className="text-xs font-bold uppercase tracking-wider text-zinc-400">Banca Organizadora</span>
-              <div className="text-2xl font-black text-white">Vunesp</div>
-              <p className="text-xs text-zinc-500">Contrato com o TJSP vigente até jun/2027</p>
+              <span className="text-xs font-bold uppercase tracking-wider text-zinc-400">Banca Organizadora: </span>
+              <div className="text-2xl font-black text-white">Vunesp: </div>
+              <p className="text-xs text-zinc-500">Contrato com o TJSP vigente até jun/2027: </p>
             </div>
 
           </div>
 
           {/* Status da Linha do Tempo */}
           <div className="bg-zinc-900/60 border border-zinc-800 p-6 rounded-2xl space-y-4">
-            <span className="text-xs font-bold uppercase tracking-wider text-zinc-400">Status do Concurso</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-zinc-400">Status do Concurso: </span>
             
             <div className="grid grid-cols-5 gap-2 text-center">
               <div className="space-y-1">
                 <div className="h-2 rounded-full bg-amber-400"></div>
-                <span className="text-[11px] font-bold text-amber-400">PREVISTO</span>
+                <span className="text-[11px] font-bold text-amber-400">PREVISTO: </span>
               </div>
               <div className="space-y-1">
                 <div className="h-2 rounded-full bg-zinc-700"></div>
-                <span className="text-[11px] font-semibold text-zinc-500">AUTORIZADO</span>
+                <span className="text-[11px] font-semibold text-zinc-500">AUTORIZADO: </span>
               </div>
               <div className="space-y-1">
                 <div className="h-2 rounded-full bg-zinc-700"></div>
-                <span className="text-[11px] font-semibold text-zinc-500">BANCA</span>
+                <span className="text-[11px] font-semibold text-zinc-500">BANCA: </span>
               </div>
               <div className="space-y-1">
                 <div className="h-2 rounded-full bg-zinc-700"></div>
-                <span className="text-[11px] font-semibold text-zinc-500">EDITAL</span>
+                <span className="text-[11px] font-semibold text-zinc-500">EDITAL: </span>
               </div>
-              <div className="space-y-1">
+                <div className="space-y-1">
                 <div className="h-2 rounded-full bg-zinc-700"></div>
-                <span className="text-[11px] font-semibold text-zinc-500">INSCRIÇÕES</span>
+                <span className="text-[11px] font-semibold text-zinc-500">INSCRIÇÕES: </span>
               </div>
             </div>
           </div>
@@ -137,31 +246,16 @@ export default function HomePage() {
           {/* No Radar / Alerta */}
           <div className="p-5 rounded-2xl bg-zinc-900/90 border-l-4 border-amber-400 border-t border-r border-b border-zinc-800 space-y-1.5">
             <p className="font-extrabold text-xs text-amber-400 uppercase tracking-wider">
-              🚨 NO RADAR:
+              🚨 NO RADAR: :
             </p>
             <p className="text-xs sm:text-sm text-zinc-300 leading-relaxed font-medium">
-              O tribunal confirmou estudos para um novo edital. As listas da 2ª, 4ª, 5ª, 6ª, 8ª e 9ª RAJs vencem até junho de 2027 — o relógio está correndo.
+              Possivel publicação do edital em 2026, com inscrições previstas para o mesmo ano. Acompanhe as atualizações e prepare-se para garantir sua vaga!
             </p>
           </div>
 
           {/* Atalhos Rápidos para Estudo */}
           <div className="pt-4 border-t border-zinc-800 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <span className="text-xs text-zinc-500">Atualizado em 23/09/2026 • Sujeito a mudanças</span>
-            
-            <div className="flex items-center gap-3 w-full sm:w-auto">
-              <Link 
-                href="/desempenho" 
-                className="w-full sm:w-auto px-5 py-3 bg-amber-400 hover:bg-amber-300 text-zinc-950 font-black rounded-xl text-xs transition-all shadow-lg text-center cursor-pointer"
-              >
-                Desempenho
-              </Link>
-              <Link 
-                href="/caderno-revisao" 
-                className="w-full sm:w-auto px-5 py-3 bg-zinc-900 hover:bg-zinc-800 text-zinc-200 font-bold rounded-xl text-xs border border-zinc-700 transition-all text-center cursor-pointer"
-              >
-                Flashcards
-              </Link>
-            </div>
+            <span className="text-xs text-zinc-500">Atualizado em 23/09/2026 • Sujeito a mudanças: </span>
           </div>
 
         </div>

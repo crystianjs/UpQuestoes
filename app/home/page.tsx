@@ -2,12 +2,16 @@
 
 import React from 'react';
 import Navbar from '../components/Navbar';
+import FraseMotivadora from '../components/FraseMotivadora';
 import Link from 'next/link';
 
 export default function HomePage() {
   return (
     <div className="min-h-screen bg-black text-zinc-100 font-sans selection:bg-amber-400 selection:text-zinc-950">
       <Navbar />
+
+      {/* Pop-up Motivacional Automático ao acessar a Home */}
+      <FraseMotivadora />
 
       <main className="w-full px-4 sm:px-8 py-8 space-y-8 max-w-5xl mx-auto">
         

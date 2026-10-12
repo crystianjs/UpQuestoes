@@ -183,7 +183,6 @@ export default function CronogramaPage() {
     alert("Exemplos aplicados com sucesso!");
   };
 
-  // FUNÇÃO CORRIGIDA DE STATUS EXPLICITO
   const definirStatusTarefa = async (diaId: string, tarefaId: string, statusDesejado: boolean, dbId?: string) => {
     if (dbId && userId) {
       await supabase
@@ -502,7 +501,7 @@ export default function CronogramaPage() {
                             </div>
                           </div>
 
-                          <div className="flex items-center justify-end gap-1.5 pt-2 border-t border-zinc-800/60">
+                          <div className="flex items-center justify-between pt-2 border-t border-zinc-800/60">
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -514,46 +513,34 @@ export default function CronogramaPage() {
                               <Pencil className="w-3 h-3 text-blue-400" /> Editar
                             </button>
 
-                            {/* Botão Feito Explícito */}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                definirStatusTarefa(diaObj.id, tarefa.id, true, tarefa.dbId);
-                              }}
-                              className={`px-2.5 py-1 rounded-lg border transition-all text-[11px] font-medium cursor-pointer ${
-                                tarefa.concluida
-                                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
-                                  : 'bg-zinc-800 text-zinc-400 border-zinc-700 hover:bg-emerald-500/20 hover:text-emerald-300'
-                              }`}
-                            >
-                              Feito
-                            </button>
+                            <div className="flex items-center gap-1.5">
+                              {/* Botão Não Feito / Desmarcar com Emojis */}
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  definirStatusTarefa(diaObj.id, tarefa.id, !tarefa.concluida, tarefa.dbId);
+                                }}
+                                className={`px-2.5 py-1 rounded-lg border transition-all text-[11px] font-medium flex items-center gap-1 cursor-pointer ${
+                                  tarefa.concluida
+                                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/30'
+                                    : 'bg-zinc-800 text-zinc-400 border-zinc-700 hover:bg-zinc-700 hover:text-zinc-200'
+                                }`}
+                                title="Alternar status"
+                              >
+                                {tarefa.concluida ? '✅ Feito' : '❌ Não feito'}
+                              </button>
 
-                            {/* Botão Não feito Explícito */}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                definirStatusTarefa(diaObj.id, tarefa.id, false, tarefa.dbId);
-                              }}
-                              className={`px-2.5 py-1 rounded-lg border transition-all text-[11px] font-medium cursor-pointer ${
-                                !tarefa.concluida
-                                  ? 'bg-zinc-700 text-zinc-200 border-zinc-600'
-                                  : 'bg-zinc-800 text-zinc-400 border-zinc-700 hover:bg-red-600/20 hover:text-red-300'
-                              }`}
-                            >
-                              Não feito
-                            </button>
-
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                removerTarefa(diaObj.id, tarefa.id, tarefa.dbId);
-                              }}
-                              className="px-2.5 py-1 rounded-lg bg-zinc-800/90 text-zinc-400 hover:text-rose-400 hover:bg-rose-600/20 border border-zinc-700/85 transition-all text-[11px] font-medium flex items-center gap-1 cursor-pointer"
-                              title="Excluir Tarefa"
-                            >
-                              <Trash2 className="w-3 h-3 text-rose-400" /> Apagar
-                            </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  removerTarefa(diaObj.id, tarefa.id, tarefa.dbId);
+                                }}
+                                className="px-2 py-1 rounded-lg bg-zinc-800/90 text-zinc-400 hover:text-rose-400 hover:bg-rose-600/20 border border-zinc-700/85 transition-all text-[11px] font-medium flex items-center gap-1 cursor-pointer"
+                                title="Excluir Tarefa"
+                              >
+                                <Trash2 className="w-3 h-3 text-rose-400" />
+                              </button>
+                            </div>
                           </div>
                         </div>
                       ))}

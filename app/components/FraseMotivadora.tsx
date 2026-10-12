@@ -62,7 +62,7 @@ export default function FraseMotivadora() {
             onClick={() => setIsOpen(false)}
             className="w-full py-3 bg-amber-400 hover:bg-amber-300 text-zinc-950 font-black rounded-xl text-xs transition-all shadow-lg shadow-amber-950/40 cursor-pointer uppercase tracking-wider"
           >
-            Vai pra cima! É voce contra você mesmo! 🚀
+            Continue! Disciplina!
           </button>
         </div>
 

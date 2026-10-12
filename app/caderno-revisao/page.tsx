@@ -408,12 +408,20 @@ export default function CadernoRevisaoPage() {
                 return (
                   <div 
                     key={card.id}
-                    className="bg-zinc-900/60 rounded-2xl p-6 sm:p-8 border border-zinc-800/80 shadow-xl space-y-6 relative"
+                    className={`rounded-2xl p-6 sm:p-8 shadow-xl space-y-6 relative transition-all border ${
+                      ehImportante 
+                        ? 'bg-amber-950/20 border-amber-400/60 shadow-amber-500/10' 
+                        : 'bg-zinc-900/60 border-zinc-800/80'
+                    }`}
                   >
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-amber-400/40 gap-3">
+                    <div className={`flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b gap-3 ${ehImportante ? 'border-amber-400/40' : 'border-zinc-800'}`}>
                       <div className="space-y-1 w-full">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-xs font-bold uppercase tracking-wider text-amber-400 bg-amber-400/10 px-2.5 py-1 rounded-md border border-amber-400/20">
+                          <span className={`text-xs font-bold uppercase tracking-wider px-2.5 py-1 rounded-md border ${
+                            ehImportante 
+                              ? 'text-amber-300 bg-amber-400/20 border-amber-400/40' 
+                              : 'text-amber-400 bg-amber-400/10 border-amber-400/20'
+                          }`}>
                             {selectedDisciplina}
                           </span>
                           

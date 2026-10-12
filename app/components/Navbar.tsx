@@ -44,6 +44,19 @@ export default function Navbar() {
         >
           Desempenho
         </Link>
+        
+        {/* Novo Link de Cronograma */}
+        <Link 
+          href="/cronograma" 
+          className={`px-3 py-2 rounded-xl transition-all flex items-center gap-1.5 ${
+            isActive('/cronograma') 
+              ? 'bg-red-600 text-white font-bold shadow-lg shadow-red-600/20' 
+              : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
+          }`}
+        >
+          <CalendarDays className="w-3.5 h-3.5" />
+          Cronograma
+        </Link>
         <Link 
           href="/plano" 
           className={`px-3 py-2 rounded-xl transition-all ${isActive('/plano') ? 'bg-red-600 text-white font-bold shadow-lg shadow-red-600/20' : 'text-zinc-400 hover:text-white hover:bg-zinc-900'}`}
@@ -81,20 +94,7 @@ export default function Navbar() {
           Simulados
         </Link>
 
-        {/* Novo Link de Cronograma */}
-        <Link 
-          href="/cronograma" 
-          className={`px-3 py-2 rounded-xl transition-all flex items-center gap-1.5 ${
-            isActive('/cronograma') 
-              ? 'bg-red-600 text-white font-bold shadow-lg shadow-red-600/20' 
-              : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
-          }`}
-        >
-          <CalendarDays className="w-3.5 h-3.5" />
-          Cronograma
-        </Link>
-
-        {/* Link do Chat IA (Destaque NVIDIA) */}
+        {/* Link do Chat IA (Destaque NVIDIA)
         <Link 
           href="/chat" 
           className={`px-3 py-2 rounded-xl transition-all flex items-center gap-1.5 ${
@@ -105,7 +105,7 @@ export default function Navbar() {
         >
           <Sparkles className="w-3.5 h-3.5 animate-pulse" />
           Chat IA
-        </Link>
+        </Link> */}
       </div>
 
       {/* Botão de Sair */}

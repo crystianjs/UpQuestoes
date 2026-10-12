@@ -10,41 +10,13 @@ import {
 } from 'lucide-react';
 
 const cronogramaPadrao = [
-  {
-    dia: "Segunda-feira",
-    id: "segunda",
-    tarefas: []
-  },
-  {
-    dia: "Terça-feira",
-    id: "terca",
-    tarefas: []
-  },
-  {
-    dia: "Quarta-feira",
-    id: "quarta",
-    tarefas: []
-  },
-  {
-    dia: "Quinta-feira",
-    id: "quinta",
-    tarefas: []
-  },
-  {
-    dia: "Sexta-feira",
-    id: "sexta",
-    tarefas: []
-  },
-  {
-    dia: "Sábado",
-    id: "sabado",
-    tarefas: []
-  },
-  {
-    dia: "Domingo",
-    id: "domingo",
-    tarefas: []
-  }
+  { dia: "Segunda-feira", id: "segunda", tarefas: [] },
+  { dia: "Terça-feira", id: "terca", tarefas: [] },
+  { dia: "Quarta-feira", id: "quarta", tarefas: [] },
+  { dia: "Quinta-feira", id: "quinta", tarefas: [] },
+  { dia: "Sexta-feira", id: "sexta", tarefas: [] },
+  { dia: "Sábado", id: "sabado", tarefas: [] },
+  { dia: "Domingo", id: "domingo", tarefas: [] }
 ];
 
 export default function CronogramaPage() {
@@ -144,21 +116,17 @@ export default function CronogramaPage() {
     }
   };
 
-  // BOTÃO 1: RESETAR CRONOGRAMA COMPLETO (Apaga tarefas locais e do plano de estudos)
   const handleResetarCronograma = async () => {
     if (!userId) return;
     if (!confirm("Deseja realmente resetar e apagar TODAS as tarefas do cronograma para deixa-lo limpo?")) return;
 
     try {
       setCarregando(true);
-
-      // 1. Apaga tarefas vinculadas à tabela cronograma_tarefas no Supabase
       await supabase
         .from('cronograma_tarefas')
         .delete()
         .eq('user_id', userId);
 
-      // 2. Apaga a estrutura salva em user_cronograma_progresso
       const cronogramaVazio = [
         { dia: "Segunda-feira", id: "segunda", tarefas: [] },
         { dia: "Terça-feira", id: "terca", tarefas: [] },
@@ -179,7 +147,6 @@ export default function CronogramaPage() {
     }
   };
 
-  // BOTÃO 2: APLICAR EXEMPLOS
   const handleCarregarExemplos = async () => {
     const atualizado = diasSemana.map((dia) => {
       if (dia.id === "segunda" || dia.id === "terca" || dia.id === "quarta" || dia.id === "quinta" || dia.id === "sexta") {
@@ -216,6 +183,30 @@ export default function CronogramaPage() {
     alert("Exemplos aplicados com sucesso!");
   };
 
+  // FUNÇÃO CORRIGIDA DE STATUS EXPLICITO
+  const definirStatusTarefa = async (diaId: string, tarefaId: string, statusDesejado: boolean, dbId?: string) => {
+    if (dbId && userId) {
+      await supabase
+        .from('cronograma_tarefas')
+        .update({ concluido: statusDesejado })
+        .eq('id', dbId);
+    }
+
+    const atualizado = diasSemana.map((dia) => {
+      if (dia.id === diaId) {
+        const tarefasAtualizadas = dia.tarefas.map((t: any) => {
+          if (t.id === tarefaId) {
+            return { ...t, concluida: statusDesejado };
+          }
+          return t;
+        });
+        return { ...dia, tarefas: tarefasAtualizadas };
+      }
+      return dia;
+    });
+    salvarNoSupabase(atualizado);
+  };
+
   const moverTarefaCima = (diaId: string, tarefaIndex: number) => {
     if (tarefaIndex === 0) return;
     const atualizado = diasSemana.map((dia) => {
@@ -240,32 +231,6 @@ export default function CronogramaPage() {
         novasTarefas[tarefaIndex] = novasTarefas[tarefaIndex + 1];
         novasTarefas[tarefaIndex + 1] = temp;
         return { ...dia, tarefas: novasTarefas };
-      }
-      return dia;
-    });
-    salvarNoSupabase(atualizado);
-  };
-
-  const toggleTarefa = async (diaId: string, tarefaId: string, dbId?: string) => {
-    if (dbId && userId) {
-      const tarefaAtual = diasSemana.find(d => d.id === diaId)?.tarefas.find((t: any) => t.id === tarefaId);
-      if (tarefaAtual) {
-        await supabase
-          .from('cronograma_tarefas')
-          .update({ concluido: !tarefaAtual.concluida })
-          .eq('id', dbId);
-      }
-    }
-
-    const atualizado = diasSemana.map((dia) => {
-      if (dia.id === diaId) {
-        const tarefasAtualizadas = dia.tarefas.map((t: any) => {
-          if (t.id === tarefaId) {
-            return { ...t, concluida: !t.concluida };
-          }
-          return t;
-        });
-        return { ...dia, tarefas: tarefasAtualizadas };
       }
       return dia;
     });
@@ -364,7 +329,6 @@ export default function CronogramaPage() {
 
       <main className="max-w-7xl mx-auto px-6 py-8 space-y-8">
         
-        {/* Cabeçalho com os 2 botões idênticos à imagem */}
         <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 shadow-xl flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
@@ -383,12 +347,10 @@ export default function CronogramaPage() {
             </p>
           </div>
 
-          {/* OS 2 BOTÕES MANTIDOS */}
           <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={handleResetarCronograma}
               className="px-4 py-2.5 bg-zinc-900 hover:bg-rose-950/40 text-rose-400 border border-rose-500/30 hover:border-rose-500 font-extrabold text-xs rounded-xl transition-all shadow-md flex items-center gap-1.5 cursor-pointer"
-              title="Zera absolutamente tudo e limpa o banco"
             >
               Resetar Cronograma
             </button>
@@ -487,7 +449,7 @@ export default function CronogramaPage() {
                           }`}
                         >
                           <div 
-                            onClick={() => toggleTarefa(diaObj.id, tarefa.id, tarefa.dbId)}
+                            onClick={() => definirStatusTarefa(diaObj.id, tarefa.id, !tarefa.concluida, tarefa.dbId)}
                             className="flex items-start gap-2.5 cursor-pointer min-w-0"
                           >
                             <div className="mt-0.5 shrink-0">
@@ -552,18 +514,34 @@ export default function CronogramaPage() {
                               <Pencil className="w-3 h-3 text-blue-400" /> Editar
                             </button>
 
+                            {/* Botão Feito Explícito */}
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                toggleTarefa(diaObj.id, tarefa.id, tarefa.dbId);
+                                definirStatusTarefa(diaObj.id, tarefa.id, true, tarefa.dbId);
                               }}
                               className={`px-2.5 py-1 rounded-lg border transition-all text-[11px] font-medium cursor-pointer ${
                                 tarefa.concluida
-                                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/30'
-                                  : 'bg-zinc-800 text-zinc-300 border-zinc-700 hover:bg-red-600/20 hover:text-red-300 hover:border-red-500/40'
+                                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                                  : 'bg-zinc-800 text-zinc-400 border-zinc-700 hover:bg-emerald-500/20 hover:text-emerald-300'
                               }`}
                             >
-                              {tarefa.concluida ? 'Feito' : 'Não feito'}
+                              Feito
+                            </button>
+
+                            {/* Botão Não feito Explícito */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                definirStatusTarefa(diaObj.id, tarefa.id, false, tarefa.dbId);
+                              }}
+                              className={`px-2.5 py-1 rounded-lg border transition-all text-[11px] font-medium cursor-pointer ${
+                                !tarefa.concluida
+                                  ? 'bg-zinc-700 text-zinc-200 border-zinc-600'
+                                  : 'bg-zinc-800 text-zinc-400 border-zinc-700 hover:bg-red-600/20 hover:text-red-300'
+                              }`}
+                            >
+                              Não feito
                             </button>
 
                             <button
@@ -602,7 +580,6 @@ export default function CronogramaPage() {
 
       </main>
 
-      {/* MODAL DE EDIÇÃO INDIVIDUAL DE TAREFA */}
       {showEditModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-zinc-950 border border-zinc-800 rounded-3xl max-w-md w-full p-6 shadow-2xl relative space-y-4">

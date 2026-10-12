@@ -55,7 +55,8 @@ const mapaInicialExemplo = {
         ],
         conclusoes: ["Sempre monte a fração na ordem exata enunciada no texto."],
         pegadinha: "Cuidado para não inverter numerador e denominador."
-      }
+      },
+      importante: false
     }
   ]
 };
@@ -94,7 +95,8 @@ Retorne EXCLUSIVAMENTE o JSON válido, seguindo esta estrutura exata:
         "casosPraticos": [{"titulo": "CASO", "texto": "..."}],
         "conclusoes": ["Conclusão"],
         "pegadinha": "Cuidado..."
-      }
+      },
+      "importante": false
     }
   ]
 }`;
@@ -122,14 +124,10 @@ export default function MapaMentalPage() {
     try {
       setCarregando(true);
       
-      // 1. Tenta carregar do espelho/backup de segurança primeiro
-      let { data: dadosEspelho, error: erroEspelho } = await supabase.from('temp_mapas_mentais').select('*');
-      
-      // 2. Carrega da tabela principal
+      let { data: dadosEspelho } = await supabase.from('temp_mapas_mentais').select('*');
       const { data: dadosPrincipal, error: erroPrincipal } = await supabase.from('mapas_mentais').select('*');
       if (erroPrincipal) throw erroPrincipal;
 
-      // Se o espelho estiver vazio mas a principal tiver dados, fazemos o espelhamento inicial intacto (Popula o backup)
       if ((!dadosEspelho || dadosEspelho.length === 0) && dadosPrincipal && dadosPrincipal.length > 0) {
         for (const item of dadosPrincipal) {
           await supabase.from('temp_mapas_mentais').upsert({
@@ -140,12 +138,10 @@ export default function MapaMentalPage() {
             backed_up_at: new Date().toISOString()
           }, { onConflict: 'disciplina' });
         }
-        // Recarrega o espelho após popular
         const resEspelho = await supabase.from('temp_mapas_mentais').select('*');
         dadosEspelho = resEspelho.data;
       }
 
-      // Usa os dados consolidados com segurança
       const dadosParaUsar = (dadosEspelho && dadosEspelho.length > 0) ? dadosEspelho : dadosPrincipal;
 
       if (dadosParaUsar && dadosParaUsar.length > 0) {
@@ -183,10 +179,8 @@ export default function MapaMentalPage() {
     }
   };
 
-  // FUNÇÃO BLINDADA COM BACKUP PRÉVIO E MERGE SEGURO
   const salvarNoSupabaseComBackup = async (disciplinaAlvo: string, payloadMapa: any) => {
     try {
-      // 1. CRIAÇÃO DE BACKUP NA TABELA TEMPORÁRIA temp_mapas_mentais
       const { data: dadosAtuais } = await supabase
         .from('mapas_mentais')
         .select('*')
@@ -203,7 +197,6 @@ export default function MapaMentalPage() {
         }, { onConflict: 'disciplina' });
       }
 
-      // 2. GRAVAÇÃO NA TABELA OFICIAL
       const { error } = await supabase.from('mapas_mentais').upsert({
         disciplina: disciplinaAlvo,
         titulo: payloadMapa.titulo,
@@ -231,10 +224,8 @@ export default function MapaMentalPage() {
           const idsConflitantes = novosRamosValidos.filter((r: any) => idsExistentes.has(r.id));
 
           if (idsConflitantes.length > 0) {
-            const confirmar = confirm(`⚠️ ALERTA DE SEGURANÇA: Encontramos ${idsConflitantes.length} ID(s) repetidos (ex: "${idsConflitantes[0].id}"). Deseja mesclar atualizando estes itens? (Um backup temporário será criado na tabela temp_mapas_mentais antes de prosseguir).`);
-            if (!confirmar) {
-              return; // Bloqueia totalmente para proteger seus dados
-            }
+            const confirmar = confirm(`⚠️ ALERTA DE SEGURANÇA: Encontramos ${idsConflitantes.length} ID(s) repetidos. Deseja mesclar atualizando estes itens?`);
+            if (!confirmar) return;
           }
 
           const ramosAtualizadosMap = new Map();
@@ -259,13 +250,31 @@ export default function MapaMentalPage() {
         setJsonInputText('');
         setSelectedDisciplina(modalDisciplinaAlvo);
         setSelectedAssunto('all');
-        alert(`Backup criado com sucesso e conteúdo incorporado para ${modalDisciplinaAlvo}!`);
+        alert(`Conteúdo incorporado com segurança para ${modalDisciplinaAlvo}!`);
       } else {
         alert('O JSON precisa conter obrigatoriamente a chave "ramos".');
       }
     } catch (e) {
       alert('Erro de sintaxe no JSON.');
     }
+  };
+
+  const toggleImportante = async (ramoId: string) => {
+    if (!mapaAtual) return;
+
+    const ramosAtualizados = mapaAtual.ramos.map((r: any) => {
+      if (r && r.id === ramoId) {
+        return { ...r, importante: !r.importante };
+      }
+      return r;
+    });
+
+    const payloadAtualizado = {
+      ...mapaAtual,
+      ramos: ramosAtualizados
+    };
+
+    await salvarNoSupabaseComBackup(selectedDisciplina, payloadAtualizado);
   };
 
   const salvarAssuntoEditado = async (ramoId: string) => {
@@ -431,16 +440,25 @@ export default function MapaMentalPage() {
                 if (!ramo) return null;
                 const estaEditando = editandoRamoId === ramo.id;
                 const assuntoExibicao = ramo.assunto || "Sem Assunto";
+                const ehImportante = ramo.importante === true;
 
                 return (
                   <div 
                     key={ramo.id}
-                    className="bg-zinc-900/60 rounded-2xl p-6 sm:p-8 border border-zinc-800/80 shadow-xl space-y-6 relative"
+                    className={`rounded-2xl p-6 sm:p-8 shadow-xl space-y-6 relative transition-all border ${
+                      ehImportante 
+                        ? 'bg-amber-950/20 border-amber-400/60 shadow-amber-500/10' 
+                        : 'bg-zinc-900/60 border-zinc-800/80'
+                    }`}
                   >
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-amber-400/40 gap-3">
+                    <div className={`flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b gap-3 ${ehImportante ? 'border-amber-400/40' : 'border-zinc-800'}`}>
                       <div className="space-y-1 w-full">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-xs font-bold uppercase tracking-wider text-amber-400 bg-amber-400/10 px-2.5 py-1 rounded-md border border-amber-400/20">
+                          <span className={`text-xs font-bold uppercase tracking-wider px-2.5 py-1 rounded-md border ${
+                            ehImportante 
+                              ? 'text-amber-300 bg-amber-400/20 border-amber-400/40' 
+                              : 'text-amber-400 bg-amber-400/10 border-amber-400/20'
+                          }`}>
                             {selectedDisciplina}
                           </span>
 
@@ -489,10 +507,23 @@ export default function MapaMentalPage() {
                         </h2>
                       </div>
 
-                      <div className="flex items-center gap-2 self-start sm:self-center">
+                      <div className="flex items-center gap-2 self-start sm:self-center shrink-0">
+                        {/* Botão Importante */}
+                        <button
+                          onClick={() => toggleImportante(ramo.id)}
+                          className={`text-xs font-extrabold px-3 py-1 rounded-lg border transition-all cursor-pointer shadow-md ${
+                            ehImportante
+                              ? 'bg-amber-400 text-zinc-950 border-amber-300 ring-2 ring-amber-400/50'
+                              : 'bg-zinc-950 text-amber-400/70 border-amber-500/30 hover:text-amber-400 hover:border-amber-400/50'
+                          }`}
+                        >
+                          ⭐ Importante
+                        </button>
+
                         <span className="text-xs font-bold px-3 py-1 rounded-lg bg-zinc-950 text-amber-400 border border-amber-400/30 whitespace-nowrap">
                           {ramo.tag}
                         </span>
+
                         <button
                           onClick={() => excluirRamo(ramo.id)}
                           className="text-zinc-500 hover:text-rose-400 bg-zinc-950 p-2 rounded-lg border border-zinc-800 hover:border-rose-500/40 transition-all text-xs cursor-pointer"
@@ -507,7 +538,11 @@ export default function MapaMentalPage() {
                       {ramo.subnos && ramo.subnos.map((sub: any, idx: number) => (
                         <div 
                           key={idx} 
-                          className={`p-5 sm:p-6 rounded-xl bg-zinc-950 border-l-4 border-amber-400 border-t border-r border-b border-zinc-800/80 shadow-md space-y-3 ${ramo.tipo === 'exatas' ? 'font-mono' : ''}`}
+                          className={`p-5 sm:p-6 rounded-xl border-l-4 border-amber-400 shadow-md space-y-3 transition-all ${
+                            ehImportante 
+                              ? 'bg-zinc-900/90 border-t border-r border-b border-amber-400/40' 
+                              : 'bg-zinc-950 border-t border-r border-b border-zinc-800/80'
+                          } ${ramo.tipo === 'exatas' ? 'font-mono' : ''}`}
                         >
                           {sub.titulo && (
                             <h3 className="text-sm sm:text-base font-bold text-amber-300 leading-snug">

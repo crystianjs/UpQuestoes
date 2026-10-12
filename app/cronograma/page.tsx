@@ -6,7 +6,7 @@ import Navbar from '../components/Navbar';
 import { supabase } from '@/lib/supabase';
 import { 
   BookOpen, Briefcase, Utensils, Moon, Laptop, Smile, 
-  CheckCircle2, Circle, Calendar, Trash2, Sparkles, Quote, Pencil, Plus, ArrowUp, ArrowDown
+  CheckCircle2, Circle, XCircle, Calendar, Trash2, Sparkles, Quote, Pencil, Plus, ArrowUp, ArrowDown
 } from 'lucide-react';
 
 const cronogramaPadrao = [
@@ -82,7 +82,7 @@ export default function CronogramaPage() {
               horario: tp.horario || '08h00 - 09h00',
               titulo: `${tp.materia} — ${tp.assunto_titulo || (tp.tipo === 'revisao' ? 'Revisão' : 'Teórico')}`,
               icone: tp.icone || 'BookOpen',
-              concluida: tp.concluido,
+              estado: tp.concluido ? 'feito' : 'padrao', // 'padrao' | 'feito' | 'nao_feito'
               dbId: tp.id
             }));
 
@@ -153,9 +153,9 @@ export default function CronogramaPage() {
         return {
           ...dia,
           tarefas: [
-            { id: 'ex_1_' + Math.random(), horario: "05h00 - 07h00", titulo: "Bloco de Ouro 1 (Vídeo aula + Exercícios VUNESP)", icone: "BookOpen", concluida: false },
-            { id: 'ex_2_' + Math.random(), horario: "07h45 - 19h00", titulo: "Período de Trabalho e Deslocamento", icone: "Briefcase", concluida: false },
-            { id: 'ex_3_' + Math.random(), horario: "20h00 - 21h40", titulo: "Bloco de Ouro 2 (Questões UpQuest-es + Flashcards)", icone: "BookOpen", concluida: false }
+            { id: 'ex_1_' + Math.random(), horario: "05h00 - 07h00", titulo: "Bloco de Ouro 1 (Vídeo aula + Exercícios VUNESP)", icone: "BookOpen", estado: 'padrao' },
+            { id: 'ex_2_' + Math.random(), horario: "07h45 - 19h00", titulo: "Período de Trabalho e Deslocamento", icone: "Briefcase", estado: 'padrao' },
+            { id: 'ex_3_' + Math.random(), horario: "20h00 - 21h40", titulo: "Bloco de Ouro 2 (Questões UpQuest-es + Flashcards)", icone: "BookOpen", estado: 'padrao' }
           ]
         };
       }
@@ -163,8 +163,8 @@ export default function CronogramaPage() {
         return {
           ...dia,
           tarefas: [
-            { id: 'ex_4_' + Math.random(), horario: "09h00 - 12h00", titulo: "Treino Especial de Redação VUNESP", icone: "BookOpen", concluida: false },
-            { id: 'ex_5_' + Math.random(), horario: "12h00 em diante", titulo: "Descanso Total e Lazer", icone: "Smile", concluida: false }
+            { id: 'ex_4_' + Math.random(), horario: "09h00 - 12h00", titulo: "Treino Especial de Redação VUNESP", icone: "BookOpen", estado: 'padrao' },
+            { id: 'ex_5_' + Math.random(), horario: "12h00 em diante", titulo: "Descanso Total e Lazer", icone: "Smile", estado: 'padrao' }
           ]
         };
       }
@@ -172,7 +172,7 @@ export default function CronogramaPage() {
         return {
           ...dia,
           tarefas: [
-            { id: 'ex_6_' + Math.random(), horario: "10h00", titulo: "Simulado e Ajustes de Desempenho", icone: "BookOpen", concluida: false }
+            { id: 'ex_6_' + Math.random(), horario: "10h00", titulo: "Simulado e Ajustes de Desempenho", icone: "BookOpen", estado: 'padrao' }
           ]
         };
       }
@@ -183,11 +183,22 @@ export default function CronogramaPage() {
     alert("Exemplos aplicados com sucesso!");
   };
 
-  const definirStatusTarefa = async (diaId: string, tarefaId: string, statusDesejado: boolean, dbId?: string) => {
+  // Altera o estado: 'padrao' -> 'feito' -> 'nao_feito' -> 'padrao'
+  const alternarEstadoTarefa = async (diaId: string, tarefaId: string, dbId?: string) => {
+    const diaEncontrado = diasSemana.find(d => d.id === diaId);
+    const tarefaAtual = diaEncontrado?.tarefas.find((t: any) => t.id === tarefaId);
+    if (!tarefaAtual) return;
+
+    let proximoEstado = 'feito';
+    if (tarefaAtual.estado === 'feito') proximoEstado = 'nao_feito';
+    else if (tarefaAtual.estado === 'nao_feito') proximoEstado = 'padrao';
+    else proximoEstado = 'feito';
+
+    const isConcluidoDb = proximoEstado === 'feito';
     if (dbId && userId) {
       await supabase
         .from('cronograma_tarefas')
-        .update({ concluido: statusDesejado })
+        .update({ concluido: isConcluidoDb })
         .eq('id', dbId);
     }
 
@@ -195,7 +206,31 @@ export default function CronogramaPage() {
       if (dia.id === diaId) {
         const tarefasAtualizadas = dia.tarefas.map((t: any) => {
           if (t.id === tarefaId) {
-            return { ...t, concluida: statusDesejado };
+            return { ...t, estado: proximoEstado };
+          }
+          return t;
+        });
+        return { ...dia, tarefas: tarefasAtualizadas };
+      }
+      return dia;
+    });
+    salvarNoSupabase(atualizado);
+  };
+
+  const definirEstadoEspecifico = async (diaId: string, tarefaId: string, novoEstado: string, dbId?: string) => {
+    const isConcluidoDb = novoEstado === 'feito';
+    if (dbId && userId) {
+      await supabase
+        .from('cronograma_tarefas')
+        .update({ concluido: isConcluidoDb })
+        .eq('id', dbId);
+    }
+
+    const atualizado = diasSemana.map((dia) => {
+      if (dia.id === diaId) {
+        const tarefasAtualizadas = dia.tarefas.map((t: any) => {
+          if (t.id === tarefaId) {
+            return { ...t, estado: novoEstado };
           }
           return t;
         });
@@ -283,7 +318,7 @@ export default function CronogramaPage() {
           ...dia,
           tarefas: [
             ...dia.tarefas,
-            { id: novaId, horario: "Novo Horário", titulo: "Nova Tarefa de Estudo", icone: "BookOpen", concluida: false }
+            { id: novaId, horario: "Novo Horário", titulo: "Nova Tarefa de Estudo", icone: "BookOpen", estado: 'padrao' }
           ]
         };
       }
@@ -396,7 +431,8 @@ export default function CronogramaPage() {
             {diasSemana.map((diaObj, index) => {
               const isHoje = index === diaAtualIndex;
               const totalTarefas = diaObj.tarefas.length;
-              const tarefasConcluidas = diaObj.tarefas.filter((t: any) => t.concluida).length;
+              // Apenas as com estado 'feito' contam para o progresso da barra
+              const tarefasConcluidas = diaObj.tarefas.filter((t: any) => t.estado === 'feito').length;
               const progresso = totalTarefas > 0 ? Math.round((tarefasConcluidas / totalTarefas) * 100) : 0;
 
               return (
@@ -436,114 +472,124 @@ export default function CronogramaPage() {
                     </div>
 
                     <div className="space-y-3">
-                      {diaObj.tarefas.map((tarefa: any, tarefaIdx: number) => (
-                        <div 
-                          key={tarefa.id}
-                          className={`p-3.5 rounded-xl border transition-all flex flex-col gap-3 group/item ${
-                            tarefa.concluida 
-                              ? 'bg-zinc-900/40 border-zinc-900/80 opacity-60' 
-                              : tarefa.id.startsWith('plano_') 
-                              ? 'bg-blue-950/20 border-blue-900/50 shadow-sm'
-                              : 'bg-zinc-900/80 border-zinc-800/80 hover:border-zinc-700 hover:bg-zinc-900 shadow-sm'
-                          }`}
-                        >
+                      {diaObj.tarefas.map((tarefa: any, tarefaIdx: number) => {
+                        const isFeito = tarefa.estado === 'feito';
+                        const isNaoFeito = tarefa.estado === 'nao_feito';
+
+                        return (
                           <div 
-                            onClick={() => definirStatusTarefa(diaObj.id, tarefa.id, !tarefa.concluida, tarefa.dbId)}
-                            className="flex items-start gap-2.5 cursor-pointer min-w-0"
+                            key={tarefa.id}
+                            className={`p-3.5 rounded-xl border transition-all flex flex-col gap-3 group/item ${
+                              isFeito 
+                                ? 'bg-zinc-900/40 border-emerald-500/40 opacity-70' 
+                                : isNaoFeito
+                                ? 'bg-rose-950/20 border-rose-500/50 shadow-sm'
+                                : tarefa.id.startsWith('plano_') 
+                                ? 'bg-blue-950/20 border-blue-900/50 shadow-sm'
+                                : 'bg-zinc-900/80 border-zinc-800/80 hover:border-zinc-700 hover:bg-zinc-900 shadow-sm'
+                            }`}
                           >
-                            <div className="mt-0.5 shrink-0">
-                              {tarefa.concluida ? (
-                                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                              ) : (
-                                <Circle className="w-4 h-4 text-zinc-600 group-hover/item:text-zinc-400 transition-colors" />
-                              )}
-                            </div>
-
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center justify-between gap-1 mb-1">
-                                <div className="flex items-center gap-1.5 text-[11px] font-semibold text-amber-400">
-                                  {renderIcone(tarefa.icone, "w-3.5 h-3.5")}
-                                  <span>{tarefa.horario}</span>
-                                  {tarefa.id.startsWith('plano_') && (
-                                    <span className="text-[9px] bg-blue-500/20 text-blue-300 px-1.5 py-0.5 rounded border border-blue-500/30">Plano</span>
-                                  )}
-                                </div>
-
-                                <div className="flex items-center gap-0.5 bg-zinc-950/80 border border-zinc-800/80 rounded-md p-0.5">
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      moverTarefaCima(diaObj.id, tarefaIdx);
-                                    }}
-                                    disabled={tarefaIdx === 0}
-                                    title="Mover para cima"
-                                    className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 disabled:opacity-25 cursor-pointer transition-colors"
-                                  >
-                                    <ArrowUp className="w-3 h-3" />
-                                  </button>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      moverTarefaBaixo(diaObj.id, tarefaIdx);
-                                    }}
-                                    disabled={tarefaIdx === diaObj.tarefas.length - 1}
-                                    title="Mover para baixo"
-                                    className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 disabled:opacity-25 cursor-pointer transition-colors"
-                                  >
-                                    <ArrowDown className="w-3 h-3" />
-                                  </button>
-                                </div>
+                            <div 
+                              onClick={() => alternarEstadoTarefa(diaObj.id, tarefa.id, tarefa.dbId)}
+                              className="flex items-start gap-2.5 cursor-pointer min-w-0"
+                            >
+                              <div className="mt-0.5 shrink-0">
+                                {isFeito ? (
+                                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                                ) : isNaoFeito ? (
+                                  <XCircle className="w-4 h-4 text-rose-500" />
+                                ) : (
+                                  <Circle className="w-4 h-4 text-zinc-600 group-hover/item:text-zinc-400 transition-colors" />
+                                )}
                               </div>
 
-                              <p className={`text-xs leading-relaxed transition-colors break-words whitespace-pre-wrap ${tarefa.concluida ? 'text-zinc-500 line-through' : 'text-zinc-200'}`}>
-                                {tarefa.titulo}
-                              </p>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between gap-1 mb-1">
+                                  <div className="flex items-center gap-1.5 text-[11px] font-semibold text-amber-400">
+                                    {renderIcone(tarefa.icone, "w-3.5 h-3.5")}
+                                    <span>{tarefa.horario}</span>
+                                    {tarefa.id.startsWith('plano_') && (
+                                      <span className="text-[9px] bg-blue-500/20 text-blue-300 px-1.5 py-0.5 rounded border border-blue-500/30">Plano</span>
+                                    )}
+                                  </div>
+
+                                  <div className="flex items-center gap-0.5 bg-zinc-950/80 border border-zinc-800/80 rounded-md p-0.5">
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        moverTarefaCima(diaObj.id, tarefaIdx);
+                                      }}
+                                      disabled={tarefaIdx === 0}
+                                      title="Mover para cima"
+                                      className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 disabled:opacity-25 cursor-pointer transition-colors"
+                                    >
+                                      <ArrowUp className="w-3 h-3" />
+                                    </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        moverTarefaBaixo(diaObj.id, tarefaIdx);
+                                      }}
+                                      disabled={tarefaIdx === diaObj.tarefas.length - 1}
+                                      title="Mover para baixo"
+                                      className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 disabled:opacity-25 cursor-pointer transition-colors"
+                                    >
+                                      <ArrowDown className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                </div>
+
+                                <p className={`text-xs leading-relaxed transition-colors break-words whitespace-pre-wrap ${isFeito ? 'text-zinc-500 line-through' : isNaoFeito ? 'text-rose-200' : 'text-zinc-200'}`}>
+                                  {tarefa.titulo}
+                                </p>
+                              </div>
                             </div>
-                          </div>
 
-                          <div className="flex items-center justify-between pt-2 border-t border-zinc-800/60">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                abrirEdicaoTarefa(diaObj.id, tarefa);
-                              }}
-                              className="px-2.5 py-1 rounded-lg bg-zinc-800/90 text-zinc-300 hover:text-white hover:bg-blue-600/30 border border-zinc-700/85 transition-all text-[11px] font-medium flex items-center gap-1 cursor-pointer"
-                              title="Editar Tarefa"
-                            >
-                              <Pencil className="w-3 h-3 text-blue-400" /> Editar
-                            </button>
-
-                            <div className="flex items-center gap-1.5">
-                              {/* Botão Não Feito / Desmarcar com Emojis */}
+                            <div className="flex items-center justify-between pt-2 border-t border-zinc-800/60">
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  definirStatusTarefa(diaObj.id, tarefa.id, !tarefa.concluida, tarefa.dbId);
+                                  abrirEdicaoTarefa(diaObj.id, tarefa);
                                 }}
-                                className={`px-2.5 py-1 rounded-lg border transition-all text-[11px] font-medium flex items-center gap-1 cursor-pointer ${
-                                  tarefa.concluida
-                                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/30'
-                                    : 'bg-zinc-800 text-zinc-400 border-zinc-700 hover:bg-zinc-700 hover:text-zinc-200'
-                                }`}
-                                title="Alternar status"
+                                className="px-2.5 py-1 rounded-lg bg-zinc-800/90 text-zinc-300 hover:text-white hover:bg-blue-600/30 border border-zinc-700/85 transition-all text-[11px] font-medium flex items-center gap-1 cursor-pointer"
+                                title="Editar Tarefa"
                               >
-                                {tarefa.concluida ? '✅ Feito' : '❌ Não feito'}
+                                <Pencil className="w-3 h-3 text-blue-400" /> Editar
                               </button>
 
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  removerTarefa(diaObj.id, tarefa.id, tarefa.dbId);
-                                }}
-                                className="px-2 py-1 rounded-lg bg-zinc-800/90 text-zinc-400 hover:text-rose-400 hover:bg-rose-600/20 border border-zinc-700/85 transition-all text-[11px] font-medium flex items-center gap-1 cursor-pointer"
-                                title="Excluir Tarefa"
-                              >
-                                <Trash2 className="w-3 h-3 text-rose-400" />
-                              </button>
+                              <div className="flex items-center gap-1.5">
+                                {/* Botão Não Feito (Fica vermelho e não sobe barra) */}
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const novoSt = isNaoFeito ? 'padrao' : 'nao_feito';
+                                    definirEstadoEspecifico(diaObj.id, tarefa.id, novoSt, tarefa.dbId);
+                                  }}
+                                  className={`px-2.5 py-1 rounded-lg border transition-all text-[11px] font-medium flex items-center gap-1 cursor-pointer ${
+                                    isNaoFeito
+                                      ? 'bg-rose-600 text-white border-rose-500 shadow-md shadow-rose-950'
+                                      : 'bg-zinc-800 text-zinc-400 border-zinc-700 hover:bg-rose-950/50 hover:text-rose-300 hover:border-rose-800'
+                                  }`}
+                                  title="Marcar como Não Feito"
+                                >
+                                  ❌ Não feito
+                                </button>
+
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    removerTarefa(diaObj.id, tarefa.id, tarefa.dbId);
+                                  }}
+                                  className="px-2 py-1 rounded-lg bg-zinc-800/90 text-zinc-400 hover:text-rose-400 hover:bg-rose-600/20 border border-zinc-700/85 transition-all text-[11px] font-medium flex items-center gap-1 cursor-pointer"
+                                  title="Excluir Tarefa"
+                                >
+                                  <Trash2 className="w-3 h-3 text-rose-400" />
+                                </button>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
 
                     <button

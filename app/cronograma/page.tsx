@@ -78,8 +78,7 @@ export default function CronogramaPage() {
           const tarefasDoDia = tarefasPlano
             .filter((tp: any) => (tp.dia_semana || 'segunda') === d.id)
             .map((tp: any) => {
-              // Identifica o tipo do bloco vindo do plano de estudos para exibir o rótulo e cor correta
-              let rotuloTipo = 'Teórico';
+              let rotuloTipo = 'Aula / Teoria';
               let iconePadrao = 'BookOpen';
               if (tp.tipo === 'revisao') {
                 rotuloTipo = 'Revisão';
@@ -427,7 +426,7 @@ export default function CronogramaPage() {
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <blockquote className="bg-zinc-950/90 border border-amber-500/30 rounded-xl p-3.5 text-xs italic text-amber-300 shadow-md">
-                  &ldquo;Notem bem: não tem milagre se você não tiver se preparado.&rdquo;
+                  &ldquo;Notem bem: não tem milagre se você não tiver se prepared.&rdquo;
                 </blockquote>
                 <blockquote className="bg-zinc-950/90 border border-amber-500/30 rounded-xl p-3.5 text-xs italic text-amber-300 shadow-md">
                   &ldquo;Algumas conquistas são sempre antecedidas de algumas dores.&rdquo;
@@ -536,7 +535,7 @@ export default function CronogramaPage() {
                                           ? 'bg-amber-500/20 text-amber-300 border-amber-500/30' 
                                           : 'bg-blue-500/20 text-blue-300 border-blue-500/30'
                                       }`}>
-                                        {isQuestao ? 'Questões' : isRevisao ? 'Revisão' : 'Plano'}
+                                        {isQuestao ? 'Questões' : isRevisao ? 'Revisão' : 'Aula / Teoria'}
                                       </span>
                                     )}
                                   </div>
@@ -571,7 +570,6 @@ export default function CronogramaPage() {
                                   {tarefa.titulo}
                                 </p>
 
-                                {/* Exibe o assunto em destaque no card do cronograma */}
                                 {tarefa.materia && (
                                   <div className="mt-1.5 flex items-center gap-1.5">
                                     <span className="text-[10px] font-bold text-zinc-400 bg-zinc-900/90 px-2 py-0.5 rounded border border-zinc-800">

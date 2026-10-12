@@ -6,7 +6,7 @@ import Navbar from '../components/Navbar';
 import { supabase } from '@/lib/supabase';
 import { 
   BookOpen, Briefcase, Utensils, Moon, Laptop, Smile, 
-  CheckCircle2, Circle, XCircle, Calendar, Trash2, Sparkles, Quote, Pencil, Plus, ArrowUp, ArrowDown
+  CheckCircle2, Circle, XCircle, Calendar, Trash2, Sparkles, Quote, Pencil, Plus, ArrowUp, ArrowDown, HelpCircle
 } from 'lucide-react';
 
 const cronogramaPadrao = [
@@ -77,14 +77,29 @@ export default function CronogramaPage() {
         estruturaDias = estruturaDias.map((d: any) => {
           const tarefasDoDia = tarefasPlano
             .filter((tp: any) => (tp.dia_semana || 'segunda') === d.id)
-            .map((tp: any) => ({
-              id: `plano_${tp.id}`,
-              horario: tp.horario || '08h00 - 09h00',
-              titulo: `${tp.materia} — ${tp.assunto_titulo || (tp.tipo === 'revisao' ? 'Revisão' : 'Teórico')}`,
-              icone: tp.icone || 'BookOpen',
-              estado: tp.concluido ? 'feito' : 'padrao', // 'padrao' | 'feito' | 'nao_feito'
-              dbId: tp.id
-            }));
+            .map((tp: any) => {
+              // Identifica o tipo do bloco vindo do plano de estudos para exibir o rótulo e cor correta
+              let rotuloTipo = 'Teórico';
+              let iconePadrao = 'BookOpen';
+              if (tp.tipo === 'revisao') {
+                rotuloTipo = 'Revisão';
+              } else if (tp.tipo === 'questao') {
+                rotuloTipo = 'Questões';
+                iconePadrao = 'HelpCircle';
+              }
+
+              return {
+                id: `plano_${tp.id}`,
+                horario: tp.horario || '08h00 - 09h00',
+                materia: tp.materia,
+                assunto: tp.assunto_titulo || rotuloTipo,
+                tipo: tp.tipo || 'teorico',
+                titulo: `${tp.materia} — ${tp.assunto_titulo || rotuloTipo}`,
+                icone: tp.icone || iconePadrao,
+                estado: tp.concluido ? 'feito' : 'padrao',
+                dbId: tp.id
+              };
+            });
 
           const semAntigasDoPlano = d.tarefas.filter((t: any) => !t.id.startsWith('plano_'));
           return {
@@ -183,7 +198,6 @@ export default function CronogramaPage() {
     alert("Exemplos aplicados com sucesso!");
   };
 
-  // Altera o estado: 'padrao' -> 'feito' -> 'nao_feito' -> 'padrao'
   const alternarEstadoTarefa = async (diaId: string, tarefaId: string, dbId?: string) => {
     const diaEncontrado = diasSemana.find(d => d.id === diaId);
     const tarefaAtual = diaEncontrado?.tarefas.find((t: any) => t.id === tarefaId);
@@ -353,6 +367,7 @@ export default function CronogramaPage() {
       case 'Moon': return <Moon className={className} />;
       case 'Laptop': return <Laptop className={className} />;
       case 'Smile': return <Smile className={className} />;
+      case 'HelpCircle': return <HelpCircle className={className} />;
       default: return <BookOpen className={className} />;
     }
   };
@@ -377,7 +392,7 @@ export default function CronogramaPage() {
               Cronograma Semanal Integrado
             </h1>
             <p className="text-xs text-zinc-400 mt-0.5">
-              As matérias e redações atribuídas no seu plano de estudos aparecem automaticamente nos dias selecionados.
+              As matérias, revisões e questões atribuídas no seu plano de estudos aparecem automaticamente nos dias selecionados.
             </p>
           </div>
 
@@ -431,7 +446,6 @@ export default function CronogramaPage() {
             {diasSemana.map((diaObj, index) => {
               const isHoje = index === diaAtualIndex;
               const totalTarefas = diaObj.tarefas.length;
-              // Apenas as com estado 'feito' contam para o progresso da barra
               const tarefasConcluidas = diaObj.tarefas.filter((t: any) => t.estado === 'feito').length;
               const progresso = totalTarefas > 0 ? Math.round((tarefasConcluidas / totalTarefas) * 100) : 0;
 
@@ -475,6 +489,8 @@ export default function CronogramaPage() {
                       {diaObj.tarefas.map((tarefa: any, tarefaIdx: number) => {
                         const isFeito = tarefa.estado === 'feito';
                         const isNaoFeito = tarefa.estado === 'nao_feito';
+                        const isQuestao = tarefa.tipo === 'questao';
+                        const isRevisao = tarefa.tipo === 'revisao';
 
                         return (
                           <div 
@@ -484,6 +500,10 @@ export default function CronogramaPage() {
                                 ? 'bg-zinc-900/40 border-emerald-500/40 opacity-70' 
                                 : isNaoFeito
                                 ? 'bg-rose-950/20 border-rose-500/50 shadow-sm'
+                                : isQuestao
+                                ? 'bg-emerald-950/20 border-emerald-900/50 shadow-sm'
+                                : isRevisao
+                                ? 'bg-amber-950/20 border-amber-900/50 shadow-sm'
                                 : tarefa.id.startsWith('plano_') 
                                 ? 'bg-blue-950/20 border-blue-900/50 shadow-sm'
                                 : 'bg-zinc-900/80 border-zinc-800/80 hover:border-zinc-700 hover:bg-zinc-900 shadow-sm'
@@ -509,7 +529,15 @@ export default function CronogramaPage() {
                                     {renderIcone(tarefa.icone, "w-3.5 h-3.5")}
                                     <span>{tarefa.horario}</span>
                                     {tarefa.id.startsWith('plano_') && (
-                                      <span className="text-[9px] bg-blue-500/20 text-blue-300 px-1.5 py-0.5 rounded border border-blue-500/30">Plano</span>
+                                      <span className={`text-[9px] px-1.5 py-0.5 rounded border ${
+                                        isQuestao 
+                                          ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' 
+                                          : isRevisao 
+                                          ? 'bg-amber-500/20 text-amber-300 border-amber-500/30' 
+                                          : 'bg-blue-500/20 text-blue-300 border-blue-500/30'
+                                      }`}>
+                                        {isQuestao ? 'Questões' : isRevisao ? 'Revisão' : 'Plano'}
+                                      </span>
                                     )}
                                   </div>
 
@@ -542,6 +570,15 @@ export default function CronogramaPage() {
                                 <p className={`text-xs leading-relaxed transition-colors break-words whitespace-pre-wrap ${isFeito ? 'text-zinc-500 line-through' : isNaoFeito ? 'text-rose-200' : 'text-zinc-200'}`}>
                                   {tarefa.titulo}
                                 </p>
+
+                                {/* Exibe o assunto em destaque no card do cronograma */}
+                                {tarefa.materia && (
+                                  <div className="mt-1.5 flex items-center gap-1.5">
+                                    <span className="text-[10px] font-bold text-zinc-400 bg-zinc-900/90 px-2 py-0.5 rounded border border-zinc-800">
+                                      {tarefa.materia}
+                                    </span>
+                                  </div>
+                                )}
                               </div>
                             </div>
 
@@ -558,7 +595,6 @@ export default function CronogramaPage() {
                               </button>
 
                               <div className="flex items-center gap-1.5">
-                                {/* Botão Não Feito (Fica vermelho e não sobe barra) */}
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
@@ -670,6 +706,7 @@ export default function CronogramaPage() {
                   <option value="Moon">Moon (Sono)</option>
                   <option value="Laptop">Laptop (Tecnologia)</option>
                   <option value="Smile">Smile (Lazer)</option>
+                  <option value="HelpCircle">HelpCircle (Questões)</option>
                 </select>
               </div>
             </div>

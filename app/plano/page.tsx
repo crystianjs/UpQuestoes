@@ -171,7 +171,7 @@ export default function PlanoEstudosPage() {
             Plano de Estudos & Cronograma Atribuído
           </h1>
           <p className="text-xs text-zinc-400 mt-1">
-            Atribua matérias, redação, horários, questões e assuntos específicos diretamente para o dia desejado[cite: 13].
+            Atribua matérias, redação, horários, questões e assuntos específicos diretamente para o dia desejado.
           </p>
         </div>
 

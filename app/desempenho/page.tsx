@@ -39,9 +39,8 @@ export default function DesempenhoPage() {
   const [redacoes, setRedacoes] = useState<RedacaoRegistro[]>([]);
   const [simulados, setSimulados] = useState<SimuladoRegistro[]>([]);
   
-  // Estado para armazenar os flashcards sincronizados da tabela dedicada 'flashcards_progresso'
   const [flashcardsListados, setFlashcardsListados] = useState<Array<{ id: string; assunto: string; disciplina: string; status: string; pergunta: string }>>([]);
-  const [flashcardsStats, setFlashcardsStats] = useState({ bom: 0, medio: 0, ruim: 0, total: 0 });
+  const [flashcardsStats, setFlashcardsStats] = useState({ bom: 0, medio: 0, ruim: 0, pendente: 0, total: 0 });
 
   const [loading, setLoading] = useState(true);
   const [filtroPeriodo, setFiltroPeriodo] = useState<'todas' | 'semana' | 'mes'>('todas');
@@ -56,50 +55,73 @@ export default function DesempenhoPage() {
 
       const userId = session.user.id;
 
-      // Execução em paralelo consultando a tabela dedicada 'flashcards_progresso'
-      const [qRes, rRes, sRes, fRes] = await Promise.all([
+      // Execução em paralelo
+      const [qRes, rRes, sRes, fRes, cardsBaseRes] = await Promise.all([
         supabase.from('user_questions').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
         supabase.from('redaccoes').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
         supabase.from('simulados').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
-        supabase.from('flashcards_progresso').select('*').eq('user_id', userId)
+        supabase.from('flashcards_progresso').select('*').eq('user_id', userId),
+        supabase.from('flashcards').select('*') // Puxa também a base inteira de flashcards para comparar
       ]);
 
       if (qRes.data) setQuestoes(qRes.data);
       if (rRes.data) setRedacoes(rRes.data);
       if (sRes.data) setSimulados(sRes.data);
 
-      // Processamento de Flashcards direto da tabela dedicada 'flashcards_progresso'
       try {
         let listaCards: Array<{ id: string; assunto: string; disciplina: string; status: string; pergunta: string }> = [];
+        const progressoMap = new Map();
 
+        if (fRes.data) {
+          fRes.data.forEach((p: any) => {
+            progressoMap.set(p.card_id || p.id, p);
+          });
+        }
+
+        // Se houver registros na tabela dedicada de progresso
         if (fRes.data && fRes.data.length > 0) {
           fRes.data.forEach((item: any) => {
-            const statusCard = item.status || 'pendente';
             listaCards.push({
-              id: item.card_id,
-              assunto: item.assunto || 'Assunto Geral',
-              disciplina: item.disciplina || 'Geral',
-              status: statusCard,
-              pergunta: item.pergunta || 'Pergunta do card'
+              id: item.card_id || item.id,
+              assunto: item.assunto || 'Preposição e Semântica',
+              disciplina: item.disciplina || item.materia || 'Língua Portuguesa',
+              status: item.status || 'pendente',
+              pergunta: item.pergunta || item.frente || 'Card cadastrado'
             });
           });
         }
 
-        // Ordenação inteligente priorizando os cards que precisam de revisão (ruim -> medio -> bom -> pendente)
+        // Se houver cartões na base geral que ainda não foram avaliados
+        if (cardsBaseRes.data && cardsBaseRes.data.length > 0) {
+          cardsBaseRes.data.forEach((card: any) => {
+            if (!progressoMap.has(card.id)) {
+              listaCards.push({
+                id: card.id,
+                assunto: card.assunto || 'Preposição e Semântica',
+                disciplina: card.disciplina || card.materia || 'Língua Portuguesa',
+                status: 'pendente',
+                pergunta: card.pergunta || card.frente || 'Novo Card'
+              });
+            }
+          });
+        }
+
+        // Ordenação inteligente: ruim -> medio -> bom -> pendente
         listaCards.sort((a, b) => {
           const peso: Record<string, number> = { ruim: 1, medio: 2, bom: 3, pendente: 4 };
           return (peso[a.status] || 5) - (peso[b.status] || 5);
         });
 
-        let b = 0, m = 0, r = 0;
+        let b = 0, m = 0, r = 0, p = 0;
         listaCards.forEach((fc) => {
           if (fc.status === 'bom') b++;
-          if (fc.status === 'medio') m++;
-          if (fc.status === 'ruim') r++;
+          else if (fc.status === 'medio') m++;
+          else if (fc.status === 'ruim') r++;
+          else p++;
         });
 
         setFlashcardsListados(listaCards);
-        setFlashcardsStats({ bom: b, medio: m, ruim: r, total: b + m + r });
+        setFlashcardsStats({ bom: b, medio: m, ruim: r, pendente: p, total: listaCards.length });
       } catch (e) {
         console.error("Erro ao carregar flashcards", e);
       }
@@ -247,36 +269,39 @@ export default function DesempenhoPage() {
                 <span className="text-[11px] text-zinc-500 mt-1 block">{simuladosFiltrados.length} simulados registados</span>
               </div>
 
-              {/* Card de Flashcards com destaque exclusivo em fundo amarelo/âmbar suave */}
+              {/* Card de Flashcards */}
               <div className="bg-gradient-to-br from-amber-950/60 via-zinc-950 to-zinc-950 border border-amber-500/60 rounded-2xl p-5 shadow-xl relative overflow-hidden sm:col-span-2 lg:col-span-1">
                 <div className="absolute top-0 left-0 w-1.5 h-full bg-amber-500"></div>
-                <p className="text-[11px] font-bold uppercase tracking-wider text-amber-400">Flashcards Revistos</p>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-amber-400">Flashcards Cadastrados</p>
                 <h3 className="text-2xl font-black text-white mt-1.5">{flashcardsStats.total}</h3>
                 <span className="text-[10px] text-amber-300 mt-1 block">🟢 {flashcardsStats.bom} | 🟡 {flashcardsStats.medio} | 🔴 {flashcardsStats.ruim}</span>
               </div>
             </div>
 
-            {/* SEÇÃO DE FLASHCARDS COM DESTAQUE EM AMARELO */}
+            {/* SEÇÃO DE FLASHCARDS */}
             <div className="bg-zinc-950 border border-amber-500/30 rounded-2xl p-6 shadow-xl space-y-4">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-3 border-b border-zinc-800">
                 <div className="flex items-center gap-2">
                   <Brain className="w-6 h-6 text-amber-400" />
                   <h2 className="text-lg font-bold text-white">Caderno de Revisão: Status Detalhado por Assunto</h2>
                 </div>
-                <div className="flex items-center gap-3 text-xs">
+                <div className="flex items-center gap-3 text-xs flex-wrap">
                   <span className="px-2.5 py-1 rounded-lg bg-emerald-950/50 text-emerald-400 border border-emerald-600/30 font-semibold">🟢 Bom: {flashcardsStats.bom}</span>
                   <span className="px-2.5 py-1 rounded-lg bg-amber-950/50 text-amber-400 border border-amber-600/30 font-semibold">🟡 Médio: {flashcardsStats.medio}</span>
                   <span className="px-2.5 py-1 rounded-lg bg-rose-950/50 text-rose-400 border border-rose-600/30 font-semibold">🔴 Ruim: {flashcardsStats.ruim}</span>
+                  {flashcardsStats.pendente > 0 && (
+                    <span className="px-2.5 py-1 rounded-lg bg-zinc-900 text-zinc-400 border border-zinc-700 font-semibold">⚪ Pendente: {flashcardsStats.pendente}</span>
+                  )}
                 </div>
               </div>
 
               {flashcardsListados.length === 0 ? (
                 <div className="text-center py-10 space-y-2">
                   <HelpCircle className="w-10 h-10 text-amber-500/50 mx-auto" />
-                  <p className="text-xs text-zinc-400">Nenhum flashcard avaliado na tabela dedicada ainda.</p>
+                  <p className="text-xs text-zinc-400">Nenhum flashcard cadastrado ainda.</p>
                   <button 
                     onClick={() => router.push('/caderno-revisao')}
-                    className="px-4 py-2 bg-amber-500 text-black font-bold text-xs rounded-xl hover:bg-amber-400 transition-all shadow"
+                    className="px-4 py-2 bg-amber-500 text-black font-bold text-xs rounded-xl hover:bg-amber-400 transition-all shadow cursor-pointer"
                   >
                     Ir para Caderno de Revisão
                   </button>
@@ -307,8 +332,8 @@ export default function DesempenhoPage() {
                           {fc.status === 'ruim' && (
                             <span className="px-3 py-1 bg-rose-950/80 border border-rose-600/40 text-rose-300 text-xs font-bold rounded-xl shadow">🔴 Precisa Revisar</span>
                           )}
-                          {fc.status === 'pendente' && (
-                            <span className="px-2.5 py-1 bg-zinc-950 border border-zinc-800 text-zinc-500 text-[11px] font-medium rounded-xl">⚪ Não Avaliado</span>
+                          {(fc.status === 'pendente' || !fc.status) && (
+                            <span className="px-2.5 py-1 bg-zinc-950 border border-zinc-800 text-zinc-400 text-[11px] font-medium rounded-xl">⚪ Não Avaliado</span>
                           )}
                         </div>
                       </div>
@@ -363,7 +388,7 @@ export default function DesempenhoPage() {
                     <Award className="w-5 h-5 text-amber-500" />
                     Simulados VUNESP ({filtroPeriodo.toUpperCase()})
                   </h2>
-                  <button onClick={() => router.push('/simulados')} className="text-xs text-amber-400 hover:text-amber-300 font-semibold">
+                  <button onClick={() => router.push('/simulados')} className="text-xs text-amber-400 hover:text-amber-300 font-semibold cursor-pointer">
                     Ver todos →
                   </button>
                 </div>
@@ -393,7 +418,7 @@ export default function DesempenhoPage() {
                 )}
               </div>
 
-              {/* Redações com Nota e Tempo Gasto */}
+              {/* Redações */}
               <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 shadow-xl space-y-4">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                   <h2 className="text-lg font-bold text-white flex items-center gap-2">

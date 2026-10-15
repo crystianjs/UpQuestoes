@@ -44,19 +44,6 @@ export default function Navbar() {
         >
           Desempenho
         </Link>
-        
-        {/* Novo Link de Cronograma */}
-        <Link 
-          href="/cronograma" 
-          className={`px-3 py-2 rounded-xl transition-all flex items-center gap-1.5 ${
-            isActive('/cronograma') 
-              ? 'bg-red-600 text-white font-bold shadow-lg shadow-red-600/20' 
-              : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
-          }`}
-        >
-          <CalendarDays className="w-3.5 h-3.5" />
-          Cronograma
-        </Link>
         <Link 
           href="/plano" 
           className={`px-3 py-2 rounded-xl transition-all ${isActive('/plano') ? 'bg-red-600 text-white font-bold shadow-lg shadow-red-600/20' : 'text-zinc-400 hover:text-white hover:bg-zinc-900'}`}
@@ -70,12 +57,6 @@ export default function Navbar() {
           Questões
         </Link>
         <Link 
-          href="/redacao" 
-          className={`px-3 py-2 rounded-xl transition-all ${isActive('/redacao') ? 'bg-red-600 text-white font-bold shadow-lg shadow-red-600/20' : 'text-zinc-400 hover:text-white hover:bg-zinc-900'}`}
-        >
-          Redação
-        </Link>
-        <Link 
           href="/caderno-revisao" 
           className={`px-3 py-2 rounded-xl transition-all ${isActive('/caderno-revisao') ? 'bg-red-600 text-white font-bold shadow-lg shadow-red-600/20' : 'text-zinc-400 hover:text-white hover:bg-zinc-900'}`}
         >
@@ -86,6 +67,24 @@ export default function Navbar() {
           className={`px-3 py-2 rounded-xl transition-all ${isActive('/mapas-mentais') ? 'bg-red-600 text-white font-bold shadow-lg shadow-red-600/20' : 'text-zinc-400 hover:text-white hover:bg-zinc-900'}`}
         >
           Mapas Mentais
+        </Link>
+                {/* Novo Link de Cronograma */}
+        <Link 
+          href="/cronograma" 
+          className={`px-3 py-2 rounded-xl transition-all flex items-center gap-1.5 ${
+            isActive('/cronograma') 
+              ? 'bg-red-600 text-white font-bold shadow-lg shadow-red-600/20' 
+              : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
+          }`}
+        >
+          <CalendarDays className="w-3.5 h-3.5" />
+          Cronograma
+        </Link>
+        <Link 
+          href="/redacao" 
+          className={`px-3 py-2 rounded-xl transition-all ${isActive('/redacao') ? 'bg-red-600 text-white font-bold shadow-lg shadow-red-600/20' : 'text-zinc-400 hover:text-white hover:bg-zinc-900'}`}
+        >
+          Redação
         </Link>
         <Link 
           href="/simulados" 

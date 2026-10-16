@@ -93,7 +93,7 @@ function LogicalDiagram({ grafico }: { grafico: any }) {
     );
   }
 
-  // 2. CONJUNTOS MISTOS OU SEPARADOS (Todo A é B + Nenhum B é C)
+  // 2. CONJUNTOS MISTOS OU SEPARADOS (Com suporte a múltiplos grupos, isolados e pontos de existência opcionais)
   if ((grafico.tipo === 'conjuntos_misto' || grafico.tipo === 'conjuntos_separados') && Array.isArray(grafico.grupos)) {
     return (
       <div className="bg-zinc-950 border border-amber-400/30 rounded-2xl p-5 space-y-4 shadow-inner my-3">
@@ -106,20 +106,18 @@ function LogicalDiagram({ grafico }: { grafico: any }) {
         )}
 
         <div className="flex flex-col items-center justify-center py-2">
-          <svg className="w-full max-w-[420px] h-[220px] overflow-visible" viewBox="0 0 400 200">
+          <svg className="w-full max-w-[440px] h-[220px] overflow-visible" viewBox="0 0 420 200">
             {grafico.grupos.map((grupo: any, gIdx: number) => {
-              // Posiciona grupos aninhados à esquerda (X=130) e grupos isolados à direita (X=320)
               const cx = grupo.posicaoX || (gIdx === 0 ? 130 : 320);
-              const cy = 100;
+              const cy = grupo.posicaoY || 100;
+              const corBorda = grupo.corBorda || (gIdx === 0 ? '#F59E0B' : '#EF4444');
+              const corFundo = grupo.corFundo || (gIdx === 0 ? 'rgba(245, 158, 11, 0.15)' : 'rgba(239, 68, 68, 0.15)');
 
               return (
                 <g key={gIdx}>
                   {grupo.conjuntos && grupo.conjuntos.map((c: any, cIdx: number) => {
-                    const rx = (grupo.raioMaxX || 100) - cIdx * 35;
-                    const ry = (grupo.raioMaxY || 75) - cIdx * 22;
-
-                    const corBorda = grupo.corBorda || (gIdx === 0 ? '#F59E0B' : '#EF4444');
-                    const corFundo = grupo.corFundo || (gIdx === 0 ? 'rgba(245, 158, 11, 0.15)' : 'rgba(239, 68, 68, 0.15)');
+                    const rx = (grupo.raioMaxX || 100) - cIdx * 32;
+                    const ry = (grupo.raioMaxY || 75) - cIdx * 20;
 
                     return (
                       <g key={cIdx}>
@@ -149,8 +147,20 @@ function LogicalDiagram({ grafico }: { grafico: any }) {
               );
             })}
 
-            {/* Linha/Símbolo visual de exclusão (Disjunção total) se houver 2 grupos separados */}
-            {grafico.grupos.length > 1 && (
+            {/* Suporte opcional a pontos de existência */}
+            {Array.isArray(grafico.existencia) && grafico.existencia.map((pt: any, pIdx: number) => (
+              <g key={pIdx}>
+                <circle cx={pt.x} cy={pt.y} r="5" fill="#38BDF8" stroke="#0F172A" strokeWidth="2" />
+                {pt.rotulo && (
+                  <text x={pt.x + 10} y={pt.y + 4} fill="#38BDF8" fontSize="12" fontWeight="bold">
+                    {pt.rotulo}
+                  </text>
+                )}
+              </g>
+            ))}
+
+            {/* Linha/Símbolo visual de exclusão (Disjunção total) se houver separação explícita */}
+            {grafico.grupos.length > 1 && grafico.mostrarDisjuncao !== false && (
               <g>
                 <line x1="240" y1="80" x2="240" y2="120" stroke="#EF4444" strokeWidth="2" strokeDasharray="4" />
                 <text x="240" y="70" fill="#EF4444" fontSize="16" fontWeight="bold" textAnchor="middle">≠</text>

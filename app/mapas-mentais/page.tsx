@@ -93,7 +93,7 @@ function LogicalDiagram({ grafico }: { grafico: any }) {
     );
   }
 
-  // 2. CONJUNTOS MISTOS OU SEPARADOS (Com suporte a múltiplos grupos, isolados e pontos de existência opcionais)
+  // 2. CONJUNTOS MISTOS OU SEPARADOS (Com suporte a múltiplos grupos, isolados e pontos de existência visíveis)
   if ((grafico.tipo === 'conjuntos_misto' || grafico.tipo === 'conjuntos_separados') && Array.isArray(grafico.grupos)) {
     return (
       <div className="bg-zinc-950 border border-amber-400/30 rounded-2xl p-5 space-y-4 shadow-inner my-3">
@@ -147,20 +147,20 @@ function LogicalDiagram({ grafico }: { grafico: any }) {
               );
             })}
 
-            {/* Suporte opcional a pontos de existência */}
-            {Array.isArray(grafico.existencia) && grafico.existencia.map((pt: any, pIdx: number) => (
-              <g key={pIdx}>
-                <circle cx={pt.x} cy={pt.y} r="5" fill="#38BDF8" stroke="#0F172A" strokeWidth="2" />
-                {pt.rotulo && (
-                  <text x={pt.x + 10} y={pt.y + 4} fill="#38BDF8" fontSize="12" fontWeight="bold">
-                    {pt.rotulo}
+            {/* Renderização explícita e visível do ponto de existência (∃) na interseção */}
+            {Array.isArray(grafico.existencia) ? (
+              grafico.existencia.map((pt: any, pIdx: number) => (
+                <g key={pIdx}>
+                  <circle cx={pt.x} cy={pt.y} r="6" fill="#FFFFFF" stroke="#0F172A" strokeWidth="2" />
+                  <text x={pt.x + 10} y={pt.y + 4} fill="#38BDF8" fontSize="13" fontWeight="bold">
+                    {pt.rotulo || '∃'}
                   </text>
-                )}
-              </g>
-            ))}
+                </g>
+              ))
+            ) : null}
 
-            {/* Linha/Símbolo visual de exclusão (Disjunção total) se houver separação explícita */}
-            {grafico.grupos.length > 1 && grafico.mostrarDisjuncao !== false && (
+            {/* Linha/Símbolo visual de exclusão (Disjunção total) mantido apenas se explicitamente solicitado */}
+            {grafico.grupos.length > 1 && grafico.mostrarDisjuncao === true && (
               <g>
                 <line x1="240" y1="80" x2="240" y2="120" stroke="#EF4444" strokeWidth="2" strokeDasharray="4" />
                 <text x="240" y="70" fill="#EF4444" fontSize="16" fontWeight="bold" textAnchor="middle">≠</text>
@@ -246,7 +246,9 @@ const mapaInicialExemplo = {
             texto: "Se o conjunto maior (Servidor Público) não tem interseção com Estrangeiro, qualquer subconjunto contido nele (Escrevente) também JAMAIS poderá ter interseção com Estrangeiro."
           }
         ],
-        conclusoes: ["Desenhe sempre os conjuntos inclusos juntos e coloque o conjunto excluído isolado do lado de fora."],
+        conclusoes: [
+          "Desenhe sempre os conjuntos inclusos juntos e coloque o conjunto excluído isolado do lado de fora."
+        ],
         pegadinha: "Nunca coloque um elemento totalmente excluído dentro do diagrama principal!"
       },
       importante: true

@@ -24,23 +24,35 @@ const DISCIPLINAS_TJSP = [
 ];
 
 const mapaInicialExemplo = {
-  disciplina: "Matemática",
-  titulo: "Revisão Definitiva: Razão e Proporção",
+  disciplina: "Raciocínio Lógico",
+  titulo: "Revisão Definitiva: Silogismo e Diagramas",
   banca: "VUNESP",
   ramos: [
     {
-      id: "razao-proporcao-1",
-      titulo: "Razão entre Homens e Mulheres",
-      artigos: "MATEMÁTICA BÁSICA",
-      tag: "Proporcionalidade",
-      assunto: "Razão e Proporção",
-      tipo: "exatas", 
+      id: "silogismo-logica-1",
+      titulo: "Inclusão em Cadeia (Todo A é B)",
+      artigos: "LÓGICA DE PROPOSIÇÕES",
+      tag: "Diagramas Lógicos",
+      assunto: "Silogismo Categórico",
+      tipo: "exatas",
+      grafico: {
+        tipo: "conjuntos_aninhados",
+        titulo: "Inclusão em cadeia",
+        conjuntos: [
+          { nome: "Trabalhador", contem: "Profissional" },
+          { nome: "Profissional", contem: "Médico" },
+          { nome: "Médico" }
+        ],
+        conclusao: "Todo médico é trabalhador.",
+        descricao: "Médico está dentro de Profissional, que está dentro de Trabalhador."
+      },
       subnos: [
         {
-          titulo: "Resolução Passo a Passo:",
+          titulo: "Análise Lógica VUNESP:",
           itens: [
-            "$\\frac{\\text{Homens}}{\\text{Mulheres}} = \\frac{2}{5} \\implies \\frac{10}{M} = \\frac{2}{5}$",
-            "$2M = 10 \\cdot 5 \\implies 2M = 50 \\implies M = 25$"
+            "Todo Médico é Profissional (M ⊂ P)",
+            "Todo Profissional é Trabalhador (P ⊂ T)",
+            "Logo, Todo Médico é Trabalhador (M ⊂ T)"
           ]
         }
       ],
@@ -50,11 +62,11 @@ const mapaInicialExemplo = {
         casosPraticos: [
           {
             titulo: "PADRÃO DA BANCA:",
-            texto: "A VUNESP adora cobrar proporções diretas envolvendo divisão de quantidades em razão dada."
+            texto: "A VUNESP costuma cobrar transatividade nas premissas universais afirmativas."
           }
         ],
-        conclusoes: ["Sempre monte a fração na ordem exata enunciada no texto."],
-        pegadinha: "Cuidado para não inverter numerador e denominador."
+        conclusoes: ["Sempre desenhe o conjunto mais restrito no núcleo interno."],
+        pegadinha: "Cuidado com a recíproca falsa: nem todo trabalhador é médico."
       },
       importante: false
     }
@@ -63,12 +75,22 @@ const mapaInicialExemplo = {
 
 const PROMPT_MESTRE_TEXTO = `Atue como Especialista e Mentor para o concurso do TJSP (Banca VUNESP). 
 Gere um JSON estruturado para a tela de revisão em tela cheia.
-IMPORTANTE: Cada ramo DEVE conter obrigatoriamente um campo "assunto" limpo e específico (ex: "Substantivo e Derivação Imprópria") que servirá de referência no topo e no filtro. NUNCA inclua emojis, ícones ou símbolos decorativos no campo "assunto", "tag" ou "titulo".
+IMPORTANTE: Cada ramo DEVE conter obrigatoriamente um campo "assunto" limpo e específico (ex: "Silogismo Categórico") que servirá de referência no topo e no filtro. NUNCA inclua emojis, ícones ou símbolos decorativos no campo "assunto", "tag" ou "titulo".
 ATENÇÃO ABSOLUTA AOS IDs: Crie IDs estritamente únicos para cada novo ramo utilizando timestamp ou slugs longos (ex: "assunto-novo-1728000000"). NUNCA reutilice IDs já existentes para evitar colisões.
 
-⚠️ **ATENÇÃO AO TIPO DE MATÉRIA**:
-1. Se a matéria for **Exatas (Matemática / Raciocínio Lógico)**: Defina o campo "tipo" como "exatas". Nos itens dos subnos, utilize formatação em passos matemáticos claros (ex: equações, razões, proporções).
-2. Se a matéria for **Humanas / Língua Portuguesa / Direito**: Defina o campo "tipo" como "humanas". Foque em regras conceituais, emprego de termos e exemplos práticos no padrão VUNESP.
+⚠️ **SUPORTE A GRÁFICOS LÓGICOS (Opcional)**:
+Se o assunto envolver conjuntos (Raciocínio Lógico), você pode incluir um objeto opcional "grafico" no ramo com a estrutura:
+{
+  "tipo": "conjuntos_aninhados",
+  "titulo": "Título do Diagrama",
+  "conjuntos": [
+    { "nome": "Conjunto Maior", "contem": "Conjunto Intermediário" },
+    { "nome": "Conjunto Intermediário", "contem": "Conjunto Menor" },
+    { "nome": "Conjunto Menor" }
+  ],
+  "conclusao": "Conclusão lógica.",
+  "descricao": "Explicação textual."
+}
 
 Retorne EXCLUSIVAMENTE o JSON válido, seguindo esta estrutura exata:
 {
@@ -83,10 +105,11 @@ Retorne EXCLUSIVAMENTE o JSON válido, seguindo esta estrutura exata:
       "tag": "Palavra-Chave",
       "assunto": "Assunto Referência",
       "tipo": "exatas ou humanas",
+      "grafico": { ... },
       "subnos": [
         {
           "titulo": "Resolução ou Conceito:",
-          "itens": ["Passo 1 ou Regra 1", "Passo 2 ou Regra 2"]
+          "itens": ["Passo 1 ou Regra 1"]
         }
       ],
       "modalInfo": {
@@ -101,6 +124,95 @@ Retorne EXCLUSIVAMENTE o JSON válido, seguindo esta estrutura exata:
   ]
 }`;
 
+// --- COMPONENTE VISUAL PARA RENDERIZAR GRÁFICOS LÓGICOS ---
+function LogicalDiagram({ grafico }: { grafico: any }) {
+  if (!grafico || !grafico.tipo) return null;
+
+  if (grafico.tipo === 'conjuntos_aninhados' && Array.isArray(grafico.conjuntos)) {
+    const total = grafico.conjuntos.length;
+    // Ordem inversa para desenhar do maior (externo) para o menor (interno)
+    const conjuntosOrdenados = [...grafico.conjuntos];
+
+    return (
+      <div className="bg-zinc-950 border border-amber-400/30 rounded-2xl p-5 space-y-4 shadow-inner my-3">
+        {grafico.titulo && (
+          <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-amber-400">
+              📊 Diagrama Lógico: {grafico.titulo}
+            </span>
+          </div>
+        )}
+
+        <div className="flex flex-col items-center justify-center py-2">
+          <svg className="w-full max-w-[320px] h-[220px] overflow-visible" viewBox="0 0 300 200">
+            {conjuntosOrdenados.map((c: any, index: number) => {
+              // Raio decrescente para aninhar perfeitamente as elipses/círculos
+              const rx = 130 - index * 35;
+              const ry = 85 - index * 22;
+              const cx = 150;
+              const cy = 100;
+
+              // Cores dinâmicas para destacar cada camada aninhada
+              const coresFundo = [
+                'rgba(245, 158, 11, 0.08)', // Externo
+                'rgba(245, 158, 11, 0.15)', // Intermediário
+                'rgba(245, 158, 11, 0.28)'  // Interno (núcleo)
+              ];
+              const coresBorda = [
+                'rgba(245, 158, 11, 0.4)',
+                'rgba(245, 158, 11, 0.7)',
+                '#F59E0B'
+              ];
+
+              return (
+                <g key={index}>
+                  <ellipse
+                    cx={cx}
+                    cy={cy}
+                    rx={rx}
+                    ry={ry}
+                    fill={coresFundo[index % coresFundo.length]}
+                    stroke={coresBorda[index % coresBorda.length]}
+                    strokeWidth="2"
+                    className="transition-all duration-300"
+                  />
+                  {/* Posicionamento inteligente do rótulo no topo de cada elipse */}
+                  <text
+                    x={cx}
+                    y={cy - ry + 16}
+                    fill="#F3F4F6"
+                    fontSize="11"
+                    fontWeight="bold"
+                    textAnchor="middle"
+                    className="drop-shadow"
+                  >
+                    {c.nome}
+                  </text>
+                </g>
+              );
+            })}
+          </svg>
+        </div>
+
+        {(grafico.conclusao || grafico.descricao) && (
+          <div className="bg-zinc-900/80 border border-zinc-800 p-3.5 rounded-xl space-y-1.5 text-xs">
+            {grafico.conclusao && (
+              <p className="text-amber-300 font-bold flex items-center gap-1.5">
+                <span>💡 Conclusão:</span> {grafico.conclusao}
+              </p>
+            )}
+            {grafico.descricao && (
+              <p className="text-zinc-400 leading-relaxed">{grafico.descricao}</p>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return null;
+}
+
 export default function MapaMentalPage() {
   const [mapasPorDisciplina, setMapasPorDisciplina] = useState<Record<string, any>>({});
   const [selectedDisciplina, setSelectedDisciplina] = useState<string>("Todas as Matérias");
@@ -108,7 +220,7 @@ export default function MapaMentalPage() {
 
   const [activeModal, setActiveModal] = useState<string | null>(null);
   const [showJsonModal, setShowJsonModal] = useState<boolean>(false);
-  const [modalDisciplinaAlvo, setModalDisciplinaAlvo] = useState<string>("Matemática");
+  const [modalDisciplinaAlvo, setModalDisciplinaAlvo] = useState<string>("Raciocínio Lógico");
   const [jsonInputText, setJsonInputText] = useState<string>('');
   const [copiadoPrompt, setCopiadoPrompt] = useState<boolean>(false);
   const [carregando, setCarregando] = useState<boolean>(true);
@@ -534,6 +646,9 @@ export default function MapaMentalPage() {
                       </div>
                     </div>
 
+                    {/* RENDERIZAÇÃO DO GRÁFICO LÓGICO SE EXISTIR */}
+                    {ramo.grafico && <LogicalDiagram grafico={ramo.grafico} />}
+
                     <div className="space-y-6">
                       {ramo.subnos && ramo.subnos.map((sub: any, idx: number) => (
                         <div 
@@ -590,7 +705,7 @@ export default function MapaMentalPage() {
               <h2 className="text-sm font-bold text-white">Prompt Mestre com Backup Automático em temp_mapas_mentais</h2>
             </div>
             <p className="text-xs text-zinc-400">
-              Gera conteúdos estruturados com IDs seguros e redundância de segurança.
+              Gera conteúdos estruturados com IDs seguros e suporte a gráficos lógicos.
             </p>
           </div>
 
@@ -714,7 +829,7 @@ export default function MapaMentalPage() {
               <label className="text-xs font-bold text-zinc-300">Cole o JSON gerado pelo Prompt Mestre:</label>
               <textarea
                 value={jsonInputText}
-                onChange={(e) => setJsonInputText(e.target.value)}
+                onChange={(e) => jsonInputText && setJsonInputText(e.target.value)}
                 className="w-full h-44 bg-zinc-900 text-amber-300 p-3.5 rounded-2xl border border-zinc-800 font-mono text-xs outline-none focus:border-amber-400 resize-none shadow-inner"
                 placeholder="Cole o JSON aqui..."
               />

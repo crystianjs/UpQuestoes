@@ -23,116 +23,12 @@ const DISCIPLINAS_TJSP = [
   "Estatuto da Pessoa com Deficiência"
 ];
 
-const mapaInicialExemplo = {
-  disciplina: "Raciocínio Lógico",
-  titulo: "Revisão Definitiva: Silogismo e Diagramas",
-  banca: "VUNESP",
-  ramos: [
-    {
-      id: "silogismo-logica-1",
-      titulo: "Inclusão em Cadeia (Todo A é B)",
-      artigos: "LÓGICA DE PROPOSIÇÕES",
-      tag: "Diagramas Lógicos",
-      assunto: "Silogismo Categórico",
-      tipo: "exatas",
-      grafico: {
-        tipo: "conjuntos_aninhados",
-        titulo: "Inclusão em cadeia",
-        conjuntos: [
-          { nome: "Trabalhador", contem: "Profissional" },
-          { nome: "Profissional", contem: "Médico" },
-          { nome: "Médico" }
-        ],
-        conclusao: "Todo médico é trabalhador.",
-        descricao: "Médico está dentro de Profissional, que está dentro de Trabalhador."
-      },
-      subnos: [
-        {
-          titulo: "Análise Lógica VUNESP:",
-          itens: [
-            "Todo Médico é Profissional (M ⊂ P)",
-            "Todo Profissional é Trabalhador (P ⊂ T)",
-            "Logo, Todo Médico é Trabalhador (M ⊂ T)"
-          ]
-        }
-      ],
-      modalInfo: {
-        title: "Dica de Ouro VUNESP",
-        tag: "Estratégia",
-        casosPraticos: [
-          {
-            titulo: "PADRÃO DA BANCA:",
-            texto: "A VUNESP costuma cobrar transatividade nas premissas universais afirmativas."
-          }
-        ],
-        conclusoes: ["Sempre desenhe o conjunto mais restrito no núcleo interno."],
-        pegadinha: "Cuidado com a recíproca falsa: nem todo trabalhador é médico."
-      },
-      importante: false
-    }
-  ]
-};
-
-const PROMPT_MESTRE_TEXTO = `Atue como Especialista e Mentor para o concurso do TJSP (Banca VUNESP). 
-Gere um JSON estruturado para a tela de revisão em tela cheia.
-IMPORTANTE: Cada ramo DEVE conter obrigatoriamente um campo "assunto" limpo e específico (ex: "Silogismo Categórico") que servirá de referência no topo e no filtro. NUNCA inclua emojis, ícones ou símbolos decorativos no campo "assunto", "tag" ou "titulo".
-ATENÇÃO ABSOLUTA AOS IDs: Crie IDs estritamente únicos para cada novo ramo utilizando timestamp ou slugs longos (ex: "assunto-novo-1728000000"). NUNCA reutilice IDs já existentes para evitar colisões.
-
-⚠️ **SUPORTE A GRÁFICOS LÓGICOS (Opcional)**:
-Se o assunto envolver conjuntos (Raciocínio Lógico), você pode incluir um objeto opcional "grafico" no ramo com a estrutura:
-{
-  "tipo": "conjuntos_aninhados",
-  "titulo": "Título do Diagrama",
-  "conjuntos": [
-    { "nome": "Conjunto Maior", "contem": "Conjunto Intermediário" },
-    { "nome": "Conjunto Intermediário", "contem": "Conjunto Menor" },
-    { "nome": "Conjunto Menor" }
-  ],
-  "conclusao": "Conclusão lógica.",
-  "descricao": "Explicação textual."
-}
-
-Retorne EXCLUSIVAMENTE o JSON válido, seguindo esta estrutura exata:
-{
-  "disciplina": "Nome da Disciplina",
-  "titulo": "Título da Revisão",
-  "banca": "VUNESP",
-  "ramos": [
-    {
-      "id": "id-unico-seguro-ex-1",
-      "titulo": "Título do Conteúdo",
-      "artigos": "BLOCO / TEMA",
-      "tag": "Palavra-Chave",
-      "assunto": "Assunto Referência",
-      "tipo": "exatas ou humanas",
-      "grafico": { ... },
-      "subnos": [
-        {
-          "titulo": "Resolução ou Conceito:",
-          "itens": ["Passo 1 ou Regra 1"]
-        }
-      ],
-      "modalInfo": {
-        "title": "Dica Estratégica",
-        "tag": "VUNESP",
-        "casosPraticos": [{"titulo": "CASO", "texto": "..."}],
-        "conclusoes": ["Conclusão"],
-        "pegadinha": "Cuidado..."
-      },
-      "importante": false
-    }
-  ]
-}`;
-
-// --- COMPONENTE VISUAL PARA RENDERIZAR GRÁFICOS LÓGICOS ---
+// --- COMPONENTE VISUAL AVANÇADO DE DIAGRAMAS LÓGICOS ---
 function LogicalDiagram({ grafico }: { grafico: any }) {
   if (!grafico || !grafico.tipo) return null;
 
+  // 1. CONJUNTOS ANINHADOS (Todo A é B)
   if (grafico.tipo === 'conjuntos_aninhados' && Array.isArray(grafico.conjuntos)) {
-    const total = grafico.conjuntos.length;
-    // Ordem inversa para desenhar do maior (externo) para o menor (interno)
-    const conjuntosOrdenados = [...grafico.conjuntos];
-
     return (
       <div className="bg-zinc-950 border border-amber-400/30 rounded-2xl p-5 space-y-4 shadow-inner my-3">
         {grafico.titulo && (
@@ -145,24 +41,14 @@ function LogicalDiagram({ grafico }: { grafico: any }) {
 
         <div className="flex flex-col items-center justify-center py-2">
           <svg className="w-full max-w-[320px] h-[220px] overflow-visible" viewBox="0 0 300 200">
-            {conjuntosOrdenados.map((c: any, index: number) => {
-              // Raio decrescente para aninhar perfeitamente as elipses/círculos
-              const rx = 130 - index * 35;
-              const ry = 85 - index * 22;
+            {grafico.conjuntos.map((c: any, index: number) => {
+              const rx = 130 - index * 38;
+              const ry = 85 - index * 24;
               const cx = 150;
               const cy = 100;
 
-              // Cores dinâmicas para destacar cada camada aninhada
-              const coresFundo = [
-                'rgba(245, 158, 11, 0.08)', // Externo
-                'rgba(245, 158, 11, 0.15)', // Intermediário
-                'rgba(245, 158, 11, 0.28)'  // Interno (núcleo)
-              ];
-              const coresBorda = [
-                'rgba(245, 158, 11, 0.4)',
-                'rgba(245, 158, 11, 0.7)',
-                '#F59E0B'
-              ];
+              const coresFundo = ['rgba(245, 158, 11, 0.08)', 'rgba(245, 158, 11, 0.18)', 'rgba(245, 158, 11, 0.32)'];
+              const coresBorda = ['rgba(245, 158, 11, 0.4)', 'rgba(245, 158, 11, 0.7)', '#F59E0B'];
 
               return (
                 <g key={index}>
@@ -174,9 +60,7 @@ function LogicalDiagram({ grafico }: { grafico: any }) {
                     fill={coresFundo[index % coresFundo.length]}
                     stroke={coresBorda[index % coresBorda.length]}
                     strokeWidth="2"
-                    className="transition-all duration-300"
                   />
-                  {/* Posicionamento inteligente do rótulo no topo de cada elipse */}
                   <text
                     x={cx}
                     y={cy - ry + 16}
@@ -184,7 +68,6 @@ function LogicalDiagram({ grafico }: { grafico: any }) {
                     fontSize="11"
                     fontWeight="bold"
                     textAnchor="middle"
-                    className="drop-shadow"
                   >
                     {c.nome}
                   </text>
@@ -210,8 +93,194 @@ function LogicalDiagram({ grafico }: { grafico: any }) {
     );
   }
 
+  // 2. CONJUNTOS MISTOS OU SEPARADOS (Todo A é B + Nenhum B é C)
+  if ((grafico.tipo === 'conjuntos_misto' || grafico.tipo === 'conjuntos_separados') && Array.isArray(grafico.grupos)) {
+    return (
+      <div className="bg-zinc-950 border border-amber-400/30 rounded-2xl p-5 space-y-4 shadow-inner my-3">
+        {grafico.titulo && (
+          <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-amber-400">
+              📊 Diagrama Lógico: {grafico.titulo}
+            </span>
+          </div>
+        )}
+
+        <div className="flex flex-col items-center justify-center py-2">
+          <svg className="w-full max-w-[420px] h-[220px] overflow-visible" viewBox="0 0 400 200">
+            {grafico.grupos.map((grupo: any, gIdx: number) => {
+              // Posiciona grupos aninhados à esquerda (X=130) e grupos isolados à direita (X=320)
+              const cx = grupo.posicaoX || (gIdx === 0 ? 130 : 320);
+              const cy = 100;
+
+              return (
+                <g key={gIdx}>
+                  {grupo.conjuntos && grupo.conjuntos.map((c: any, cIdx: number) => {
+                    const rx = (grupo.raioMaxX || 100) - cIdx * 35;
+                    const ry = (grupo.raioMaxY || 75) - cIdx * 22;
+
+                    const corBorda = grupo.corBorda || (gIdx === 0 ? '#F59E0B' : '#EF4444');
+                    const corFundo = grupo.corFundo || (gIdx === 0 ? 'rgba(245, 158, 11, 0.15)' : 'rgba(239, 68, 68, 0.15)');
+
+                    return (
+                      <g key={cIdx}>
+                        <ellipse
+                          cx={cx}
+                          cy={cy}
+                          rx={rx}
+                          ry={ry}
+                          fill={cIdx === 0 ? corFundo : 'rgba(245, 158, 11, 0.25)'}
+                          stroke={corBorda}
+                          strokeWidth="2"
+                        />
+                        <text
+                          x={cx}
+                          y={cy - ry + 16}
+                          fill="#F3F4F6"
+                          fontSize="11"
+                          fontWeight="bold"
+                          textAnchor="middle"
+                        >
+                          {c.nome}
+                        </text>
+                      </g>
+                    );
+                  })}
+                </g>
+              );
+            })}
+
+            {/* Linha/Símbolo visual de exclusão (Disjunção total) se houver 2 grupos separados */}
+            {grafico.grupos.length > 1 && (
+              <g>
+                <line x1="240" y1="80" x2="240" y2="120" stroke="#EF4444" strokeWidth="2" strokeDasharray="4" />
+                <text x="240" y="70" fill="#EF4444" fontSize="16" fontWeight="bold" textAnchor="middle">≠</text>
+              </g>
+            )}
+          </svg>
+        </div>
+
+        {(grafico.conclusao || grafico.descricao) && (
+          <div className="bg-zinc-900/80 border border-zinc-800 p-3.5 rounded-xl space-y-1.5 text-xs">
+            {grafico.conclusao && (
+              <p className="text-amber-300 font-bold flex items-center gap-1.5">
+                <span>💡 Conclusão:</span> {grafico.conclusao}
+              </p>
+            )}
+            {grafico.descricao && (
+              <p className="text-zinc-400 leading-relaxed">{grafico.descricao}</p>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return null;
 }
+
+const mapaInicialExemplo = {
+  disciplina: "Raciocínio Lógico",
+  titulo: "Silogismo Categórico e Diagramas de Conjuntos",
+  banca: "VUNESP",
+  ramos: [
+    {
+      id: "card-1-todo-nenhum-1728000000",
+      titulo: "Card 1 - Todo e Nenhum",
+      artigos: "LÓGICA DE ARGUMENTAÇÃO",
+      tag: "Silogismo",
+      assunto: "Proposições Categóricas - Conjuntos (Todo-Nenhum)",
+      tipo: "exatas",
+      grafico: {
+        tipo: "conjuntos_misto",
+        titulo: "TODO ESCREVENTE É SERVIDOR PÚBLICO E NENHUM SERVIDOR PÚBLICO É ESTRANGEIRO",
+        grupos: [
+          {
+            posicaoX: 130,
+            raioMaxX: 105,
+            raioMaxY: 75,
+            conjuntos: [
+              { nome: "Servidor Público" },
+              { nome: "Escrevente" }
+            ]
+          },
+          {
+            posicaoX: 320,
+            raioMaxX: 60,
+            raioMaxY: 60,
+            corBorda: "#EF4444",
+            corFundo: "rgba(239, 68, 68, 0.15)",
+            conjuntos: [
+              { nome: "Estrangeiro" }
+            ]
+          }
+        ],
+        conclusao: "Nenhum escrevente é estrangeiro.",
+        descricao: "O conjunto Escrevente está inteiramente dentro de Servidor Público. Como nenhum servidor público é estrangeiro, os conjuntos Estrangeiro e Servidor Público são totalmente disjuntos (não se cruzam)."
+      },
+      subnos: [
+        {
+          titulo: "Validação Lógica VUNESP:",
+          itens: [
+            "Premissa 1: Todo Escrevente é Servidor Público (E ⊂ S)",
+            "Premissa 2: Nenhum Servidor Público é Estrangeiro (S ∩ Est = ∅)",
+            "Conclusão Necessária: Nenhum Escrevente é Estrangeiro (E ∩ Est = ∅)"
+          ]
+        }
+      ],
+      modalInfo: {
+        title: "Dica de Ouro VUNESP",
+        tag: "Estratégia",
+        casosPraticos: [
+          {
+            titulo: "PADRÃO DA BANCA:",
+            texto: "Se o conjunto maior (Servidor Público) não tem interseção com Estrangeiro, qualquer subconjunto contido nele (Escrevente) também JAMAIS poderá ter interseção com Estrangeiro."
+          }
+        ],
+        conclusoes: ["Desenhe sempre os conjuntos inclusos juntos e coloque o conjunto excluído isolado do lado de fora."],
+        pegadinha: "Nunca coloque um elemento totalmente excluído dentro do diagrama principal!"
+      },
+      importante: true
+    }
+  ]
+};
+
+const PROMPT_MESTRE_TEXTO = `Atue como Especialista e Mentor para o concurso do TJSP (Banca VUNESP). 
+Gere um JSON estruturado para a tela de revisão em tela cheia (Raciocínio Lógico - Diagramas).
+
+⚠️ **REGRA CRÍTICA PARA DIAGRAMAS DE CONJUNTOS (TODO / NENHUM)**:
+1. Para premissas de inclusão com exclusão ("Todo A é B e Nenhum B é C"):
+   Utilize o tipo "conjuntos_misto" no objeto "grafico" para garantir que o conjunto excluído fique SEPARADO e ISOLADO.
+   
+Estrutura exata do grafico para "conjuntos_misto":
+"grafico": {
+  "tipo": "conjuntos_misto",
+  "titulo": "PREMISSAS EM CAIXA ALTA",
+  "grupos": [
+    {
+      "posicaoX": 130,
+      "raioMaxX": 105,
+      "raioMaxY": 75,
+      "conjuntos": [
+        { "nome": "Conjunto Maior (ex: Servidor Público)" },
+        { "nome": "Conjunto Menor (ex: Escrevente)" }
+      ]
+    },
+    {
+      "posicaoX": 320,
+      "raioMaxX": 60,
+      "raioMaxY": 60,
+      "corBorda": "#EF4444",
+      "corFundo": "rgba(239, 68, 68, 0.15)",
+      "conjuntos": [
+        { "nome": "Conjunto Excluído (ex: Estrangeiro)" }
+      ]
+    }
+  ],
+  "conclusao": "Conclusão válida do silogismo.",
+  "descricao": "Explicação visual demonstrando por que os conjuntos não se cruzam."
+}
+
+Retorne EXCLUSIVAMENTE o JSON válido contendo a chave "ramos".`;
 
 export default function MapaMentalPage() {
   const [mapasPorDisciplina, setMapasPorDisciplina] = useState<Record<string, any>>({});
@@ -829,7 +898,7 @@ export default function MapaMentalPage() {
               <label className="text-xs font-bold text-zinc-300">Cole o JSON gerado pelo Prompt Mestre:</label>
               <textarea
                 value={jsonInputText}
-                onChange={(e) => jsonInputText && setJsonInputText(e.target.value)}
+                onChange={(e) => setJsonInputText(e.target.value)}
                 className="w-full h-44 bg-zinc-900 text-amber-300 p-3.5 rounded-2xl border border-zinc-800 font-mono text-xs outline-none focus:border-amber-400 resize-none shadow-inner"
                 placeholder="Cole o JSON aqui..."
               />

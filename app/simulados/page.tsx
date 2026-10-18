@@ -40,21 +40,24 @@ export default function SimuladosPage() {
   const [modalEditSimuladoOpen, setModalEditSimuladoOpen] = useState(false);
   const [copiado, setCopiado] = useState(false);
 
-  // Estados do formulário de criação
+  // Estados do formulário de criação do Simulado
   const [titulo, setTitulo] = useState('');
-  const [acertos, setAcertos] = useState('');
-  const [total, setTotal] = useState('100');
+  const [dataSimulado, setDataSimulado] = useState(new Date().toISOString().split('T')[0]);
 
-  // Estados dos Pontos de Melhoria (Criação)
-  const [incluirMelhorias, setIncluirMelhorias] = useState(false);
-  const [modoJson, setModoJson] = useState(true);
-  const [novaMateria, setNovaMateria] = useState('');
-  const [errosInput, setErrosInput] = useState('');
-  const [acertosInput, setAcertosInput] = useState('');
-  const [assuntoInput, setAssuntoInput] = useState('');
+  // Modo de Adição de Matérias dentro do Modal ('json' ou 'manual')
+  const [modoPreenchimento, setModoPreenchimento] = useState<'json' | 'manual'>('json');
+
+  // Estados para Inserção Manual 1 a 1
+  const [materiaManual, setMateriaManual] = useState('');
+  const [acertosManual, setAcertosManual] = useState('');
+  const [errosManual, setErrosManual] = useState('');
+  const [assuntoManual, setAssuntoManual] = useState('');
+  const [listaManualTemporaria, setListaManualTemporaria] = useState<any[]>([]);
+
+  // Estado para Payload JSON
   const [jsonInput, setJsonInput] = useState('');
 
-  // Estados para Edição de Ponto de Melhoria
+  // Estados para Edição de Matéria / Ponto de Melhoria
   const [editMelhoriaId, setEditMelhoriaId] = useState('');
   const [editMateria, setEditMateria] = useState('');
   const [editAcertos, setEditAcertos] = useState(0);
@@ -105,7 +108,31 @@ export default function SimuladosPage() {
   const totalErrosAnalitico = Math.max(0, totalQuestoesAnalitico - totalAcertosAnalitico);
   const aproveitamentoTotal = totalQuestoesAnalitico > 0 ? ((totalAcertosAnalitico / totalQuestoesAnalitico) * 100).toFixed(1) : '0';
 
-  async function handleSalvarTudo(e: React.FormEvent) {
+  // Função para adicionar matéria na lista temporária manual
+  function adicionarMateriaManualTemp(e: React.FormEvent) {
+    e.preventDefault();
+    if (!materiaManual.trim()) return;
+
+    const novaItem = {
+      materia: materiaManual,
+      quantidade_acertos: Number(acertosManual) || 0,
+      quantidade_erros: Number(errosManual) || 0,
+      assunto_estudar: assuntoManual || 'Revisão geral'
+    };
+
+    setListaManualTemporaria([...listaManualTemporaria, novaItem]);
+    setMateriaManual('');
+    setAcertosManual('');
+    setErrosManual('');
+    setAssuntoManual('');
+  }
+
+  function removerMateriaManualTemp(index: number) {
+    setListaManualTemporaria(listaManualTemporaria.filter((_, i) => i !== index));
+  }
+
+  // --- FUNÇÃO DE SALVAR TUDO (SIMULADO + MATÉRIAS) ---
+  async function handleSalvarSimuladoCompleto(e: React.FormEvent) {
     e.preventDefault();
     if (aGuardar) return;
     setAGuardar(true);
@@ -117,11 +144,15 @@ export default function SimuladosPage() {
         return;
       }
 
-      let numAcertos = 0;
-      let numTotal = 0;
       let itensParaInserir: any[] = [];
+      let dataFinalSimulado = dataSimulado ? new Date(dataSimulado).toISOString() : new Date().toISOString();
 
-      if (incluirMelhorias && modoJson && jsonInput.trim()) {
+      if (modoPreenchimento === 'json') {
+        if (!jsonInput.trim()) {
+          alert('Por favor, insira o JSON gerado pela IA.');
+          setAGuardar(false);
+          return;
+        }
         try {
           let textoLimpo = jsonInput.trim();
           if (textoLimpo.startsWith('```')) {
@@ -131,50 +162,47 @@ export default function SimuladosPage() {
           const parsed = JSON.parse(textoLimpo);
           const arrayParsed = Array.isArray(parsed) ? parsed : [parsed];
           
-          const somaAcertosJson = arrayParsed.reduce((acc, item) => acc + (Number(item.quantidade_acertos) || 0), 0);
-          const somaErrosJson = arrayParsed.reduce((acc, item) => acc + (Number(item.quantidade_erros) || 0), 0);
-          
-          numAcertos = somaAcertosJson;
-          numTotal = somaAcertosJson + somaErrosJson;
-
           itensParaInserir = arrayParsed.map((item) => ({
             user_id: user.id,
             materia: item.materia,
             quantidade_erros: Number(item.quantidade_erros) || 0,
             quantidade_acertos: Number(item.quantidade_acertos) || 0,
-            assunto_estudar: item.assunto_estudar || item.assunto || ''
+            assunto_estudar: item.assunto_estudar || item.assunto || '',
+            created_at: item.data ? new Date(item.data).toISOString() : dataFinalSimulado
           }));
         } catch (err) {
-          alert('JSON inválido. Verifique a sintaxe ou se copiou texto a mais.');
+          alert('JSON inválido. Verifique a sintaxe.');
           setAGuardar(false);
           return;
         }
-      } else if (incluirMelhorias && !modoJson) {
-        numAcertos = parseInt(acertosInput) || 0;
-        numTotal = (parseInt(acertosInput) || 0) + (parseInt(errosInput) || 0);
-        if (novaMateria && assuntoInput) {
-          itensParaInserir = [{
-            user_id: user.id,
-            materia: novaMateria,
-            quantidade_erros: Number(errosInput) || 0,
-            quantidade_acertos: Number(acertosInput) || 0,
-            assunto_estudar: assuntoInput
-          }];
-        }
       } else {
-        numAcertos = parseInt(acertos) || 0;
-        numTotal = parseInt(total) || 100;
+        if (listaManualTemporaria.length === 0) {
+          alert('Adicione pelo menos uma matéria manualmente.');
+          setAGuardar(false);
+          return;
+        }
+        itensParaInserir = listaManualTemporaria.map(item => ({
+          user_id: user.id,
+          ...item,
+          created_at: dataFinalSimulado
+        }));
       }
 
-      const notaCalculada = numTotal > 0 ? Number(((numAcertos / numTotal) * 10).toFixed(2)) : 0;
+      // Calcula acertos e total gerais com base nas matérias cadastradas
+      const somaAcertos = itensParaInserir.reduce((acc, item) => acc + item.quantidade_acertos, 0);
+      const somaErros = itensParaInserir.reduce((acc, item) => acc + item.quantidade_erros, 0);
+      const numTotal = somaAcertos + somaErros;
+      const notaCalculada = numTotal > 0 ? Number(((somaAcertos / numTotal) * 10).toFixed(2)) : 0;
 
+      // Insere o Simulado principal
       const { data: novoSimuladoInserido, error: erroSimulado } = await supabase.from('simulados').insert([
         {
           user_id: user.id,
-          titulo,
-          acertos: numAcertos,
+          titulo: titulo || 'Simulado VUNESP',
+          acertos: somaAcertos,
           total_questoes: numTotal,
           nota: notaCalculada,
+          created_at: dataFinalSimulado
         },
       ]).select().single();
 
@@ -184,25 +212,20 @@ export default function SimuladosPage() {
         return;
       }
 
-      if (incluirMelhorias && itensParaInserir.length > 0) {
+      // Insere os pontos de melhoria / matérias detalhadas
+      if (itensParaInserir.length > 0) {
         const { error: erroMelhoria } = await supabase.from('pontos_melhoria').insert(itensParaInserir);
         if (erroMelhoria) {
-          alert(`Erro ao guardar Pontos de Melhoria: ${erroMelhoria.message}`);
+          alert(`Erro ao guardar Matérias: ${erroMelhoria.message}`);
           setAGuardar(false);
           return;
         }
       }
 
+      // Limpa formulários e fecha modal
       setTitulo('');
-      setAcertos('');
-      setTotal('100');
-      setIncluirMelhorias(false);
-      setModoJson(true);
-      setNovaMateria('');
-      setErrosInput('');
-      setAcertosInput('');
-      setAssuntoInput('');
       setJsonInput('');
+      setListaManualTemporaria([]);
       setModalOpen(false);
       
       await carregarDados();
@@ -210,8 +233,8 @@ export default function SimuladosPage() {
         setSimuladoSelecionadoId(novoSimuladoInserido.id);
       }
     } catch (error) {
-      console.error('Erro geral ao guardar dados:', error);
-      alert('Erro inesperado ao guardar dados.');
+      console.error('Erro ao guardar:', error);
+      alert('Erro inesperado ao guardar registo.');
     } finally {
       setAGuardar(false);
     }
@@ -239,15 +262,11 @@ export default function SimuladosPage() {
         })
         .eq('id', editMelhoriaId);
 
-      if (error) {
-        alert(`Erro ao atualizar: ${error.message}`);
-        return;
-      }
-
+      if (error) { alert(`Erro: ${error.message}`); return; }
       setModalEditMelhoriaOpen(false);
       carregarDados();
     } catch (err) {
-      console.error('Erro ao atualizar melhoria:', err);
+      console.error(err);
     }
   }
 
@@ -268,64 +287,54 @@ export default function SimuladosPage() {
 
       const { error } = await supabase
         .from('simulados')
-        .update({
-          titulo: editSimTitulo,
-          acertos: ac,
-          total_questoes: tot,
-          nota: notaCalculada
-        })
+        .update({ titulo: editSimTitulo, acertos: ac, total_questoes: tot, nota: notaCalculada })
         .eq('id', editSimuladoId);
 
-      if (error) {
-        alert(`Erro ao atualizar simulado: ${error.message}`);
-        return;
-      }
-
+      if (error) { alert(`Erro: ${error.message}`); return; }
       setModalEditSimuladoOpen(false);
       carregarDados();
     } catch (err) {
-      console.error('Erro ao atualizar simulado:', err);
+      console.error(err);
     }
   }
 
   async function apagarMelhoria(id: string) {
-    if (!confirm('Tens a certeza que pretendes apagar este ponto de melhoria?')) return;
+    if (!confirm('Deseja apagar esta matéria?')) return;
     try {
-      const { error } = await supabase.from('pontos_melhoria').delete().eq('id', id);
-      if (error) { alert(`Erro ao apagar: ${error.message}`); return; }
+      await supabase.from('pontos_melhoria').delete().eq('id', id);
       setMelhorias(melhorias.filter((m) => m.id !== id));
     } catch (err) {
-      console.error('Erro ao apagar melhoria:', err);
+      console.error(err);
     }
   }
 
   async function apagarSimulado(id: string) {
-    if (!confirm('Tens a certeza que pretendes apagar este simulado?')) return;
+    if (!confirm('Deseja apagar este simulado?')) return;
     try {
-      const { error } = await supabase.from('simulados').delete().eq('id', id);
-      if (error) { alert(`Erro ao apagar: ${error.message}`); return; }
+      await supabase.from('simulados').delete().eq('id', id);
       const restantes = simulados.filter((s) => s.id !== id);
       setSimulados(restantes);
-      if (restantes.length > 0) {
-        setSimuladoSelecionadoId(restantes[0].id);
-      } else {
-        setSimuladoSelecionadoId('');
-      }
+      if (restantes.length > 0) setSimuladoSelecionadoId(restantes[0].id);
+      else setSimuladoSelecionadoId('');
     } catch (err) {
-      console.error('Erro ao apagar simulado:', err);
+      console.error(err);
     }
   }
 
+  // Prompt atualizado que instrui a IA a trazer também a data
   const promptModelo = `Atue como meu mentor especializado no concurso do Tribunal de Justiça de São Paulo (TJSP) sob o padrão da banca VUNESP. 
-Analise o meu desempenho recente e gere um payload JSON estrito contendo um array de objetos exatamente com esta estrutura para cada matéria:
-[
-  {
-    "materia": "Nome exato da matéria",
-    "quantidade_erros": 0,
-    "quantidade_acertos": 0,
-    "assunto_estudar": "Assunto específico cobrado pela VUNESP"
-  }
-]`;
+Analise o meu desempenho no simulado e gere um payload JSON estrito contendo a data e um array de objetos para cada matéria:
+{
+  "data": "YYYY-MM-DD",
+  "materias": [
+    {
+      "materia": "Nome exato da matéria",
+      "quantidade_erros": 0,
+      "quantidade_acertos": 0,
+      "assunto_estudar": "Assunto específico cobrado pela VUNESP"
+    }
+  ]
+}`;
 
   const copiarPrompt = () => {
     navigator.clipboard.writeText(promptModelo);
@@ -338,7 +347,7 @@ Analise o meu desempenho recente e gere um payload JSON estrito contendo um arra
       const texto = await navigator.clipboard.readText();
       setJsonInput(texto);
     } catch (err) {
-      alert('Não foi possível ler a área de transferência automaticamente. Cole manualmente (Ctrl+V).');
+      alert('Não foi possível ler a área de transferência. Cole manualmente.');
     }
   };
 
@@ -348,7 +357,7 @@ Analise o meu desempenho recente e gere um payload JSON estrito contendo um arra
 
       <main className="flex-1 max-w-7xl w-full mx-auto p-6 md:p-8 space-y-10">
         
-        {/* Cabeçalho da Página */}
+        {/* Cabeçalho */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-zinc-800 pb-6">
           <div>
             <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white flex items-center gap-3">
@@ -356,7 +365,7 @@ Analise o meu desempenho recente e gere um payload JSON estrito contendo um arra
               Simulados e Desempenho — VUNESP / TJSP
             </h1>
             <p className="text-sm text-zinc-400 mt-1">
-              Selecione o simulado abaixo para abrir o painel analítico detalhado e as estatísticas por matéria[].
+              Selecione o simulado abaixo para abrir o painel analítico detalhado e as estatísticas por matéria[cite: 10].
             </p>
           </div>
           <button
@@ -409,7 +418,7 @@ Analise o meu desempenho recente e gere um payload JSON estrito contendo um arra
           </div>
         )}
 
-        {/* PAINEL ANALÍTICO COMPLETO (ESTATÍSTICAS + BARRAS POR MATÉRIA) */}
+        {/* PAINEL ANALÍTICO COMPLETO */}
         {simuladoAtivo ? (
           <div className="space-y-6 bg-zinc-900/60 border border-zinc-800 rounded-3xl p-6 sm:p-8 shadow-2xl">
             <div className="border-b border-zinc-800 pb-4 flex justify-between items-center">
@@ -424,7 +433,6 @@ Analise o meu desempenho recente e gere um payload JSON estrito contendo um arra
               </span>
             </div>
 
-            {/* Grid Superior de Estatísticas (Acertos, Erros, Aproveitamento, Nota) */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 bg-zinc-950 p-6 rounded-2xl border border-zinc-800">
               <div className="space-y-1">
                 <span className="text-xs text-zinc-400 font-bold uppercase tracking-wide">Acertos</span>
@@ -455,15 +463,15 @@ Analise o meu desempenho recente e gere um payload JSON estrito contendo um arra
               </div>
             </div>
 
-            {/* Desempenho por Matéria (Barras Visuais Detalhadas) */}
+            {/* Desempenho por Matéria */}
             <div className="space-y-4 pt-4">
               <h3 className="text-sm font-extrabold uppercase tracking-wider text-white flex items-center gap-2">
                 <BarChart2 className="w-4 h-4 text-amber-400" />
-                Desempenho por Matéria do Edital TJSP[]
+                Desempenho por Matéria do Edital TJSP[cite: 10]
               </h3>
 
               {melhorias.length === 0 ? (
-                <p className="text-xs text-zinc-500 italic py-4">Nenhum detalhe por matéria cadastrado para este simulado. Adicione matérias ao registar o simulado para visualizar as barras de progresso.</p>
+                <p className="text-xs text-zinc-500 italic py-4">Nenhum detalhe por matéria cadastrado para este simulado.</p>
               ) : (
                 <div className="space-y-3">
                   {melhorias.map((m) => {
@@ -480,7 +488,6 @@ Analise o meu desempenho recente e gere um payload JSON estrito contendo um arra
                           <span className="font-mono font-bold text-zinc-300">{acertosMat}/{totalMat} ({percMat}%)</span>
                         </div>
                         
-                        {/* Barra de Progresso Visual */}
                         <div className="w-full bg-zinc-900 h-2.5 rounded-full overflow-hidden border border-zinc-800">
                           <div className={`h-full ${corBarra} transition-all duration-500`} style={{ width: `${percMat}%` }}></div>
                         </div>
@@ -504,16 +511,13 @@ Analise o meu desempenho recente e gere um payload JSON estrito contendo um arra
           <div className="bg-zinc-900/50 border border-zinc-800 rounded-3xl p-12 text-center space-y-3">
             <BarChart2 className="w-12 h-12 text-zinc-600 mx-auto" />
             <h3 className="text-lg font-semibold text-zinc-300">Nenhum simulado registado ainda</h3>
-            <p className="text-xs text-zinc-500 max-w-sm mx-auto">
-              Clique no botão "Adicionar Simulado" acima para preencher suas notas e acompanhar seu avanço.
-            </p>
           </div>
         )}
 
-        {/* Modal Unificado (Adicionar Novo Simulado com Matérias Opcionais) */}
+        {/* MODAL DE ADICIONAR NOVO SIMULADO */}
         {modalOpen && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
-            <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-lg w-full p-6 space-y-5 shadow-2xl my-8 relative">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-xl w-full p-6 space-y-5 shadow-2xl my-8 relative">
               <div className="flex justify-between items-center border-b border-zinc-800 pb-4">
                 <h3 className="text-base font-bold text-white flex items-center gap-2">
                   <Award className="w-5 h-5 text-amber-400" />
@@ -524,163 +528,151 @@ Analise o meu desempenho recente e gere um payload JSON estrito contendo um arra
                 </button>
               </div>
 
-              <form onSubmit={handleSalvarTudo} className="space-y-4">
-                <div className="space-y-3">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-amber-400">1. Dados do Simulado</h4>
+              <form onSubmit={handleSalvarSimuladoCompleto} className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold text-zinc-400 mb-1">Título do Simulado / Data</label>
+                    <label className="block text-xs font-semibold text-zinc-400 mb-1">Título do Simulado</label>
                     <input
                       type="text"
                       required
-                      placeholder="Ex: Simulado 01 - VUNESP TJSP"
+                      placeholder="Ex: Simulado 01 - TJSP"
                       value={titulo}
                       onChange={(e) => setTitulo(e.target.value)}
                       className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-amber-400"
                     />
                   </div>
-
-                  {!incluirMelhorias || !modoJson ? (
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs font-semibold text-zinc-400 mb-1">Acertos</label>
-                        <input
-                          type="number"
-                          required={!incluirMelhorias}
-                          placeholder="Ex: 75"
-                          value={acertos}
-                          onChange={(e) => setAcertos(e.target.value)}
-                          className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-amber-400"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-zinc-400 mb-1">Total de Questões</label>
-                        <input
-                          type="number"
-                          required={!incluirMelhorias}
-                          value={total}
-                          onChange={(e) => setTotal(e.target.value)}
-                          className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-amber-400"
-                        />
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="text-[11px] text-zinc-400 bg-zinc-950 border border-zinc-800 p-3 rounded-xl flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
-                      <span>O total de acertos e questões será calculado automaticamente com base no JSON das matérias inserido abaixo.</span>
-                    </div>
-                  )}
+                  <div>
+                    <label className="block text-xs font-semibold text-zinc-400 mb-1">Data do Simulado</label>
+                    <input
+                      type="date"
+                      required
+                      value={dataSimulado}
+                      onChange={(e) => setDataSimulado(e.target.value)}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-amber-400"
+                    />
+                  </div>
                 </div>
 
-                <div className="pt-3 border-t border-zinc-800 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={incluirMelhorias}
-                        onChange={(e) => setIncluirMelhorias(e.target.checked)}
-                        className="rounded bg-zinc-950 border-zinc-800 text-amber-400 focus:ring-amber-400 w-4 h-4"
-                      />
-                      <span className="text-xs font-bold text-white flex items-center gap-1.5">
-                        <Target className="w-3.5 h-3.5 text-amber-400" /> Adicionar Matérias do Edital (Opcional)
-                      </span>
-                    </label>
+                <div className="pt-2 border-t border-zinc-800 space-y-3">
+                  <span className="text-xs font-bold uppercase tracking-wider text-amber-400 block">Modo de Preenchimento das Matérias:</span>
+                  
+                  {/* Abas de Escolha entre JSON e Manual */}
+                  <div className="flex bg-zinc-950 p-1 rounded-xl border border-zinc-800">
+                    <button
+                      type="button"
+                      onClick={() => setModoPreenchimento('json')}
+                      className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${modoPreenchimento === 'json' ? 'bg-amber-400 text-zinc-950 shadow' : 'text-zinc-400 hover:text-white'}`}
+                    >
+                      <Code className="w-4 h-4" /> Payload JSON (IA)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setModoPreenchimento('manual')}
+                      className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${modoPreenchimento === 'manual' ? 'bg-amber-400 text-zinc-950 shadow' : 'text-zinc-400 hover:text-white'}`}
+                    >
+                      <Plus className="w-4 h-4" /> Inserção Manual (1 a 1)
+                    </button>
                   </div>
 
-                  {incluirMelhorias && (
-                    <div className="bg-zinc-950/60 border border-zinc-800 p-4 rounded-xl space-y-3">
+                  {/* SE MODO JSON */}
+                  {modoPreenchimento === 'json' && (
+                    <div className="space-y-3 bg-zinc-950/60 p-4 rounded-xl border border-zinc-800">
                       <div className="flex justify-between items-center">
                         <button
                           type="button"
                           onClick={copiarPrompt}
-                          className="text-[11px] bg-zinc-900 border border-zinc-700 hover:border-amber-400 text-amber-300 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all cursor-pointer"
+                          className="text-[11px] bg-zinc-900 border border-zinc-700 hover:border-amber-400 text-amber-300 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all cursor-pointer font-bold"
                         >
                           {copiado ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3 text-amber-400" />}
-                          {copiado ? 'Prompt Copiado!' : 'Copiar Prompt para IA'}
+                          {copiado ? 'Prompt Copiado!' : 'Copiar Prompt para IA (Com Data)'}
+                        </button>
+                        <button 
+                          type="button" 
+                          onClick={colarDaAreaTransferencia}
+                          className="text-[11px] text-amber-400 hover:underline cursor-pointer flex items-center gap-1"
+                        >
+                          <Copy className="w-3 h-3" /> Colar JSON
                         </button>
                       </div>
 
-                      <div className="flex bg-zinc-950 p-1 rounded-xl border border-zinc-800">
-                        <button
-                          type="button"
-                          onClick={() => setModoJson(true)}
-                          className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${modoJson ? 'bg-amber-400 text-zinc-950 shadow' : 'text-zinc-400 hover:text-white'}`}
-                        >
-                          <Code className="w-3.5 h-3.5" /> Payload JSON (Todas as Matérias)
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setModoJson(false)}
-                          className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${!modoJson ? 'bg-amber-400 text-zinc-950 shadow' : 'text-zinc-400 hover:text-white'}`}
-                        >
-                          Manual (1 a 1)
-                        </button>
-                      </div>
+                      <textarea
+                        rows={7}
+                        value={jsonInput}
+                        onChange={(e) => setJsonInput(e.target.value)}
+                        placeholder='{"data": "2026-10-18", "materias": [{"materia": "Informática", "quantidade_erros": 1, "quantidade_acertos": 8, "assunto_estudar": "..."}]}'
+                        className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-xs text-amber-300 font-mono focus:outline-none focus:border-amber-400"
+                      />
+                    </div>
+                  )}
 
-                      {modoJson ? (
-                        <div className="space-y-2">
-                          <div className="flex justify-between items-center">
-                            <span className="text-[11px] text-zinc-400">Cole o Array JSON gerado pela IA:</span>
-                            <button 
-                              type="button" 
-                              onClick={colarDaAreaTransferencia}
-                              className="text-[10px] text-amber-400 hover:underline cursor-pointer flex items-center gap-1"
-                            >
-                              <Copy className="w-3 h-3" /> Colar da Área de Transferência
-                            </button>
-                          </div>
-                          <textarea
-                            rows={6}
-                            value={jsonInput}
-                            onChange={(e) => setJsonInput(e.target.value)}
-                            placeholder='[{"materia": "Informática", "quantidade_erros": 1, "quantidade_acertos": 8, "assunto_estudar": "..."}]'
-                            className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-xs text-white font-mono focus:outline-none focus:border-amber-400"
+                  {/* SE MODO MANUAL */}
+                  {modoPreenchimento === 'manual' && (
+                    <div className="space-y-3 bg-zinc-950/60 p-4 rounded-xl border border-zinc-800">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-[11px] font-semibold text-zinc-400 mb-1">Matéria</label>
+                          <input
+                            type="text"
+                            value={materiaManual}
+                            onChange={(e) => setMateriaManual(e.target.value)}
+                            placeholder="Ex: Direito Constitucional"
+                            className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
                           />
                         </div>
-                      ) : (
-                        <div className="space-y-3">
+                        <div className="grid grid-cols-2 gap-2">
                           <div>
-                            <label className="block text-[11px] font-semibold text-zinc-400 mb-1">Matéria do Edital</label>
+                            <label className="block text-[11px] font-semibold text-zinc-400 mb-1">Acertos</label>
                             <input
-                              type="text"
-                              value={novaMateria}
-                              onChange={(e) => setNovaMateria(e.target.value)}
-                              placeholder="Ex: Direito Constitucional"
-                              className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
+                              type="number"
+                              value={acertosManual}
+                              onChange={(e) => setAcertosManual(e.target.value)}
+                              placeholder="0"
+                              className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
                             />
                           </div>
-
-                          <div className="grid grid-cols-2 gap-3">
-                            <div>
-                              <label className="block text-[11px] font-semibold text-zinc-400 mb-1">Erros</label>
-                              <input
-                                type="number"
-                                value={errosInput}
-                                onChange={(e) => setErrosInput(e.target.value)}
-                                placeholder="0"
-                                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-[11px] font-semibold text-zinc-400 mb-1">Acertos</label>
-                              <input
-                                type="number"
-                                value={acertosInput}
-                                onChange={(e) => setAcertosInput(e.target.value)}
-                                placeholder="0"
-                                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
-                              />
-                            </div>
-                          </div>
-
                           <div>
-                            <label className="block text-[11px] font-semibold text-zinc-400 mb-1">Assunto a ser estudado</label>
+                            <label className="block text-[11px] font-semibold text-zinc-400 mb-1">Erros</label>
                             <input
-                              type="text"
-                              value={assuntoInput}
-                              onChange={(e) => setAssuntoInput(e.target.value)}
-                              placeholder="Ex: Direitos e Garantias Fundamentais"
-                              className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
+                              type="number"
+                              value={errosManual}
+                              onChange={(e) => setErrosManual(e.target.value)}
+                              placeholder="0"
+                              className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
                             />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-semibold text-zinc-400 mb-1">Assunto a ser estudado / focado</label>
+                        <input
+                          type="text"
+                          value={assuntoManual}
+                          onChange={(e) => setAssuntoManual(e.target.value)}
+                          placeholder="Ex: Artigo 5º da CF/88"
+                          className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
+                        />
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={adicionarMateriaManualTemp}
+                        className="w-full py-2 bg-zinc-800 hover:bg-zinc-700 text-amber-400 rounded-xl text-xs font-bold transition cursor-pointer"
+                      >
+                        + Adicionar Matéria à Lista
+                      </button>
+
+                      {/* Lista temporária adicionada manualmente */}
+                      {listaManualTemporaria.length > 0 && (
+                        <div className="space-y-2 pt-2 border-t border-zinc-800">
+                          <span className="text-[10px] uppercase font-bold text-zinc-400">Matérias adicionadas ({listaManualTemporaria.length}):</span>
+                          <div className="max-h-32 overflow-y-auto space-y-1.5">
+                            {listaManualTemporaria.map((item, idx) => (
+                              <div key={idx} className="flex justify-between items-center bg-zinc-900 p-2 rounded-lg text-xs">
+                                <span><b>{item.materia}</b> — ✓{item.quantidade_acertos} ✕{item.quantidade_erros}</span>
+                                <button type="button" onClick={() => removerMateriaManualTemp(idx)} className="text-rose-400 hover:underline text-[11px]">Remover</button>
+                              </div>
+                            ))}
                           </div>
                         </div>
                       )}
@@ -702,7 +694,7 @@ Analise o meu desempenho recente e gere um payload JSON estrito contendo um arra
                     disabled={aGuardar}
                     className="px-5 py-2 rounded-xl text-xs font-black bg-amber-400 hover:bg-amber-500 text-zinc-950 shadow-md cursor-pointer disabled:opacity-50"
                   >
-                    {aGuardar ? 'A guardar...' : 'Guardar Registo'}
+                    {aGuardar ? 'A guardar...' : 'Guardar Registo Completo'}
                   </button>
                 </div>
               </form>
@@ -710,13 +702,13 @@ Analise o meu desempenho recente e gere um payload JSON estrito contendo um arra
           </div>
         )}
 
-        {/* Modal de Edição de Ponto de Melhoria/Matéria */}
+        {/* Modal de Edição de Matéria */}
         {modalEditMelhoriaOpen && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
             <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl relative">
               <div className="flex justify-between items-center border-b border-zinc-800 pb-3">
                 <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                  <Pencil className="w-4 h-4 text-amber-400" /> Editar Matéria / Desempenho
+                  <Pencil className="w-4 h-4 text-amber-400" /> Editar Matéria
                 </h3>
                 <button onClick={() => setModalEditMelhoriaOpen(false)} className="text-zinc-400 hover:text-white cursor-pointer">
                   <XCircle className="w-5 h-5" />
@@ -770,19 +762,8 @@ Analise o meu desempenho recente e gere um payload JSON estrito contendo um arra
                 </div>
 
                 <div className="flex justify-end gap-2 pt-3 border-t border-zinc-800">
-                  <button
-                    type="button"
-                    onClick={() => setModalEditMelhoriaOpen(false)}
-                    className="px-4 py-2 rounded-xl text-xs font-semibold bg-zinc-800 hover:bg-zinc-700 text-zinc-300 cursor-pointer"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 rounded-xl text-xs font-bold bg-amber-400 hover:bg-amber-500 text-zinc-950 shadow-md cursor-pointer"
-                  >
-                    Salvar Alterações
-                  </button>
+                  <button type="button" onClick={() => setModalEditMelhoriaOpen(false)} className="px-4 py-2 rounded-xl text-xs font-semibold bg-zinc-800 text-zinc-300">Cancelar</button>
+                  <button type="submit" className="px-4 py-2 rounded-xl text-xs font-bold bg-amber-400 text-zinc-950">Salvar</button>
                 </div>
               </form>
             </div>
@@ -838,19 +819,8 @@ Analise o meu desempenho recente e gere um payload JSON estrito contendo um arra
                 </div>
 
                 <div className="flex justify-end gap-2 pt-3 border-t border-zinc-800">
-                  <button
-                    type="button"
-                    onClick={() => setModalEditSimuladoOpen(false)}
-                    className="px-4 py-2 rounded-xl text-xs font-semibold bg-zinc-800 hover:bg-zinc-700 text-zinc-300 cursor-pointer"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 rounded-xl text-xs font-bold bg-amber-400 hover:bg-amber-500 text-zinc-950 shadow-md cursor-pointer"
-                  >
-                    Salvar Alterações
-                  </button>
+                  <button type="button" onClick={() => setModalEditSimuladoOpen(false)} className="px-4 py-2 rounded-xl text-xs font-semibold bg-zinc-800 text-zinc-300">Cancelar</button>
+                  <button type="submit" className="px-4 py-2 rounded-xl text-xs font-bold bg-amber-400 text-zinc-950">Salvar</button>
                 </div>
               </form>
             </div>

@@ -160,14 +160,32 @@ export default function SimuladosPage() {
           }
 
           const parsed = JSON.parse(textoLimpo);
-          const arrayParsed = Array.isArray(parsed) ? parsed : [parsed];
-          
-          itensParaInserir = arrayParsed.map((item) => ({
+
+          // Extrai a lista de matérias seja de { materias: [...] } ou direto [...]
+          let arrayMaterias: any[] = [];
+          if (Array.isArray(parsed)) {
+            arrayMaterias = parsed;
+          } else if (parsed && Array.isArray(parsed.materias)) {
+            arrayMaterias = parsed.materias;
+            if (parsed.data) {
+              dataFinalSimulado = new Date(parsed.data).toISOString();
+            }
+          } else if (parsed && typeof parsed === 'object') {
+            arrayMaterias = [parsed];
+          }
+
+          if (arrayMaterias.length === 0) {
+            alert('Nenhuma matéria válida foi encontrada no JSON.');
+            setAGuardar(false);
+            return;
+          }
+
+          itensParaInserir = arrayMaterias.map((item) => ({
             user_id: user.id,
-            materia: item.materia,
+            materia: item.materia || item.nome || item.disciplina || '',
             quantidade_erros: Number(item.quantidade_erros) || 0,
             quantidade_acertos: Number(item.quantidade_acertos) || 0,
-            assunto_estudar: item.assunto_estudar || item.assunto || '',
+            assunto_estudar: item.assunto_estudar || item.assunto || item.foco || '',
             created_at: item.data ? new Date(item.data).toISOString() : dataFinalSimulado
           }));
         } catch (err) {
@@ -188,13 +206,13 @@ export default function SimuladosPage() {
         }));
       }
 
-      // Calcula acertos e total gerais com base nas matérias cadastradas
+      // Calcula acertos e total gerais com base nas matérias
       const somaAcertos = itensParaInserir.reduce((acc, item) => acc + item.quantidade_acertos, 0);
       const somaErros = itensParaInserir.reduce((acc, item) => acc + item.quantidade_erros, 0);
       const numTotal = somaAcertos + somaErros;
       const notaCalculada = numTotal > 0 ? Number(((somaAcertos / numTotal) * 10).toFixed(2)) : 0;
 
-      // Insere o Simulado principal
+      // 1. Insere o Simulado principal
       const { data: novoSimuladoInserido, error: erroSimulado } = await supabase.from('simulados').insert([
         {
           user_id: user.id,
@@ -212,7 +230,7 @@ export default function SimuladosPage() {
         return;
       }
 
-      // Insere os pontos de melhoria / matérias detalhadas
+      // 2. Insere os pontos de melhoria / matérias detalhadas
       if (itensParaInserir.length > 0) {
         const { error: erroMelhoria } = await supabase.from('pontos_melhoria').insert(itensParaInserir);
         if (erroMelhoria) {

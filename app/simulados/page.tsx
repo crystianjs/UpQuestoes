@@ -17,6 +17,7 @@ interface Simulado {
 
 interface PontoMelhoria {
   id: string;
+  simulado_id?: string;
   materia: string;
   quantidade_erros: number;
   quantidade_acertos: number;
@@ -26,7 +27,7 @@ interface PontoMelhoria {
 
 export default function SimuladosPage() {
   const router = useRouter();
-  const [simulados, setSimulados] = useState<Simulado[]>([]);
+  const [simuladosList, setSimuladosList] = useState<Simulado[]>([]);
   const [melhorias, setMelhorias] = useState<PontoMelhoria[]>([]);
   const [loading, setLoading] = useState(true);
   const [aGuardar, setAGuardar] = useState(false);
@@ -88,10 +89,13 @@ export default function SimuladosPage() {
       ]);
 
       if (simRes.data && simRes.data.length > 0) {
-        setSimulados(simRes.data);
+        setSimuladosList(simRes.data);
         if (!simuladoSelecionadoId) {
           setSimuladoSelecionadoId(simRes.data[0].id);
         }
+      } else {
+        setSimuladosList([]);
+        setSimuladoSelecionadoId('');
       }
       if (melRes.data) setMelhorias(melRes.data);
     } catch (error) {
@@ -101,14 +105,18 @@ export default function SimuladosPage() {
     }
   }
 
-  const simuladoAtivo = simulados.find(s => s.id === simuladoSelecionadoId) || simulados[0];
+  const simuladoAtivo = simuladosList.find(s => s.id === simuladoSelecionadoId) || simuladosList[0];
+
+  // Filtra as matérias exclusivamente do simulado ativo atual por simulado_id
+  const melhoriasDoSimuladoAtivo = melhorias.filter(
+    (m) => m.simulado_id === simuladoAtivo?.id
+  );
 
   const totalAcertosAnalitico = simuladoAtivo ? simuladoAtivo.acertos : 0;
   const totalQuestoesAnalitico = simuladoAtivo ? simuladoAtivo.total_questoes : 100;
   const totalErrosAnalitico = Math.max(0, totalQuestoesAnalitico - totalAcertosAnalitico);
   const aproveitamentoTotal = totalQuestoesAnalitico > 0 ? ((totalAcertosAnalitico / totalQuestoesAnalitico) * 100).toFixed(1) : '0';
 
-  // Função para adicionar matéria na lista temporária manual
   function adicionarMateriaManualTemp(e: React.FormEvent) {
     e.preventDefault();
     if (!materiaManual.trim()) return;
@@ -131,7 +139,7 @@ export default function SimuladosPage() {
     setListaManualTemporaria(listaManualTemporaria.filter((_, i) => i !== index));
   }
 
-  // --- FUNÇÃO DE SALVAR TUDO (SIMULADO + MATÉRIAS) ---
+  // --- FUNÇÃO DE SALVAR TUDO (SIMULADO + MATÉRIAS VINCULADAS) ---
   async function handleSalvarSimuladoCompleto(e: React.FormEvent) {
     e.preventDefault();
     if (aGuardar) return;
@@ -161,7 +169,6 @@ export default function SimuladosPage() {
 
           const parsed = JSON.parse(textoLimpo);
 
-          // Extrai a lista de matérias seja de { materias: [...] } ou direto [...]
           let arrayMaterias: any[] = [];
           if (Array.isArray(parsed)) {
             arrayMaterias = parsed;
@@ -206,7 +213,6 @@ export default function SimuladosPage() {
         }));
       }
 
-      // Calcula acertos e total gerais com base nas matérias
       const somaAcertos = itensParaInserir.reduce((acc, item) => acc + item.quantidade_acertos, 0);
       const somaErros = itensParaInserir.reduce((acc, item) => acc + item.quantidade_erros, 0);
       const numTotal = somaAcertos + somaErros;
@@ -230,9 +236,14 @@ export default function SimuladosPage() {
         return;
       }
 
-      // 2. Insere os pontos de melhoria / matérias detalhadas
-      if (itensParaInserir.length > 0) {
-        const { error: erroMelhoria } = await supabase.from('pontos_melhoria').insert(itensParaInserir);
+      // 2. Insere as matérias associando o simulado_id do simulado recém criado
+      if (itensParaInserir.length > 0 && novoSimuladoInserido) {
+        const itensComSimuladoId = itensParaInserir.map((item) => ({
+          ...item,
+          simulado_id: novoSimuladoInserido.id
+        }));
+
+        const { error: erroMelhoria } = await supabase.from('pontos_melhoria').insert(itensComSimuladoId);
         if (erroMelhoria) {
           alert(`Erro ao guardar Matérias: ${erroMelhoria.message}`);
           setAGuardar(false);
@@ -240,7 +251,6 @@ export default function SimuladosPage() {
         }
       }
 
-      // Limpa formulários e fecha modal
       setTitulo('');
       setJsonInput('');
       setListaManualTemporaria([]);
@@ -330,8 +340,8 @@ export default function SimuladosPage() {
     if (!confirm('Deseja apagar este simulado?')) return;
     try {
       await supabase.from('simulados').delete().eq('id', id);
-      const restantes = simulados.filter((s) => s.id !== id);
-      setSimulados(restantes);
+      const restantes = simuladosList.filter((s) => s.id !== id);
+      setSimuladosList(restantes);
       if (restantes.length > 0) setSimuladoSelecionadoId(restantes[0].id);
       else setSimuladoSelecionadoId('');
     } catch (err) {
@@ -339,7 +349,6 @@ export default function SimuladosPage() {
     }
   }
 
-  // Prompt atualizado que instrui a IA a trazer também a data
   const promptModelo = `Atue como meu mentor especializado no concurso do Tribunal de Justiça de São Paulo (TJSP) sob o padrão da banca VUNESP. 
 Analise o meu desempenho no simulado e gere um payload JSON estrito contendo a data e um array de objetos para cada matéria:
 {
@@ -383,7 +392,7 @@ Analise o meu desempenho no simulado e gere um payload JSON estrito contendo a d
               Simulados e Desempenho — VUNESP / TJSP
             </h1>
             <p className="text-sm text-zinc-400 mt-1">
-              Selecione o simulado abaixo para abrir o painel analítico detalhado e as estatísticas por matéria[cite: 10].
+              Selecione o simulado abaixo para abrir o painel analítico detalhado e as estatísticas por matéria.
             </p>
           </div>
           <button
@@ -396,7 +405,7 @@ Analise o meu desempenho no simulado e gere um payload JSON estrito contendo a d
         </div>
 
         {/* BARRA DE SELEÇÃO DO SIMULADO POR DATA/TÍTULO */}
-        {simulados.length > 0 && (
+        {simuladosList.length > 0 && (
           <div className="bg-zinc-900/90 border border-zinc-800 p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-lg">
             <div className="flex items-center gap-2 w-full sm:w-auto">
               <Calendar className="w-5 h-5 text-amber-400 shrink-0" />
@@ -409,7 +418,7 @@ Analise o meu desempenho no simulado e gere um payload JSON estrito contendo a d
                 onChange={(e) => setSimuladoSelecionadoId(e.target.value)}
                 className="w-full bg-zinc-950 border border-zinc-800 text-amber-300 text-xs font-bold rounded-xl px-4 py-3 outline-none focus:border-amber-400 cursor-pointer"
               >
-                {simulados.map((sim) => (
+                {simuladosList.map((sim) => (
                   <option key={sim.id} value={sim.id}>
                     {sim.titulo} — ({new Date(sim.created_at).toLocaleDateString('pt-BR')}) • Nota: {sim.nota}
                   </option>
@@ -481,18 +490,18 @@ Analise o meu desempenho no simulado e gere um payload JSON estrito contendo a d
               </div>
             </div>
 
-            {/* Desempenho por Matéria */}
+            {/* Desempenho por Matéria (Filtrado pelo Simulado Ativo) */}
             <div className="space-y-4 pt-4">
               <h3 className="text-sm font-extrabold uppercase tracking-wider text-white flex items-center gap-2">
                 <BarChart2 className="w-4 h-4 text-amber-400" />
-                Desempenho por Matéria do Edital TJSP[cite: 10]
+                Desempenho por Matéria do Edital TJSP
               </h3>
 
-              {melhorias.length === 0 ? (
+              {melhoriasDoSimuladoAtivo.length === 0 ? (
                 <p className="text-xs text-zinc-500 italic py-4">Nenhum detalhe por matéria cadastrado para este simulado.</p>
               ) : (
                 <div className="space-y-3">
-                  {melhorias.map((m) => {
+                  {melhoriasDoSimuladoAtivo.map((m) => {
                     const acertosMat = m.quantidade_acertos || 0;
                     const errosMat = m.quantidade_erros || 0;
                     const totalMat = acertosMat + errosMat;
@@ -574,7 +583,6 @@ Analise o meu desempenho no simulado e gere um payload JSON estrito contendo a d
                 <div className="pt-2 border-t border-zinc-800 space-y-3">
                   <span className="text-xs font-bold uppercase tracking-wider text-amber-400 block">Modo de Preenchimento das Matérias:</span>
                   
-                  {/* Abas de Escolha entre JSON e Manual */}
                   <div className="flex bg-zinc-950 p-1 rounded-xl border border-zinc-800">
                     <button
                       type="button"
@@ -592,7 +600,6 @@ Analise o meu desempenho no simulado e gere um payload JSON estrito contendo a d
                     </button>
                   </div>
 
-                  {/* SE MODO JSON */}
                   {modoPreenchimento === 'json' && (
                     <div className="space-y-3 bg-zinc-950/60 p-4 rounded-xl border border-zinc-800">
                       <div className="flex justify-between items-center">
@@ -623,7 +630,6 @@ Analise o meu desempenho no simulado e gere um payload JSON estrito contendo a d
                     </div>
                   )}
 
-                  {/* SE MODO MANUAL */}
                   {modoPreenchimento === 'manual' && (
                     <div className="space-y-3 bg-zinc-950/60 p-4 rounded-xl border border-zinc-800">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -680,7 +686,6 @@ Analise o meu desempenho no simulado e gere um payload JSON estrito contendo a d
                         + Adicionar Matéria à Lista
                       </button>
 
-                      {/* Lista temporária adicionada manualmente */}
                       {listaManualTemporaria.length > 0 && (
                         <div className="space-y-2 pt-2 border-t border-zinc-800">
                           <span className="text-[10px] uppercase font-bold text-zinc-400">Matérias adicionadas ({listaManualTemporaria.length}):</span>

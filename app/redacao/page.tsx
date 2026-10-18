@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Navbar from '../components/Navbar';
 import { supabase } from '@/lib/supabase';
-import { Play, Square, CheckCircle, AlertCircle, Clock, FileText, PlusCircle, Timer, Edit3, Trash2, X, ExternalLink } from 'lucide-react';
+import { Play, Square, CheckCircle, AlertCircle, Clock, FileText, PlusCircle, Timer, Trash2, X, Layers, AlertTriangle, Copy, Sparkles } from 'lucide-react';
 
 interface RedacaoRegistro {
   id: string;
@@ -14,44 +14,58 @@ interface RedacaoRegistro {
   created_at: string;
 }
 
-interface RepertorioItem {
+interface TreinoPratico {
+  data: string;
+  etapa: 'introducao' | 'desenvolvimento1' | 'desenvolvimento2' | 'conclusao';
+  tema: string;
+  nota_obtida: number;
+  importante_revisar: boolean;
+  pontos_atencao: string[];
+}
+
+interface ModeloParametricoItem {
   id: string;
-  nome: string;
-  link: string;
+  etapa: 'introducao' | 'desenvolvimento1' | 'desenvolvimento2' | 'conclusao';
+  titulo: string;
   descricao: string;
-  exemplo_pratico: string;
+  estrutura_parametrica: {
+    conectores_fixos: Record<string, string>;
+    variaveis: Record<string, string>;
+  };
+  modelo_texto: string;
+  exemplos_praticos?: {
+    tema_aplicado: string;
+    texto: string;
+  }[];
 }
 
 export default function RedacaoPage() {
   const router = useRouter();
   const [modoRegistro, setModoRegistro] = useState<'cronometro' | 'manual'>('cronometro');
 
-  // Estados do Cronómetro
+  // Estados do Cronômetro
   const [tema, setTema] = useState('');
   const [cronometroAtivo, setCronometroAtivo] = useState(false);
   const [tempoSegundos, setTempoSegundos] = useState(0);
 
-  // Estados do Registo Manual
+  // Estados do Registro Manual
   const [temaManual, setTemaManual] = useState('');
   const [tempoMinutosManual, setTempoMinutosManual] = useState('');
   const [notaManual, setNotaManual] = useState('');
 
-  // Estados de Listagem e Edição de Redações
+  // Listagens
   const [redacoesList, setRedacoesList] = useState<RedacaoRegistro[]>([]);
-  const [redacaoEmEdicao, setRedacaoEmEdicao] = useState<RedacaoRegistro | null>(null);
-  const [modalEdicaoAberto, setModalEdicaoAberto] = useState(false);
+  const [modelosList, setModelosList] = useState<ModeloParametricoItem[]>([]);
+  const [treinosPraticosList, setTreinosPraticosList] = useState<TreinoPratico[]>([]);
 
-  // Estados para as Estratégias de Redação e Repertórios
-  const [abaEstrategia, setAbaEstrategia] = useState<'semRepertorio' | 'comRepertorio'>('semRepertorio');
-  const [repertoriosList, setRepertoriosList] = useState<RepertorioItem[]>([]);
-  const [isAdicionandoRepertorio, setIsAdicionandoRepertorio] = useState(false);
-  const [repertorioEmEdicao, setRepertorioEmEdicao] = useState<RepertorioItem | null>(null);
-  const [modalRepertorioEdicaoAberto, setModalRepertorioEdicaoAberto] = useState(false);
-
-  const [novoNomeRep, setNovoNomeRep] = useState('');
-  const [novoLinkRep, setNovoLinkRep] = useState('');
-  const [novaDescRep, setNovaDescRep] = useState('');
-  const [novoExemploRep, setNovoExemploRep] = useState('');
+  // Seleções e Modais
+  const [etapaSelecionada, setEtapaSelecionada] = useState<'introducao' | 'desenvolvimento1' | 'desenvolvimento2' | 'conclusao'>('introducao');
+  const [etapaModalAlvo, setEtapaModalAlvo] = useState<'introducao' | 'desenvolvimento1' | 'desenvolvimento2' | 'conclusao'>('introducao');
+  
+  // Modais de JSON / Prompts
+  const [modalPromptAtivo, setModalPromptAtivo] = useState<'novo_modelo' | 'novo_exemplo' | 'novo_treino_json' | null>(null);
+  const [jsonInput, setJsonInput] = useState('');
+  const [copiado, setCopiado] = useState(false);
 
   const [salvando, setSalvando] = useState(false);
   const [sucesso, setSucesso] = useState(false);
@@ -60,29 +74,52 @@ export default function RedacaoPage() {
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Carregar dados e sessão
   const carregarDados = async (uid: string) => {
-    // Carregar Redações
-    const { data: dataRed, error: errRed } = await supabase
-      .from('redaccoes')
-      .select('*')
-      .eq('user_id', uid)
-      .order('created_at', { ascending: false });
+    // Redações
+    const { data: dataRed } = await supabase.from('redaccoes').select('*').eq('user_id', uid).order('created_at', { ascending: false });
+    if (dataRed) setRedacoesList(dataRed);
 
-    if (!errRed && dataRed) {
-      setRedacoesList(dataRed);
+    // Modelos
+    const { data: dataMod } = await supabase.from('modelos_redacao').select('*').eq('user_id', uid).order('created_at', { ascending: false });
+    if (dataMod && dataMod.length > 0) {
+      setModelosList(dataMod);
+    } else {
+      // Modelos Padrão Iniciais
+      setModelosList([
+        {
+          id: 'default-intro-1',
+          etapa: 'introducao',
+          titulo: 'Constituição Federal de 1988 (Garantias Fundamentais)',
+          descricao: 'Modelo paramétrico coringa para temas de direitos sociais, omissão estatal e problemas contemporâneos da VUNESP.',
+          estrutura_parametrica: {
+            conectores_fixos: {
+              abertura: 'Conforme',
+              contraste: 'No entanto, quando se observa',
+              alerta_agente: 'liga-se um sinal de alerta quanto à',
+              fechamento_tese: 'Dessa forma, tal cenário evidencia'
+            },
+            variaveis: {
+              tema_exato: '[TEMA EXATO DA BANCA]',
+              argumento_1: '[ARGUMENTO 1 / CAUSA 1]',
+              argumento_2: '[ARGUMENTO 2 / CAUSA 2]',
+              agente_falha: '[AGENTE RESPONSÁVEL: ex: inoperância do Estado]',
+              repertorio_garantia: '[DIREITO/VALOR GARANTIDO]'
+            }
+          },
+          modelo_texto: 'Conforme [REPERTÓRIO], [DIREITO/VALOR] são garantias fundamentais de todos os cidadãos. No entanto, quando se observa [TEMA EXATO], liga-se um sinal de alerta quanto à [AGENTE RESPONSÁVEL]. Dessa forma, tal cenário evidencia [ARGUMENTO 1] e [ARGUMENTO 2].',
+          exemplos_praticos: [
+            {
+              tema_aplicado: 'Vivemos hoje uma epidemia da solidão?',
+              texto: 'Conforme a Constituição Federal de 1988, o bem-estar e a convivência comunitária são garantias fundamentais de todos os cidadãos. No entanto, quando se observa a crescente epidemia de solidão na sociedade contemporânea, liga-se um sinal de alerta quanto à inoperância do Estado em cumprir sua obrigação. Dessa forma, tal cenário evidencia o isolamento provocado pelas redes sociais e a inexistência de projetos públicos integrativos.'
+            }
+          ]
+        }
+      ]);
     }
 
-    // Carregar Repertórios
-    const { data: dataRep, error: errRep } = await supabase
-      .from('repertorios')
-      .select('*')
-      .eq('user_id', uid)
-      .order('created_at', { ascending: false });
-
-    if (!errRep && dataRep) {
-      setRepertoriosList(dataRep);
-    }
+    // Treinos Práticos
+    const { data: dataTreinos } = await supabase.from('treinos_praticos_redacao').select('*').eq('user_id', uid).order('created_at', { ascending: false });
+    if (dataTreinos) setTreinosPraticosList(dataTreinos);
   };
 
   useEffect(() => {
@@ -99,973 +136,444 @@ export default function RedacaoPage() {
     verificarSessao();
   }, [router]);
 
-  // Gestão do Cronômetro
+  // Gestão Cronômetro
   useEffect(() => {
     if (cronometroAtivo) {
-      timerRef.current = setInterval(() => {
-        setTempoSegundos((prev) => prev + 1);
-      }, 1000);
-    } else {
-      if (timerRef.current) clearInterval(timerRef.current);
+      timerRef.current = setInterval(() => setTempoSegundos((prev) => prev + 1), 1000);
+    } else if (timerRef.current) {
+      clearInterval(timerRef.current);
     }
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [cronometroAtivo]);
 
-  const formatarTempo = (segundosTotais: number) => {
-    if (!segundosTotais) return '0s';
-    const horas = Math.floor(segundosTotais / 3600);
-    const mins = Math.floor((segundosTotais % 3600) / 60);
-    const secs = segundosTotais % 60;
-    if (horas > 0) return `${horas}h ${mins}m`;
-    if (mins > 0) return `${mins}m ${secs > 0 ? `${secs}s` : ''}`.trim();
-    return `${secs}s`;
-  };
-
-  const formatarTempoAoVivo = (segundosTotais: number) => {
-    const horas = Math.floor(segundosTotais / 3600);
-    const mins = Math.floor((segundosTotais % 3600) / 60);
-    const secs = segundosTotais % 60;
-
-    if (horas > 0) {
-      return `${horas}h ${String(mins).padStart(2, '0')}m ${String(secs).padStart(2, '0')}s`;
-    }
-    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-  };
-
-  const renderizarBadgeNota = (nota?: number | null) => {
-    if (nota === null || nota === undefined) {
-      return <span className="text-zinc-600 italic">Sem nota</span>;
-    }
-
-    let estilos = 'bg-zinc-900/60 border-zinc-700/40 text-zinc-300';
-
-    if (nota >= 0 && nota < 5) {
-      estilos = 'bg-rose-950/60 border-rose-600/40 text-rose-400';
-    } else if (nota >= 5 && nota < 7) {
-      estilos = 'bg-blue-950/60 border-blue-600/40 text-blue-400';
-    } else if (nota >= 7 && nota <= 10) {
-      estilos = 'bg-emerald-950/60 border-emerald-600/40 text-emerald-400';
-    }
-
-    return (
-      <span className={`px-2.5 py-1 rounded-lg font-bold border text-xs ${estilos}`}>
-        {nota.toFixed(1)}
-      </span>
-    );
+  const formatarTempo = (segundos: number) => {
+    const mins = Math.floor(segundos / 60);
+    const secs = segundos % 60;
+    return `${mins}m ${secs}s`;
   };
 
   const iniciarTreino = () => {
-    if (!tema.trim()) {
-      setErro('Por favor, insira o tema da redação antes de iniciar o cronómetro.');
-      return;
-    }
-    setErro('');
-    setCronometroAtivo(true);
+    if (!tema.trim()) { setErro('Insira o tema antes de iniciar.'); return; }
+    setErro(''); setCronometroAtivo(true);
   };
 
   const pararEGuardarTreino = async () => {
     if (!userId) return;
     setCronometroAtivo(false);
-
-    if (tempoSegundos === 0) {
-      setErro('O cronómetro não registou tempo suficiente.');
-      return;
-    }
-
+    if (tempoSegundos === 0) return;
     setSalvando(true);
-    setErro('');
-    setSucesso(false);
-
     try {
-      const { error } = await supabase.from('redaccoes').insert([
-        {
-          tema: tema,
-          texto: 'Treino prático cronometrado.',
-          tempo_gasto_segundos: tempoSegundos,
-          user_id: userId
-        }
-      ]);
-
-      if (error) throw error;
-
-      setSucesso(true);
-      setTema('');
-      setTempoSegundos(0);
-      carregarDados(userId);
-    } catch (err: any) {
-      console.error('Erro ao guardar treino de redação:', err);
-      setErro('Erro ao guardar redação. Tente novamente.');
-    } finally {
-      setSalvando(false);
-    }
+      await supabase.from('redaccoes').insert([{ tema, texto: 'Treino cronometrado', tempo_gasto_segundos: tempoSegundos, user_id: userId }]);
+      setSucesso(true); setTema(''); setTempoSegundos(0); carregarDados(userId);
+    } catch { setErro('Erro ao salvar.'); } finally { setSalvando(false); }
   };
 
   const guardarManual = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!userId) return;
-
-    if (!temaManual.trim()) {
-      setErro('Por favor, insira o tema da redação.');
-      return;
-    }
-
-    const minutos = parseInt(tempoMinutosManual);
-    if (isNaN(minutos) || minutos <= 0) {
-      setErro('Por favor, insira um tempo válido em minutos.');
-      return;
-    }
-
+    if (!userId || !temaManual.trim()) return;
     setSalvando(true);
-    setErro('');
-    setSucesso(false);
-
     try {
-      const segundosTotais = minutos * 60;
-      let notaFinal = notaManual ? parseFloat(notaManual) : null;
-
-      if (notaFinal !== null && notaFinal > 10) {
-        notaFinal = notaFinal / 10;
-      }
-
-      const { error } = await supabase.from('redaccoes').insert([
-        {
-          tema: temaManual,
-          texto: 'Registo manual de treino de redação.',
-          tempo_gasto_segundos: segundosTotais,
-          nota: notaFinal,
-          user_id: userId
-        }
-      ]);
-
-      if (error) throw error;
-
-      setSucesso(true);
-      setTemaManual('');
-      setTempoMinutosManual('');
-      setNotaManual('');
-      carregarDados(userId);
-    } catch (err: any) {
-      console.error('Erro ao guardar registo manual:', err);
-      setErro('Erro ao guardar redação manual. Tente novamente.');
-    } finally {
-      setSalvando(false);
-    }
+      const mins = parseInt(tempoMinutosManual) || 30;
+      await supabase.from('redaccoes').insert([{ tema: temaManual, tempo_gasto_segundos: mins * 60, nota: parseFloat(notaManual) || null, user_id: userId }]);
+      setSucesso(true); setTemaManual(''); setTempoMinutosManual(''); setNotaManual(''); carregarDados(userId);
+    } catch { setErro('Erro ao guardar.'); } finally { setSalvando(false); }
   };
 
-  const abrirEdicao = (redacao: RedacaoRegistro) => {
-    setRedacaoEmEdicao(redacao);
-    setModalEdicaoAberto(true);
+  // Abrir Modal configurando a etapa-alvo
+  const abrirModalPrompt = (tipo: 'novo_modelo' | 'novo_exemplo' | 'novo_treino_json') => {
+    setEtapaModalAlvo(etapaSelecionada);
+    setModalPromptAtivo(tipo);
   };
 
-  const salvarEdicao = async (e: React.FormEvent) => {
+  // Processar Inserções via JSON Modal
+  const processarSubmissaoJson = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!userId || !redacaoEmEdicao) return;
-
-    try {
-      let novaNota = redacaoEmEdicao.nota !== undefined && redacaoEmEdicao.nota !== null ? Number(redacaoEmEdicao.nota) : null;
-      if (novaNota !== null && novaNota > 10) {
-        novaNota = novaNota / 10;
-      }
-
-      const { error } = await supabase
-        .from('redaccoes')
-        .update({
-          tema: redacaoEmEdicao.tema,
-          nota: novaNota
-        })
-        .eq('id', redacaoEmEdicao.id)
-        .select();
-
-      if (error) {
-        alert(`Erro ao atualizar redação: ${error.message || 'Verifique as permissões'}`);
-        return;
-      }
-
-      setModalEdicaoAberto(false);
-      setRedacaoEmEdicao(null);
-      carregarDados(userId);
-    } catch (err: any) {
-      alert('Erro inesperado ao atualizar redação.');
-    }
-  };
-
-  const excluirRedacao = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir esta redação?')) return;
     if (!userId) return;
-
-    const { error } = await supabase.from('redaccoes').delete().eq('id', id);
-    if (!error) {
-      carregarDados(userId);
-    } else {
-      alert('Erro ao excluir redação.');
-    }
-  };
-
-  // Funções Supabase para Repertórios
-  const salvarNovoRepertorio = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!userId || !novoNomeRep.trim()) return;
-
     try {
-      const { error } = await supabase.from('repertorios').insert([
-        {
+      const parsed = JSON.parse(jsonInput);
+
+      if (modalPromptAtivo === 'novo_modelo') {
+        const novoModelo = {
           user_id: userId,
-          nome: novoNomeRep,
-          link: novoLinkRep,
-          descricao: novaDescRep,
-          exemplo_pratico: novoExemploRep
+          etapa: parsed.etapa || etapaModalAlvo,
+          titulo: parsed.titulo || `Modelo Paramétrico - ${parsed.etapa || etapaModalAlvo}`,
+          descricao: parsed.descricao || '',
+          estrutura_parametrica: parsed.estrutura_parametrica,
+          modelo_texto: parsed.modelo_texto,
+          exemplos_praticos: parsed.exemplos_praticos || []
+        };
+        await supabase.from('modelos_redacao').insert([novoModelo]);
+        setModelosList(prev => [novoModelo as any, ...prev]);
+        setEtapaSelecionada(parsed.etapa || etapaModalAlvo);
+        alert('Nova estrutura paramétrica adicionada com sucesso!');
+
+      } else if (modalPromptAtivo === 'novo_exemplo') {
+        const modeloAlvo = modelosList.find(m => m.etapa === (parsed.etapa || etapaModalAlvo));
+        if (modeloAlvo) {
+          const exemplosAtualizados = [...(modeloAlvo.exemplos_praticos || []), parsed.exemplo_pratico];
+          await supabase.from('modelos_redacao').update({ exemplos_praticos: exemplosAtualizados }).eq('id', modeloAlvo.id);
+          setModelosList(prev => prev.map(m => m.id === modeloAlvo.id ? { ...m, exemplos_praticos: exemplosAtualizados } : m));
+          alert('Novo exemplo prático anexado!');
+        } else {
+          alert('Nenhum modelo cadastrado encontrado para esta etapa. Crie a estrutura primeiro!');
         }
-      ]);
 
-      if (error) throw error;
+      } else if (modalPromptAtivo === 'novo_treino_json') {
+        const novoTreino: TreinoPratico = {
+          data: parsed.data || new Date().toISOString().split('T')[0],
+          etapa: parsed.etapa || etapaModalAlvo,
+          tema: parsed.tema,
+          nota_obtida: parsed.nota_obtida ?? 10,
+          importante_revisar: parsed.importante_revisar ?? false,
+          pontos_atencao: parsed.pontos_atencao || []
+        };
+        await supabase.from('treinos_praticos_redacao').insert([{ user_id: userId, ...novoTreino }]);
+        setTreinosPraticosList(prev => [novoTreino, ...prev]);
+        setEtapaSelecionada(parsed.etapa || etapaModalAlvo);
+        alert('Prática registrada com sucesso!');
+      }
 
-      setNovoNomeRep('');
-      setNovoLinkRep('');
-      setNovaDescRep('');
-      setNovoExemploRep('');
-      setIsAdicionandoRepertorio(false);
-      carregarDados(userId);
-    } catch (err: any) {
-      alert('Erro ao salvar repertório no banco.');
+      setModalPromptAtivo(null);
+      setJsonInput('');
+    } catch (err) {
+      alert('Sintaxe JSON inválida. Verifique o código e tente novamente.');
     }
   };
 
-  const abrirEdicaoRepertorio = (item: RepertorioItem) => {
-    setRepertorioEmEdicao(item);
-    setModalRepertorioEdicaoAberto(true);
-  };
+  // Geradores de Prompt
+  const PROMPT_NOVA_ESTRUTURA = `Atue como Especialista VUNESP/TJSP. Gere uma NOVA ESTRUTURA PARAMÉTRICA para a etapa "${etapaModalAlvo.toUpperCase()}".
 
-  const salvarEdicaoRepertorio = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!userId || !repertorioEmEdicao) return;
-
-    try {
-      const { error } = await supabase
-        .from('repertorios')
-        .update({
-          nome: repertorioEmEdicao.nome,
-          link: repertorioEmEdicao.link,
-          descricao: repertorioEmEdicao.descricao,
-          exemplo_pratico: repertorioEmEdicao.exemplo_pratico
-        })
-        .eq('id', repertorioEmEdicao.id);
-
-      if (error) throw error;
-
-      setModalRepertorioEdicaoAberto(false);
-      setRepertorioEmEdicao(null);
-      carregarDados(userId);
-    } catch (err: any) {
-      alert('Erro ao atualizar repertório.');
+Retorne EXCLUSIVAMENTE este JSON:
+{
+  "etapa": "${etapaModalAlvo}",
+  "titulo": "Título da Estrutura",
+  "descricao": "Descrição estratégica do modelo",
+  "estrutura_parametrica": {
+    "conectores_fixos": {
+      "abertura": "Conector...",
+      "contraste": "Conector..."
+    },
+    "variaveis": {
+      "tema_exato": "[TEMA EXATO DA BANCA]",
+      "argumento_1": "[ARGUMENTO 1]"
     }
-  };
+  },
+  "modelo_texto": "Texto coringa montado..."
+}`;
 
-  const excluirRepertorio = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir este repertório?')) return;
-    if (!userId) return;
+  const PROMPT_NOVO_EXEMPLO = `Atue como Mentor VUNESP. Gere um NOVO EXEMPLO PRÁTICO APLICADO para a etapa "${etapaModalAlvo.toUpperCase()}".
 
-    const { error } = await supabase.from('repertorios').delete().eq('id', id);
-    if (!error) {
-      carregarDados(userId);
-    } else {
-      alert('Erro ao excluir repertório.');
-    }
-  };
+Retorne EXCLUSIVAMENTE este JSON:
+{
+  "etapa": "${etapaModalAlvo}",
+  "exemplo_pratico": {
+    "tema_aplicado": "Tema Real VUNESP",
+    "texto": "Parágrafo completo redigido mantendo os conectores do esqueleto."
+  }
+}`;
+
+  const PROMPT_PRATICANDO_REDACAO = `Atue como Mentor de Redação. Gere o JSON de REGISTRO DE PRÁTICA para a etapa "${etapaModalAlvo.toUpperCase()}".
+
+Retorne EXCLUSIVAMENTE este JSON:
+{
+  "data": "2026-10-17",
+  "etapa": "${etapaModalAlvo}",
+  "tema": "Tema da redação treinada",
+  "nota_obtida": 9.5,
+  "importante_revisar": false,
+  "pontos_atencao": [
+    "Atenção à pontuação antes do conectivo",
+    "Manter clareza na tese"
+  ]
+}`;
+
+  const modeloAtual = modelosList.find(m => m.etapa === etapaSelecionada);
 
   return (
-    <div className="min-h-screen bg-black text-zinc-100 font-sans selection:bg-amber-600 selection:text-white">
+    <div className="min-h-screen bg-black text-zinc-100 font-sans selection:bg-amber-400 selection:text-zinc-950">
       <Navbar />
 
-      <main className="max-w-4xl mx-auto px-6 py-8 space-y-8">
-        
-        {/* Cabeçalho */}
-        <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 shadow-xl flex flex-col md:flex-row justify-between items-center gap-4">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-              <FileText className="w-6 h-6 text-amber-500" />
-              Treino de Redação Padrão VUNESP
-            </h1>
-            <p className="text-sm text-zinc-400 mt-1">
-              Cronometre ao vivo, registre manualmente e gerencie suas notas e histórico.
-            </p>
+      <main className="max-w-5xl mx-auto px-6 py-8 space-y-8">
+
+        {/* 1. BARRA PRINCIPAL DE NAVEGAÇÃO DE ETAPAS */}
+        <div className="bg-zinc-950 p-3 rounded-2xl border border-zinc-800 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xl">
+          <span className="text-xs font-extrabold uppercase tracking-wider text-amber-400 pl-2">
+            Selecione a Etapa da Redação:
+          </span>
+          <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto">
+            {(['introducao', 'desenvolvimento1', 'desenvolvimento2', 'conclusao'] as const).map((etapa) => (
+              <button
+                key={etapa}
+                onClick={() => setEtapaSelecionada(etapa)}
+                className={`py-2.5 px-4 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap ${
+                  etapaSelecionada === etapa ? 'bg-amber-400 text-zinc-950 shadow-md ring-2 ring-amber-400/50' : 'bg-zinc-900 text-zinc-400 hover:text-white'
+                }`}
+              >
+                {etapa === 'introducao' ? 'Introdução' : etapa === 'desenvolvimento1' ? 'Desenvolvimento 1' : etapa === 'desenvolvimento2' ? 'Desenvolvimento 2' : 'Conclusão'}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* 1. CRONÔMETRO (SELEÇÃO E MODO DE REGISTRO) */}
-        <div className="grid grid-cols-2 gap-3 bg-zinc-950 p-1.5 border border-zinc-800 rounded-2xl">
-          <button
-            onClick={() => { setModoRegistro('cronometro'); setErro(''); setSucesso(false); }}
-            className={`py-3 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
-              modoRegistro === 'cronometro'
-                ? 'bg-amber-600 text-white shadow-lg shadow-amber-600/20'
-                : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
-            }`}
-          >
-            <Timer className="w-4 h-4" />
-            Cronómetro ao Vivo
-          </button>
-          <button
-            onClick={() => { setModoRegistro('manual'); setErro(''); setSucesso(false); }}
-            className={`py-3 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
-              modoRegistro === 'manual'
-                ? 'bg-amber-600 text-white shadow-lg shadow-amber-600/20'
-                : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
-            }`}
-          >
-            <PlusCircle className="w-4 h-4" />
-            Registro Manual e Nota
-          </button>
-        </div>
+        {/* 2. CARD ÚNICO DO MODELO PARAMÉTRICO DA ETAPA SELECIONADA */}
+        {modeloAtual ? (
+          <div className="bg-zinc-950 border border-zinc-800 rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xl relative">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-zinc-800 pb-4">
+              <div>
+                <span className="text-[10px] font-extrabold uppercase tracking-widest text-amber-400 bg-amber-400/10 px-3 py-1 rounded-full border border-amber-400/20">
+                  MODELO PARAMÉTRICO • {etapaSelecionada.toUpperCase()}
+                </span>
+                <h2 className="text-2xl font-black text-white mt-2">{modeloAtual.titulo}</h2>
+                <p className="text-xs text-zinc-400 mt-1">{modeloAtual.descricao}</p>
+              </div>
 
-        {sucesso && (
-          <div className="bg-emerald-950/40 border border-emerald-600/40 p-4 rounded-xl text-emerald-400 text-sm flex items-center gap-3">
-            <CheckCircle className="w-5 h-5 shrink-0" />
-            Treino de redação guardado com sucesso!
-          </div>
-        )}
-
-        {erro && (
-          <div className="bg-red-950/40 border border-red-600/40 p-4 rounded-xl text-red-400 text-sm flex items-center gap-3">
-            <AlertCircle className="w-5 h-5 shrink-0" />
-            {erro}
-          </div>
-        )}
-
-        {/* PAINEL DO CRONÔMETRO */}
-        {modoRegistro === 'cronometro' && (
-          <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 md:p-10 shadow-xl space-y-8 text-center">
-            <div className="space-y-2 text-left">
-              <label className="text-xs font-bold uppercase tracking-wider text-zinc-400">Tema da Redação</label>
-              <input 
-                type="text" 
-                disabled={cronometroAtivo || salvando}
-                value={tema}
-                onChange={(e) => setTema(e.target.value)}
-                placeholder="Ex: Os impactos da tecnologia nas relações sociais contemporâneas"
-                className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3.5 text-sm text-zinc-100 focus:outline-none focus:border-red-600 transition-colors disabled:opacity-60"
-              />
-            </div>
-
-            <div className="py-8 bg-zinc-900/50 border border-zinc-800/80 rounded-2xl flex flex-col items-center justify-center space-y-2">
-              <Clock className={`w-10 h-10 ${cronometroAtivo ? 'text-red-500 animate-pulse' : 'text-zinc-500'}`} />
-              <span className="text-4xl md:text-5xl font-black tracking-widest text-white font-mono">
-                {formatarTempoAoVivo(tempoSegundos)}
-              </span>
-              <span className="text-xs text-zinc-500 uppercase tracking-widest">
-                {cronometroAtivo ? 'Cronómetro a correr...' : 'Pronto para iniciar'}
-              </span>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              {!cronometroAtivo ? (
-                <button 
-                  onClick={iniciarTreino}
-                  disabled={salvando}
-                  className="flex-1 bg-amber-600 hover:bg-amber-700 text-white font-bold py-4 px-8 rounded-xl transition-all shadow-lg shadow-amber-600/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 text-base"
+              {/* Botões para Subir Nova Estrutura ou Exemplo */}
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  onClick={() => abrirModalPrompt('novo_modelo')}
+                  className="px-3.5 py-2 bg-amber-400 hover:bg-amber-500 text-zinc-950 font-bold text-xs rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-md"
                 >
-                  <Play className="w-5 h-5 fill-current" />
-                  Iniciar Treino e Cronómetro
+                  <PlusCircle className="w-3.5 h-3.5" /> Nova Estrutura
                 </button>
-              ) : (
-                <button 
-                  onClick={pararEGuardarTreino}
-                  disabled={salvando}
-                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 px-8 rounded-xl transition-all shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 text-base animate-pulse"
+                <button
+                  onClick={() => abrirModalPrompt('novo_exemplo')}
+                  className="px-3.5 py-2 bg-zinc-900 hover:bg-zinc-800 text-amber-400 border border-amber-400/30 font-bold text-xs rounded-xl transition flex items-center gap-1.5 cursor-pointer"
                 >
-                  <Square className="w-5 h-5 fill-current" />
-                  Parar e Guardar Redação
+                  <Sparkles className="w-3.5 h-3.5" /> Novo Exemplo Prático
                 </button>
-              )}
+              </div>
             </div>
-          </div>
-        )}
 
-        {/* REGISTRO MANUAL DE NOTA */}
-        {modoRegistro === 'manual' && (
-          <form onSubmit={guardarManual} className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 md:p-10 shadow-xl space-y-6">
-            <div className="space-y-1">
-              <h3 className="text-sm font-bold text-white">Registo Manual de Treino & Nota</h3>
-              <p className="text-xs text-zinc-400">
-                Insira os dados do treino realizado externamente e a nota atribuída (0 a 10).
+            {/* ESTRUTURA PARAMÉTRICA (FIXOS VS VARIÁVEIS) */}
+            <div className="space-y-3">
+              <h3 className="text-xs font-extrabold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                <Layers className="w-4 h-4" /> ESTRUTURA PARAMÉTRICA (FIXOS VS VARIÁVEIS)
+              </h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Conectores Fixos */}
+                <div className="p-4 bg-zinc-900/60 rounded-2xl border border-amber-500/30 space-y-2">
+                  <span className="text-[10px] font-bold uppercase text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded">
+                    CONECTORES FIXOS (MEMORIZAÇÃO)
+                  </span>
+                  <ul className="space-y-2 pt-2 text-xs font-mono">
+                    {modeloAtual.estrutura_parametrica?.conectores_fixos &&
+                      Object.entries(modeloAtual.estrutura_parametrica.conectores_fixos).map(([k, v], idx) => (
+                        <li key={idx} className="flex justify-between items-center gap-2 border-b border-zinc-800/60 pb-1.5">
+                          <span className="text-amber-300 font-semibold">{k}:</span>
+                          <span className="text-zinc-100 font-bold bg-zinc-950 px-2.5 py-1 rounded border border-zinc-800">{String(v)}</span>
+                        </li>
+                      ))}
+                  </ul>
+                </div>
+
+                {/* Variáveis */}
+                <div className="p-4 bg-zinc-900/60 rounded-2xl border border-amber-500/20 space-y-2">
+                  <span className="text-[10px] font-bold uppercase text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded">
+                    VARIÁVEIS (PREENCHIMENTO POR TEMA)
+                  </span>
+                  <ul className="space-y-2 pt-2 text-xs font-mono">
+                    {modeloAtual.estrutura_parametrica?.variaveis &&
+                      Object.entries(modeloAtual.estrutura_parametrica.variaveis).map(([k, v], idx) => (
+                        <li key={idx} className="flex justify-between items-center gap-2 border-b border-zinc-800/60 pb-1.5">
+                          <span className="text-amber-300 font-semibold">{k}:</span>
+                          <span className="text-zinc-300 italic truncate max-w-[200px]">{String(v)}</span>
+                        </li>
+                      ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            {/* MODELO DE TEXTO COMPILADO */}
+            <div className="p-4 bg-zinc-900/40 rounded-2xl border border-zinc-800 space-y-2">
+              <span className="text-[10px] font-bold uppercase text-zinc-400 tracking-wider">MODELO DE TEXTO COMPILADO</span>
+              <p className="text-xs sm:text-sm text-zinc-100 leading-relaxed font-mono bg-zinc-950 p-4 rounded-xl border border-zinc-800">
+                {modeloAtual.modelo_texto}
               </p>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-xs font-bold uppercase tracking-wider text-zinc-400">Tema da Redação</label>
-              <input 
-                type="text" 
-                disabled={salvando}
-                value={temaManual}
-                onChange={(e) => setTemaManual(e.target.value)}
-                placeholder="Ex: A importância da empatia nas relações de trabalho"
-                className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3.5 text-sm text-zinc-100 focus:outline-none focus:border-red-600 transition-colors"
-                required
-              />
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-wider text-zinc-400">Tempo Gasto (minutos)</label>
-                <input 
-                  type="number" 
-                  min="1"
-                  max="300"
-                  disabled={salvando}
-                  value={tempoMinutosManual}
-                  onChange={(e) => setTempoMinutosManual(e.target.value)}
-                  placeholder="Ex: 45"
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3.5 text-sm text-zinc-100 focus:outline-none focus:border-red-600 transition-colors"
-                  required
-                />
+            {/* EXEMPLOS PRÁTICOS CADASTRADOS */}
+            {modeloAtual.exemplos_praticos && modeloAtual.exemplos_praticos.length > 0 && (
+              <div className="space-y-3 pt-2">
+                <span className="text-[10px] font-bold uppercase text-amber-400 tracking-wider">EXEMPLOS PRÁTICOS APLICADOS ({modeloAtual.exemplos_praticos.length})</span>
+                {modeloAtual.exemplos_praticos.map((ex, idx) => (
+                  <div key={idx} className="p-4 bg-zinc-900/50 rounded-2xl border border-zinc-800 space-y-1.5">
+                    <span className="text-xs font-bold text-amber-300">Tema: {ex.tema_aplicado}</span>
+                    <p className="text-xs text-zinc-200 italic leading-relaxed">"{ex.texto}"</p>
+                  </div>
+                ))}
               </div>
-
-              <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-wider text-zinc-400">Nota Atribuída (0 a 10)</label>
-                <input 
-                  type="number" 
-                  step="0.1"
-                  min="0"
-                  max="10"
-                  disabled={salvando}
-                  value={notaManual}
-                  onChange={(e) => setNotaManual(e.target.value)}
-                  placeholder="Ex: 7.5"
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3.5 text-sm text-zinc-100 focus:outline-none focus:border-red-600 transition-colors"
-                />
-              </div>
-            </div>
-
-            <button 
-              type="submit"
-              disabled={salvando}
-              className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 px-8 rounded-xl transition-all shadow-lg shadow-red-600/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 text-base"
+            )}
+          </div>
+        ) : (
+          <div className="bg-zinc-950 border border-zinc-800 rounded-3xl p-10 text-center space-y-3">
+            <p className="text-zinc-400 text-xs">Nenhuma estrutura modelo cadastrada para <b>{etapaSelecionada.toUpperCase()}</b>.</p>
+            <button
+              onClick={() => abrirModalPrompt('novo_modelo')}
+              className="px-4 py-2 bg-amber-400 text-zinc-950 font-bold text-xs rounded-xl shadow cursor-pointer"
             >
-              <PlusCircle className="w-5 h-5" />
-              Guardar Registo Manual
+              + Criar Modelo Paramétrico para {etapaSelecionada}
             </button>
+          </div>
+        )}
+
+        {/* 3. MÓDULO "PRATICANDO REDAÇÃO" (SESSÃO PRÁTICA E ENVIO VIA JSON) */}
+        <div className="bg-zinc-950 border border-zinc-800 rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xl">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-zinc-800 pb-4">
+            <div>
+              <span className="text-[10px] font-extrabold uppercase tracking-widest text-amber-400 bg-amber-400/10 px-3 py-1 rounded-full border border-amber-400/20">
+                Prática de Redação
+              </span>
+              <h3 className="text-xl font-black text-white mt-2">Praticando Redação ({etapaSelecionada.toUpperCase()})</h3>
+              <p className="text-xs text-zinc-400 mt-1">Registros das suas sessões práticas de {etapaSelecionada}.</p>
+            </div>
+
+            <button
+              onClick={() => abrirModalPrompt('novo_treino_json')}
+              className="px-4 py-2.5 bg-amber-400 hover:bg-amber-500 text-zinc-950 font-bold text-xs rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-md shrink-0"
+            >
+              <PlusCircle className="w-4 h-4" /> Registrar Prática via JSON
+            </button>
+          </div>
+
+          {/* LISTAGEM DE TREINOS REGISTRADOS */}
+          <div className="space-y-3">
+            {treinosPraticosList.filter(t => t.etapa === etapaSelecionada).length === 0 ? (
+              <p className="text-xs text-zinc-500 text-center py-6">Nenhuma prática registrada para {etapaSelecionada}.</p>
+            ) : (
+              treinosPraticosList.filter(t => t.etapa === etapaSelecionada).map((treino, idx) => (
+                <div key={idx} className={`p-4 rounded-2xl border transition-all space-y-2 ${
+                  treino.importante_revisar ? 'bg-amber-950/20 border-amber-400/60' : 'bg-zinc-900/60 border-zinc-800'
+                }`}>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      {treino.importante_revisar && (
+                        <span className="bg-amber-400 text-zinc-950 font-extrabold text-[10px] px-2 py-0.5 rounded flex items-center gap-1">
+                          <AlertTriangle className="w-3 h-3" /> REVISAR
+                        </span>
+                      )}
+                      <span className="font-bold text-white text-xs">Tema: {treino.tema}</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs text-zinc-400 font-mono">{treino.data}</span>
+                      <span className="px-2.5 py-1 rounded font-bold text-xs bg-amber-950 border border-amber-500/50 text-amber-300">
+                        Nota: {Number(treino.nota_obtida).toFixed(1)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {treino.pontos_atencao && treino.pontos_atencao.length > 0 && (
+                    <div className="pt-2 border-t border-zinc-800/80">
+                      <span className="text-[10px] font-bold uppercase text-amber-400">Pontos de Atenção:</span>
+                      <ul className="list-disc list-inside text-xs text-zinc-300 space-y-0.5 pt-0.5">
+                        {treino.pontos_atencao.map((p, pIdx) => <li key={pIdx}>{p}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* 4. CRONÔMETRO AO VIVO & REGISTRO MANUAL */}
+        <div className="grid grid-cols-2 gap-3 bg-zinc-950 p-1.5 border border-zinc-800 rounded-2xl">
+          <button onClick={() => setModoRegistro('cronometro')} className={`py-3 px-4 rounded-xl text-xs font-bold transition-all cursor-pointer ${modoRegistro === 'cronometro' ? 'bg-amber-400 text-zinc-950' : 'text-zinc-400 hover:text-white'}`}>
+            <Timer className="w-4 h-4 inline mr-1" /> Cronômetro ao Vivo
+          </button>
+          <button onClick={() => setModoRegistro('manual')} className={`py-3 px-4 rounded-xl text-xs font-bold transition-all cursor-pointer ${modoRegistro === 'manual' ? 'bg-amber-400 text-zinc-950' : 'text-zinc-400 hover:text-white'}`}>
+            <PlusCircle className="w-4 h-4 inline mr-1" /> Registro Manual
+          </button>
+        </div>
+
+        {modoRegistro === 'cronometro' && (
+          <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 text-center space-y-6">
+            <input type="text" disabled={cronometroAtivo} value={tema} onChange={(e) => setTema(e.target.value)} placeholder="Tema da redação..." className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-xs text-white outline-none focus:border-amber-400" />
+            <div className="py-6 bg-zinc-900/50 rounded-2xl flex flex-col items-center">
+              <Clock className={`w-8 h-8 ${cronometroAtivo ? 'text-amber-400 animate-pulse' : 'text-zinc-500'}`} />
+              <span className="text-3xl font-black text-white font-mono mt-1">{formatarTempo(tempoSegundos)}</span>
+            </div>
+            {!cronometroAtivo ? (
+              <button onClick={iniciarTreino} className="bg-amber-400 hover:bg-amber-500 text-zinc-950 font-black py-3 px-6 rounded-xl cursor-pointer text-xs shadow-md"><Play className="w-4 h-4 inline mr-1" /> Iniciar Treino</button>
+            ) : (
+              <button onClick={pararEGuardarTreino} className="bg-amber-500 hover:bg-amber-600 text-zinc-950 font-black py-3 px-6 rounded-xl cursor-pointer text-xs animate-pulse shadow-md"><Square className="w-4 h-4 inline mr-1" /> Parar e Guardar</button>
+            )}
+          </div>
+        )}
+
+        {modoRegistro === 'manual' && (
+          <form onSubmit={guardarManual} className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 space-y-4">
+            <input type="text" value={temaManual} onChange={(e) => setTemaManual(e.target.value)} placeholder="Tema..." className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-xs text-white outline-none focus:border-amber-400" required />
+            <div className="grid grid-cols-2 gap-4">
+              <input type="number" value={tempoMinutosManual} onChange={(e) => setTempoMinutosManual(e.target.value)} placeholder="Tempo em minutos" className="bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-xs text-white outline-none focus:border-amber-400" required />
+              <input type="number" step="0.1" value={notaManual} onChange={(e) => setNotaManual(e.target.value)} placeholder="Nota (0 a 10)" className="bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-xs text-white outline-none focus:border-amber-400" />
+            </div>
+            <button type="submit" className="w-full bg-amber-400 hover:bg-amber-500 text-zinc-950 font-black py-3 rounded-xl cursor-pointer text-xs shadow-md">Guardar Manual</button>
           </form>
         )}
 
-        {/* 2. NOTAS E HISTÓRICO */}
-        <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 shadow-xl space-y-4">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <h2 className="text-lg font-bold text-white flex items-center gap-2">
-              <FileText className="w-5 h-5 text-red-500" />
-              Histórico e Desempenho
-            </h2>
-            <div className="flex items-center gap-3 text-[11px] text-zinc-400 bg-zinc-900/80 px-3 py-1.5 rounded-lg border border-zinc-800">
-              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-rose-500"></span> 0 - 5</span>
-              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500"></span> 5 - 7</span>
-              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500"></span> 7 - 10</span>
-            </div>
-          </div>
-
-          {redacoesList.length === 0 ? (
-            <p className="text-xs text-zinc-500 py-6 text-center">Nenhuma redação registada até o momento.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b border-zinc-800 text-xs uppercase tracking-wider text-zinc-400">
-                    <th className="py-3 px-4">Tema</th>
-                    <th className="py-3 px-4">Tempo Gasto</th>
-                    <th className="py-3 px-4">Nota (Desempenho)</th>
-                    <th className="py-3 px-4">Data</th>
-                    <th className="py-3 px-4 text-right">Ações</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-900 text-xs">
-                  {redacoesList.map((red) => (
-                    <tr key={red.id} className="hover:bg-zinc-900/40 transition">
-                      <td className="py-3.5 px-4 font-medium text-white max-w-xs truncate">{red.tema}</td>
-                      <td className="py-3.5 px-4 text-zinc-300 font-mono">{formatarTempo(red.tempo_gasto_segundos)}</td>
-                      <td className="py-3.5 px-4">
-                        {renderizarBadgeNota(red.nota)}
-                      </td>
-                      <td className="py-3.5 px-4 text-zinc-500">
-                        {new Date(red.created_at).toLocaleDateString('pt-BR')}
-                      </td>
-                      <td className="py-3.5 px-4 text-right space-x-2">
-                        <button
-                          onClick={() => abrirEdicao(red)}
-                          className="px-2.5 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-lg transition inline-flex items-center gap-1 font-semibold"
-                          title="Editar"
-                        >
-                          <Edit3 className="w-3.5 h-3.5 text-amber-400" />
-                          Editar
-                        </button>
-                        <button
-                          onClick={() => excluirRedacao(red.id)}
-                          className="px-2.5 py-1.5 bg-zinc-900 hover:bg-rose-950 text-rose-400 border border-zinc-800 hover:border-rose-800 rounded-lg transition inline-flex items-center"
-                          title="Excluir"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-
-        {/* 3. ESTRATÉGIAS DE REDAÇÃO */}
-        <div className="space-y-6 pt-4">
-          <div className="flex items-center justify-center gap-3 bg-zinc-950 p-2 rounded-2xl border border-zinc-800 shadow-lg">
-            <button
-              onClick={() => setAbaEstrategia('semRepertorio')}
-              className={`flex-1 py-3 px-4 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${
-                abaEstrategia === 'semRepertorio'
-                  ? 'bg-amber-400 text-zinc-950 shadow-md'
-                  : 'bg-transparent text-zinc-400 hover:text-white'
-              }`}
-            >
-              Estratégia 1 — Sem Repertório
-            </button>
-
-            <button
-              onClick={() => setAbaEstrategia('comRepertorio')}
-              className={`flex-1 py-3 px-4 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${
-                abaEstrategia === 'comRepertorio'
-                  ? 'bg-amber-400 text-zinc-950 shadow-md'
-                  : 'bg-transparent text-zinc-400 hover:text-white'
-              }`}
-            >
-              Estratégia 2 — Com Repertório
-            </button>
-          </div>
-
-          {/* ESTRATÉGIA 1: SEM REPERTÓRIO */}
-          {abaEstrategia === 'semRepertorio' && (
-            <div className="bg-zinc-950 border border-zinc-800 rounded-3xl p-6 sm:p-8 space-y-8 shadow-2xl">
-              <div className="border-b border-zinc-800 pb-4">
-                <span className="text-[11px] font-extrabold uppercase tracking-widest text-amber-400 bg-amber-400/10 px-3 py-1 rounded-full border border-amber-400/20">
-                  Guia Passo a Passo VUNESP
-                </span>
-                <h2 className="text-2xl font-black text-white mt-2">
-                  Estratégia 1: Como começar sem saber nada sobre o tema
-                </h2>
-                <p className="text-xs text-zinc-400 mt-1">
-                  "Li o tema. Não sei nada sobre ele. Como eu começo?"
-                </p>
-              </div>
-
-              {/* Passo 1 */}
-              <div className="p-5 bg-zinc-900/60 rounded-2xl border border-zinc-800 space-y-2">
-                <h3 className="text-sm font-extrabold text-amber-300 uppercase tracking-wide">
-                  1. PONTO DE PARTIDA
-                </h3>
-                <p className="text-xs sm:text-sm text-zinc-200 font-medium leading-relaxed break-words">
-                  Você não precisa ter uma opinião pronta. Leia o tema e os textos de apoio. Que problema aparece ali?
-                </p>
-              </div>
-
-              {/* Passo 2 */}
-              <div className="p-5 bg-zinc-900/60 rounded-2xl border border-zinc-800 space-y-3">
-                <h3 className="text-sm font-extrabold text-amber-300 uppercase tracking-wide">
-                  2. EXEMPLO PRÁTICO DE SEPARAÇÃO DE TEMA E RECORTE
-                </h3>
-                <div className="space-y-1.5 text-xs sm:text-sm text-zinc-300 bg-zinc-950 p-4 rounded-xl border border-zinc-800 break-words">
-                  <p><strong className="text-white">Tema de treino:</strong> Desafios para ampliar o acesso à leitura no Brasil.</p>
-                  <p><strong className="text-white">Assunto:</strong> Leitura.</p>
-                  <p><strong className="text-white">Recorte:</strong> O que dificulta ampliar esse acesso?</p>
-                </div>
-              </div>
-
-              {/* Passo 3 */}
-              <div className="p-5 bg-zinc-900/60 rounded-2xl border border-zinc-800 space-y-3">
-                <h3 className="text-sm font-extrabold text-amber-300 uppercase tracking-wide">
-                  3. PERGUNTE AO TEMA (SITUAÇÕES CONCRETAS)
-                </h3>
-                <ul className="text-xs sm:text-sm text-zinc-200 space-y-2 font-medium">
-                  <li className="flex items-center gap-2 break-words">
-                    <span className="text-amber-400 font-bold">•</span>
-                    Quem encontra barreiras?
-                  </li>
-                  <li className="flex items-center gap-2 break-words">
-                    <span className="text-amber-400 font-bold">•</span>
-                    O que dificulta o acesso?
-                  </li>
-                  <li className="flex items-center gap-2 break-words">
-                    <span className="text-amber-400 font-bold">•</span>
-                    O que isso provoca?
-                  </li>
-                </ul>
-                <p className="text-xs text-amber-300/90 font-semibold pt-1">
-                  👉 Pense sempre em situações concretas.
-                </p>
-              </div>
-
-              {/* Passo 4 */}
-              <div className="p-5 bg-zinc-900/60 rounded-2xl border border-zinc-800 space-y-3">
-                <h3 className="text-sm font-extrabold text-amber-300 uppercase tracking-wide">
-                  4. LEVANTAMENTO DE HIPÓTESES
-                </h3>
-                <div className="space-y-2 text-xs sm:text-sm text-zinc-200">
-                  <div className="p-3 bg-zinc-950 rounded-xl border border-zinc-800/80 break-words">
-                    • <strong>Livro caro</strong> → Custo
-                  </div>
-                  <div className="p-3 bg-zinc-950 rounded-xl border border-zinc-800/80 break-words">
-                    • <strong>Biblioteca distante</strong> → Dificuldade de acesso
-                  </div>
-                </div>
-                <p className="text-xs text-zinc-400 font-medium">
-                  Consigo explicar essas barreiras?
-                </p>
-              </div>
-
-              {/* Passo 5 */}
-              <div className="p-5 bg-zinc-900/60 rounded-2xl border border-zinc-800 space-y-3">
-                <h3 className="text-sm font-extrabold text-amber-300 uppercase tracking-wide">
-                  5. ESTRUTURANDO A TESE E A INTRODUÇÃO
-                </h3>
-                <div className="p-4 bg-zinc-950 rounded-xl border border-zinc-800 space-y-2">
-                  <p className="text-xs font-bold text-amber-400 uppercase">Sua tese pode nascer daí:</p>
-                  <blockquote className="text-xs sm:text-sm text-zinc-200 italic border-l-2 border-amber-400 pl-3 break-words">
-                    "O custo dos livros e a dificuldade de acesso a bibliotecas limitam o acesso à leitura no Brasil."
-                  </blockquote>
-                </div>
-
-                <div className="p-4 bg-zinc-950 rounded-xl border border-zinc-800 space-y-2">
-                  <p className="text-xs font-bold text-amber-400 uppercase">Um começo possível para a Introdução:</p>
-                  <blockquote className="text-xs sm:text-sm text-zinc-200 italic border-l-2 border-amber-400 pl-3 break-words">
-                    "A ampliação do acesso à leitura no Brasil enfrenta obstáculos. Entre eles, estão o custo dos livros e a dificuldade de acesso a bibliotecas."
-                  </blockquote>
-                </div>
-              </div>
-
-              {/* Passo 6 */}
-              <div className="p-5 bg-zinc-900/60 rounded-2xl border border-zinc-800 space-y-3">
-                <h3 className="text-sm font-extrabold text-amber-300 uppercase tracking-wide">
-                  6. LÓGICA DO DESENVOLVIMENTO (EXPLIQUE O CAMINHO)
-                </h3>
-                <div className="flex flex-col items-center justify-center p-4 bg-zinc-950 rounded-xl border border-zinc-800 text-center space-y-2 text-xs sm:text-sm font-semibold text-zinc-200 break-words">
-                  <div>Biblioteca distante</div>
-                  <div className="text-amber-400">↓</div>
-                  <div>Trajeto exige tempo e transporte.</div>
-                  <div className="text-amber-400">↓</div>
-                  <div>Sem esses recursos, o acesso aos livros fica mais difícil.</div>
-                </div>
-              </div>
-
-              {/* Checklist */}
-              <div className="p-6 bg-amber-400/10 border border-amber-400/30 rounded-2xl space-y-4">
-                <h3 className="text-sm font-black text-amber-400 uppercase tracking-wider">
-                  Checklist: Antes de Escrever
-                </h3>
-                <ul className="text-xs sm:text-sm text-zinc-200 space-y-2.5 font-medium">
-                  <li className="flex items-center gap-2 break-words">
-                    <span className="text-amber-400 font-bold">☑</span>
-                    Respondi ao recorte do tema?
-                  </li>
-                  <li className="flex items-center gap-2 break-words">
-                    <span className="text-amber-400 font-bold">☑</span>
-                    Consigo explicar minha tese?
-                  </li>
-                  <li className="flex items-center gap-2 break-words">
-                    <span className="text-amber-400 font-bold">☑</span>
-                    Meu repertório ajuda a análise?
-                  </li>
-                </ul>
-                <div className="pt-2 border-t border-amber-400/20 text-xs font-black text-rose-400 uppercase tracking-wider">
-                  ⚠️ Não invente dados ou citações.
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ESTRATÉGIA 2: COM REPERTÓRIO */}
-          {abaEstrategia === 'comRepertorio' && (
-            <div className="bg-zinc-950 border border-zinc-800 rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xl">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-zinc-800 pb-4">
-                <div>
-                  <span className="text-[11px] font-extrabold uppercase tracking-widest text-blue-400 bg-blue-500/10 px-3 py-1 rounded-full border border-blue-500/20">
-                    Banco de Repertórios
-                  </span>
-                  <h2 className="text-2xl font-black text-white mt-2">
-                    Estratégia 2: Com Repertório
-                  </h2>
-                  <p className="text-xs text-zinc-400 mt-1">
-                    Adicione seus filmes, livros, escritores, leis ou documentários para fundamentar suas redações.
-                  </p>
-                </div>
-
-                {!isAdicionandoRepertorio && (
-                  <button
-                    onClick={() => setIsAdicionandoRepertorio(true)}
-                    className="px-4 py-2.5 bg-amber-400 hover:bg-amber-500 text-zinc-950 font-bold text-xs rounded-xl shadow transition flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <PlusCircle className="w-4 h-4" />
-                    Adicionar Repertório
-                  </button>
-                )}
-              </div>
-
-              {/* Formulário de Adicionar Repertório */}
-              {isAdicionandoRepertorio && (
-                <form onSubmit={salvarNovoRepertorio} className="bg-zinc-900/80 border border-zinc-800 rounded-2xl p-5 space-y-4 shadow-inner">
-                  <h3 className="text-sm font-bold text-amber-400">Novo Repertório</h3>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold uppercase text-zinc-400">Nome (Filme / Escritor / Documentário / Lei)</label>
-                    <input
-                      type="text"
-                      value={novoNomeRep}
-                      onChange={(e) => setNovoNomeRep(e.target.value)}
-                      placeholder="Ex: Livro Vidas Secas - Graciliano Ramos"
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-amber-400"
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold uppercase text-zinc-400">Link Exemplo (Internet)</label>
-                    <input
-                      type="url"
-                      value={novoLinkRep}
-                      onChange={(e) => setNovoLinkRep(e.target.value)}
-                      placeholder="Ex: https://pt.wikipedia.org/wiki/Vidas_Secas"
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-amber-400"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold uppercase text-zinc-400">Descrição / Contexto de Uso</label>
-                    <textarea
-                      value={novaDescRep}
-                      onChange={(e) => setNovaDescRep(e.target.value)}
-                      placeholder="Explique como aplicar este repertório em temas de desigualdade, seca ou educação..."
-                      className="w-full h-24 bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-amber-400 resize-none whitespace-pre-wrap"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold uppercase text-zinc-400">Exemplo Prático (Aplicação na Redação)</label>
-                    <textarea
-                      value={novoExemploRep}
-                      onChange={(e) => setNovoExemploRep(e.target.value)}
-                      placeholder="Ex: 'Nesse contexto, a obra Vidas Secas retrata...'"
-                      className="w-full h-24 bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-amber-400 resize-none whitespace-pre-wrap"
-                    />
-                  </div>
-
-                  <div className="flex justify-end gap-2 pt-2">
-                    <button
-                      type="button"
-                      onClick={() => setIsAdicionandoRepertorio(false)}
-                      className="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold transition cursor-pointer"
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      type="submit"
-                      className="px-5 py-2 rounded-xl bg-amber-400 hover:bg-amber-500 text-zinc-950 text-xs font-bold transition shadow cursor-pointer"
-                    >
-                      Salvar
-                    </button>
-                  </div>
-                </form>
-              )}
-
-              {/* Listagem dos Repertórios */}
-              <div className="space-y-3 pt-2">
-                {repertoriosList.length === 0 ? (
-                  <p className="text-xs text-zinc-500 py-6 text-center">Nenhum repertório cadastrado ainda.</p>
-                ) : (
-                  repertoriosList.map((item) => (
-                    <div key={item.id} className="p-4 bg-zinc-900/60 rounded-2xl border border-zinc-800 space-y-2.5 relative group overflow-hidden">
-                      <div className="flex items-start justify-between gap-2">
-                        <h4 className="text-sm font-bold text-white flex items-center gap-2 break-words max-w-[70%] sm:max-w-[80%]">
-                          {item.nome}
-                          {item.link && (
-                            <a
-                              href={item.link}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-amber-400 hover:text-amber-300 inline-flex items-center gap-1 text-[11px] shrink-0"
-                              title="Abrir link de exemplo"
-                            >
-                              <ExternalLink className="w-3.5 h-3.5" />
-                            </a>
-                          )}
-                        </h4>
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <button
-                            onClick={() => abrirEdicaoRepertorio(item)}
-                            className="px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-lg text-xs font-semibold transition inline-flex items-center gap-1"
-                            title="Editar repertório"
-                          >
-                            <Edit3 className="w-3 h-3 text-amber-400" />
-                            Editar
-                          </button>
-                          <button
-                            onClick={() => excluirRepertorio(item.id)}
-                            className="p-1.5 bg-zinc-900 hover:bg-rose-950 text-rose-400 border border-zinc-800 hover:border-rose-800 rounded-lg transition"
-                            title="Excluir repertório"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-
-                      {item.descricao && (
-                        <p className="text-xs text-zinc-300 leading-relaxed break-words whitespace-pre-wrap">
-                          <strong className="text-zinc-400">Descrição:</strong> {item.descricao}
-                        </p>
-                      )}
-
-                      {item.exemplo_pratico && (
-                        <div className="p-3 bg-zinc-950 rounded-xl border border-zinc-800 text-xs text-amber-300/90 space-y-1 overflow-hidden">
-                          <p className="font-bold uppercase text-[10px] text-amber-400 tracking-wider">Exemplo Prático:</p>
-                          <p className="italic leading-relaxed break-words whitespace-pre-wrap">{item.exemplo_pratico}</p>
-                        </div>
-                      )}
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-
       </main>
 
-      {/* MODAL DE EDIÇÃO DE REDAÇÃO */}
-      {modalEdicaoAberto && redacaoEmEdicao && (
+      {/* MODAL DE PROMPT MESTRE E SUBMISSÃO DE JSON */}
+      {modalPromptAtivo && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
-          <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 w-full max-w-md text-white shadow-2xl space-y-4">
-            <div className="flex justify-between items-center border-b border-zinc-800 pb-3">
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
-                <Edit3 className="w-4 h-4 text-red-500" />
-                Editar Redação & Nota
-              </h3>
-              <button 
-                onClick={() => setModalEdicaoAberto(false)}
-                className="text-zinc-400 hover:text-white"
+          <div className="bg-zinc-950 border border-zinc-800 rounded-3xl max-w-xl w-full p-6 space-y-4 shadow-2xl relative">
+            <button onClick={() => setModalPromptAtivo(null)} className="absolute top-4 right-4 text-zinc-400 hover:text-white"><X className="w-5 h-5" /></button>
+
+            <h3 className="text-base font-bold text-amber-400 uppercase">
+              {modalPromptAtivo === 'novo_modelo' ? `Nova Estrutura Paramétrica` : modalPromptAtivo === 'novo_exemplo' ? `Novo Exemplo Prático` : `Registrar Prática via JSON`}
+            </h3>
+
+            {/* SELETOR EXPLÍCITO DE ETAPA DENTRO DO MODAL */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-zinc-300">Etapa Alvo:</label>
+              <select
+                value={etapaModalAlvo}
+                onChange={(e) => setEtapaModalAlvo(e.target.value as any)}
+                className="w-full bg-zinc-900 border border-zinc-800 text-amber-300 text-xs rounded-xl px-3 py-2.5 font-bold outline-none cursor-pointer"
               >
-                <X className="w-5 h-5" />
-              </button>
+                <option value="introducao">Introdução</option>
+                <option value="desenvolvimento1">Desenvolvimento 1</option>
+                <option value="desenvolvimento2">Desenvolvimento 2</option>
+                <option value="conclusao">Conclusão</option>
+              </select>
             </div>
 
-            <form onSubmit={salvarEdicao} className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold uppercase text-zinc-400">Tema</label>
-                <input
-                  type="text"
-                  value={redacaoEmEdicao.tema}
-                  onChange={(e) => setRedacaoEmEdicao({ ...redacaoEmEdicao, tema: e.target.value })}
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-xs text-white focus:border-red-600 focus:outline-none"
-                  required
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold uppercase text-zinc-400">Nota Atribuída (0 a 10)</label>
-                <input
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  max="10"
-                  value={redacaoEmEdicao.nota ?? ''}
-                  onChange={(e) => setRedacaoEmEdicao({ ...redacaoEmEdicao, nota: e.target.value ? parseFloat(e.target.value) : null })}
-                  placeholder="Ex: 7.5"
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-xs text-white focus:border-red-600 focus:outline-none"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 pt-3 border-t border-zinc-800">
+            {/* Prompt Generator */}
+            <div className="p-3.5 bg-zinc-900 rounded-2xl border border-zinc-800 space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-xs font-bold text-zinc-300">Prompt Mestre para copiar:</span>
                 <button
-                  type="button"
-                  onClick={() => setModalEdicaoAberto(false)}
-                  className="px-4 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-300 text-xs font-semibold transition"
+                  onClick={() => {
+                    const txt = modalPromptAtivo === 'novo_modelo' ? PROMPT_NOVA_ESTRUTURA : modalPromptAtivo === 'novo_exemplo' ? PROMPT_NOVO_EXEMPLO : PROMPT_PRATICANDO_REDACAO;
+                    navigator.clipboard.writeText(txt);
+                    setCopiado(true);
+                    setTimeout(() => setCopiado(false), 3000);
+                  }}
+                  className="px-3 py-1 bg-amber-400 text-zinc-950 font-bold text-xs rounded-lg cursor-pointer flex items-center gap-1"
                 >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition shadow"
-                >
-                  Salvar Alterações
+                  <Copy className="w-3 h-3" /> {copiado ? 'Copiado!' : 'Copiar Prompt'}
                 </button>
               </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL DE EDIÇÃO DE REPERTÓRIO */}
-      {modalRepertorioEdicaoAberto && repertorioEmEdicao && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
-          <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 w-full max-w-md text-white shadow-2xl space-y-4">
-            <div className="flex justify-between items-center border-b border-zinc-800 pb-3">
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
-                <Edit3 className="w-4 h-4 text-amber-400" />
-                Editar Repertório
-              </h3>
-              <button 
-                onClick={() => setModalRepertorioEdicaoAberto(false)}
-                className="text-zinc-400 hover:text-white"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <pre className="text-[11px] bg-black/60 p-2.5 rounded-xl text-amber-300 font-mono overflow-x-auto max-h-28">
+                {modalPromptAtivo === 'novo_modelo' ? PROMPT_NOVA_ESTRUTURA : modalPromptAtivo === 'novo_exemplo' ? PROMPT_NOVO_EXEMPLO : PROMPT_PRATICANDO_REDACAO}
+              </pre>
             </div>
 
-            <form onSubmit={salvarEdicaoRepertorio} className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold uppercase text-zinc-400">Nome</label>
-                <input
-                  type="text"
-                  value={repertorioEmEdicao.nome}
-                  onChange={(e) => setRepertorioEmEdicao({ ...repertorioEmEdicao, nome: e.target.value })}
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-xs text-white focus:border-amber-400 focus:outline-none"
-                  required
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold uppercase text-zinc-400">Link Exemplo</label>
-                <input
-                  type="url"
-                  value={repertorioEmEdicao.link}
-                  onChange={(e) => setRepertorioEmEdicao({ ...repertorioEmEdicao, link: e.target.value })}
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-xs text-white focus:border-amber-400 focus:outline-none"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold uppercase text-zinc-400">Descrição</label>
-                <textarea
-                  value={repertorioEmEdicao.descricao}
-                  onChange={(e) => setRepertorioEmEdicao({ ...repertorioEmEdicao, descricao: e.target.value })}
-                  className="w-full h-20 bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-xs text-white focus:border-amber-400 focus:outline-none resize-none whitespace-pre-wrap"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold uppercase text-zinc-400">Exemplo Prático</label>
-                <textarea
-                  value={repertorioEmEdicao.exemplo_pratico}
-                  onChange={(e) => setRepertorioEmEdicao({ ...repertorioEmEdicao, exemplo_pratico: e.target.value })}
-                  className="w-full h-20 bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-xs text-white focus:border-amber-400 focus:outline-none resize-none whitespace-pre-wrap"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 pt-3 border-t border-zinc-800">
-                <button
-                  type="button"
-                  onClick={() => setModalRepertorioEdicaoAberto(false)}
-                  className="px-4 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-300 text-xs font-semibold transition"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-500 text-zinc-950 text-xs font-bold transition shadow"
-                >
-                  Salvar Alterações
+            {/* Input Form */}
+            <form onSubmit={processarSubmissaoJson} className="space-y-3">
+              <label className="text-xs font-bold text-zinc-300">Cole o JSON retornado aqui:</label>
+              <textarea
+                value={jsonInput}
+                onChange={(e) => setJsonInput(e.target.value)}
+                className="w-full h-36 bg-zinc-900 text-amber-300 p-3 rounded-xl border border-zinc-800 font-mono text-xs outline-none focus:border-amber-400 resize-none"
+                placeholder='{ ... }'
+                required
+              />
+              <div className="flex justify-end gap-2">
+                <button type="submit" className="px-5 py-2.5 bg-amber-400 hover:bg-amber-500 text-zinc-950 font-bold text-xs rounded-xl cursor-pointer">
+                  Incorporar JSON
                 </button>
               </div>
             </form>

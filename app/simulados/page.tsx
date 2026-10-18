@@ -31,6 +31,9 @@ export default function SimuladosPage() {
   const [loading, setLoading] = useState(true);
   const [aGuardar, setAGuardar] = useState(false);
   
+  // Estado para o Simulado Selecionado no Dashboard Analítico
+  const [simuladoSelecionadoId, setSimuladoSelecionadoId] = useState<string>('');
+
   // Modais de Criação e Edição
   const [modalOpen, setModalOpen] = useState(false);
   const [modalEditMelhoriaOpen, setModalEditMelhoriaOpen] = useState(false);
@@ -81,7 +84,12 @@ export default function SimuladosPage() {
         supabase.from('pontos_melhoria').select('*').eq('user_id', user.id).order('created_at', { ascending: false })
       ]);
 
-      if (simRes.data) setSimulados(simRes.data);
+      if (simRes.data && simRes.data.length > 0) {
+        setSimulados(simRes.data);
+        if (!simuladoSelecionadoId) {
+          setSimuladoSelecionadoId(simRes.data[0].id);
+        }
+      }
       if (melRes.data) setMelhorias(melRes.data);
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
@@ -90,7 +98,13 @@ export default function SimuladosPage() {
     }
   }
 
-  // --- FUNÇÃO DE SALVAR NOVO SIMULADO ---
+  const simuladoAtivo = simulados.find(s => s.id === simuladoSelecionadoId) || simulados[0];
+
+  const totalAcertosAnalitico = simuladoAtivo ? simuladoAtivo.acertos : 0;
+  const totalQuestoesAnalitico = simuladoAtivo ? simuladoAtivo.total_questoes : 100;
+  const totalErrosAnalitico = Math.max(0, totalQuestoesAnalitico - totalAcertosAnalitico);
+  const aproveitamentoTotal = totalQuestoesAnalitico > 0 ? ((totalAcertosAnalitico / totalQuestoesAnalitico) * 100).toFixed(1) : '0';
+
   async function handleSalvarTudo(e: React.FormEvent) {
     e.preventDefault();
     if (aGuardar) return;
@@ -154,7 +168,7 @@ export default function SimuladosPage() {
 
       const notaCalculada = numTotal > 0 ? Number(((numAcertos / numTotal) * 10).toFixed(2)) : 0;
 
-      const { error: erroSimulado } = await supabase.from('simulados').insert([
+      const { data: novoSimuladoInserido, error: erroSimulado } = await supabase.from('simulados').insert([
         {
           user_id: user.id,
           titulo,
@@ -162,7 +176,7 @@ export default function SimuladosPage() {
           total_questoes: numTotal,
           nota: notaCalculada,
         },
-      ]);
+      ]).select().single();
 
       if (erroSimulado) {
         alert(`Erro ao guardar Simulado: ${erroSimulado.message}`);
@@ -191,7 +205,10 @@ export default function SimuladosPage() {
       setJsonInput('');
       setModalOpen(false);
       
-      carregarDados();
+      await carregarDados();
+      if (novoSimuladoInserido) {
+        setSimuladoSelecionadoId(novoSimuladoInserido.id);
+      }
     } catch (error) {
       console.error('Erro geral ao guardar dados:', error);
       alert('Erro inesperado ao guardar dados.');
@@ -200,7 +217,6 @@ export default function SimuladosPage() {
     }
   }
 
-  // --- FUNÇÕES DE EDIÇÃO DE PONTO DE MELHORIA ---
   function abrirEdicaoMelhoria(m: PontoMelhoria) {
     setEditMelhoriaId(m.id);
     setEditMateria(m.materia);
@@ -235,7 +251,6 @@ export default function SimuladosPage() {
     }
   }
 
-  // --- FUNÇÕES DE EDIÇÃO DE SIMULADO ---
   function abrirEdicaoSimulado(sim: Simulado) {
     setEditSimuladoId(sim.id);
     setEditSimTitulo(sim.titulo);
@@ -275,13 +290,9 @@ export default function SimuladosPage() {
 
   async function apagarMelhoria(id: string) {
     if (!confirm('Tens a certeza que pretendes apagar este ponto de melhoria?')) return;
-    
     try {
       const { error } = await supabase.from('pontos_melhoria').delete().eq('id', id);
-      if (error) {
-        alert(`Erro ao apagar: ${error.message}`);
-        return;
-      }
+      if (error) { alert(`Erro ao apagar: ${error.message}`); return; }
       setMelhorias(melhorias.filter((m) => m.id !== id));
     } catch (err) {
       console.error('Erro ao apagar melhoria:', err);
@@ -290,23 +301,23 @@ export default function SimuladosPage() {
 
   async function apagarSimulado(id: string) {
     if (!confirm('Tens a certeza que pretendes apagar este simulado?')) return;
-    
     try {
       const { error } = await supabase.from('simulados').delete().eq('id', id);
-      if (error) {
-        alert(`Erro ao apagar: ${error.message}`);
-        return;
+      if (error) { alert(`Erro ao apagar: ${error.message}`); return; }
+      const restantes = simulados.filter((s) => s.id !== id);
+      setSimulados(restantes);
+      if (restantes.length > 0) {
+        setSimuladoSelecionadoId(restantes[0].id);
+      } else {
+        setSimuladoSelecionadoId('');
       }
-      setSimulados(simulados.filter((s) => s.id !== id));
     } catch (err) {
       console.error('Erro ao apagar simulado:', err);
     }
   }
 
   const promptModelo = `Atue como meu mentor especializado no concurso do Tribunal de Justiça de São Paulo (TJSP) sob o padrão da banca VUNESP. 
-
-Analise o meu desempenho recente e gere um payload JSON estrito (retorne APENAS o código JSON puro, sem saudações e sem texto adicional fora do JSON) contendo um array de objetos exatamente com esta estrutura para cada matéria:
-
+Analise o meu desempenho recente e gere um payload JSON estrito contendo um array de objetos exatamente com esta estrutura para cada matéria:
 [
   {
     "materia": "Nome exato da matéria",
@@ -332,7 +343,7 @@ Analise o meu desempenho recente e gere um payload JSON estrito (retorne APENAS 
   };
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white flex flex-col">
+    <div className="min-h-screen bg-zinc-950 text-white flex flex-col selection:bg-amber-400 selection:text-zinc-950">
       <Navbar />
 
       <main className="flex-1 max-w-7xl w-full mx-auto p-6 md:p-8 space-y-10">
@@ -341,177 +352,172 @@ Analise o meu desempenho recente e gere um payload JSON estrito (retorne APENAS 
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-zinc-800 pb-6">
           <div>
             <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white flex items-center gap-3">
-              <Award className="w-8 h-8 text-amber-500" />
-              Simulados e Pontos de Melhoria — VUNESP
+              <Award className="w-8 h-8 text-amber-400" />
+              Simulados e Desempenho — VUNESP / TJSP
             </h1>
             <p className="text-sm text-zinc-400 mt-1">
-              Registe os seus simulados e faça a gestão inteligente das suas lacunas de estudo.
+              Selecione o simulado abaixo para abrir o painel analítico detalhado e as estatísticas por matéria[].
             </p>
           </div>
           <button
             onClick={() => setModalOpen(true)}
-            className="flex items-center gap-2 bg-amber-600 hover:bg-amber-700 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-red-600/20 transition-all cursor-pointer"
+            className="flex items-center gap-2 bg-amber-400 hover:bg-amber-500 text-zinc-950 px-4 py-2.5 rounded-xl text-sm font-extrabold shadow-lg shadow-amber-400/10 transition-all cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             Adicionar Simulado
           </button>
         </div>
 
-        {/* Secção de Pontos de Melhoria */}
-        <div className="space-y-4">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-zinc-900/60 border border-zinc-800 p-6 rounded-2xl shadow-xl">
-            <div>
-              <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                <Target className="w-5 h-5 text-amber-500" />
-                Pontos de Melhoria e Assuntos Focados
-              </h2>
-              <p className="text-xs text-zinc-400 mt-0.5">Matérias e conteúdos críticos identificados para revisão direcionada.</p>
+        {/* BARRA DE SELEÇÃO DO SIMULADO POR DATA/TÍTULO */}
+        {simulados.length > 0 && (
+          <div className="bg-zinc-900/90 border border-zinc-800 p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-lg">
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <Calendar className="w-5 h-5 text-amber-400 shrink-0" />
+              <span className="text-xs font-bold uppercase tracking-wider text-zinc-300 whitespace-nowrap">Simulado Ativo:</span>
             </div>
-            <button
-              onClick={copiarPrompt}
-              className="text-xs bg-zinc-950 border border-zinc-700 hover:border-amber-500 text-zinc-300 px-3.5 py-2 rounded-xl flex items-center gap-2 transition-all cursor-pointer"
-            >
-              {copiado ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-amber-500" />}
-              {copiado ? 'Prompt Copiado!' : 'Copiar Prompt para IA'}
-            </button>
+            
+            <div className="flex items-center gap-2 w-full sm:w-auto flex-1 max-w-md">
+              <select
+                value={simuladoSelecionadoId}
+                onChange={(e) => setSimuladoSelecionadoId(e.target.value)}
+                className="w-full bg-zinc-950 border border-zinc-800 text-amber-300 text-xs font-bold rounded-xl px-4 py-3 outline-none focus:border-amber-400 cursor-pointer"
+              >
+                {simulados.map((sim) => (
+                  <option key={sim.id} value={sim.id}>
+                    {sim.titulo} — ({new Date(sim.created_at).toLocaleDateString('pt-BR')}) • Nota: {sim.nota}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {simuladoAtivo && (
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  onClick={() => abrirEdicaoSimulado(simuladoAtivo)}
+                  className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-amber-400 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer"
+                >
+                  <Pencil className="w-3.5 h-3.5" /> Editar
+                </button>
+                <button
+                  onClick={() => apagarSimulado(simuladoAtivo.id)}
+                  className="px-3 py-2 bg-zinc-950 hover:bg-rose-950 text-rose-400 border border-zinc-800 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer"
+                >
+                  <Trash2 className="w-3.5 h-3.5" /> Excluir
+                </button>
+              </div>
+            )}
           </div>
+        )}
 
-          {loading ? (
-            <div className="text-center py-10 text-zinc-500 text-xs">A carregar melhorias...</div>
-          ) : melhorias.length === 0 ? (
-            <div className="bg-zinc-900/30 border border-zinc-800/60 rounded-2xl p-8 text-center space-y-2">
-              <p className="text-xs text-zinc-400">Nenhum ponto de melhoria registado.</p>
-              <p className="text-[10px] text-zinc-500">Pode adicioná-los diretamente ao registar um novo simulado.</p>
+        {/* PAINEL ANALÍTICO COMPLETO (ESTATÍSTICAS + BARRAS POR MATÉRIA) */}
+        {simuladoAtivo ? (
+          <div className="space-y-6 bg-zinc-900/60 border border-zinc-800 rounded-3xl p-6 sm:p-8 shadow-2xl">
+            <div className="border-b border-zinc-800 pb-4 flex justify-between items-center">
+              <div>
+                <span className="text-[10px] font-extrabold uppercase tracking-widest text-amber-400 bg-amber-400/10 px-3 py-1 rounded-full border border-amber-400/20">
+                  Relatório de Desempenho Analítico
+                </span>
+                <h2 className="text-xl font-black text-white mt-2">{simuladoAtivo.titulo}</h2>
+              </div>
+              <span className="text-xs text-zinc-400 font-mono">
+                Realizado em {new Date(simuladoAtivo.created_at).toLocaleDateString('pt-BR')}
+              </span>
             </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {melhorias.map((m) => (
-                <div key={m.id} className="bg-zinc-900/80 border border-zinc-800 rounded-2xl p-5 space-y-3 relative overflow-hidden shadow-lg group">
-                  <div className="absolute top-0 left-0 w-1.5 h-full bg-amber-600"></div>
-                  
-                  <div className="flex justify-between items-start">
-                    <span className="text-xs font-bold text-zinc-200 bg-zinc-800 px-2.5 py-1 rounded-lg">{m.materia}</span>
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-2 text-[11px]">
-                        <span className="text-emerald-400 font-semibold">✓ {m.quantidade_acertos}</span>
-                        <span className="text-amber-400 font-semibold">✕ {m.quantidade_erros}</span>
-                      </div>
-                      
-                      {/* Botão Editar */}
-                      <button
-                        onClick={() => abrirEdicaoMelhoria(m)}
-                        title="Editar ponto de melhoria"
-                        className="text-zinc-500 hover:text-amber-400 transition-colors cursor-pointer p-1"
-                      >
-                        <Pencil className="w-3.5 h-3.5" />
-                      </button>
 
-                      {/* Botão Apagar */}
-                      <button
-                        onClick={() => apagarMelhoria(m.id)}
-                        title="Apagar ponto de melhoria"
-                        className="text-zinc-500 hover:text-red-500 transition-colors cursor-pointer p-1"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-
-                  <div>
-                    <span className="text-[10px] uppercase font-bold text-zinc-500 block">Assunto a ser estudado:</span>
-                    <p className="text-xs text-white font-medium mt-1 leading-snug">{m.assunto_estudar}</p>
-                  </div>
+            {/* Grid Superior de Estatísticas (Acertos, Erros, Aproveitamento, Nota) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 bg-zinc-950 p-6 rounded-2xl border border-zinc-800">
+              <div className="space-y-1">
+                <span className="text-xs text-zinc-400 font-bold uppercase tracking-wide">Acertos</span>
+                <div className="text-3xl font-black text-emerald-400 font-mono">
+                  {totalAcertosAnalitico} <span className="text-xs text-zinc-400 font-sans font-normal">de {totalQuestoesAnalitico} questões</span>
                 </div>
-              ))}
+              </div>
+
+              <div className="space-y-1">
+                <span className="text-xs text-zinc-400 font-bold uppercase tracking-wide">Erros</span>
+                <div className="text-3xl font-black text-rose-500 font-mono">
+                  {totalErrosAnalitico} <span className="text-xs text-zinc-400 font-sans font-normal">questões incorretas</span>
+                </div>
+              </div>
+
+              <div className="space-y-1 pt-4 border-t border-zinc-900">
+                <span className="text-xs text-zinc-400 font-bold uppercase tracking-wide">Aproveitamento Total</span>
+                <div className="text-3xl font-black text-amber-400 font-mono">
+                  {aproveitamentoTotal}% <span className="text-xs text-zinc-400 font-sans font-normal">({totalAcertosAnalitico} de {totalQuestoesAnalitico} questões)</span>
+                </div>
+              </div>
+
+              <div className="space-y-1 pt-4 border-t border-zinc-900">
+                <span className="text-xs text-zinc-400 font-bold uppercase tracking-wide">Nota do Simulado (0 a 10)</span>
+                <div className="text-3xl font-black text-white font-mono">
+                  {simuladoAtivo.nota} <span className="text-xs text-zinc-400 font-sans font-normal">pontos</span>
+                </div>
+              </div>
             </div>
-          )}
-        </div>
 
-        {/* Listagem de Simulados */}
-        <div className="space-y-4 pt-4 border-t border-zinc-800/80">
-          <h2 className="text-lg font-bold text-white flex items-center gap-2">
-            <BarChart2 className="w-5 h-5 text-amber-600" />
-            Histórico de Simulados
-          </h2>
+            {/* Desempenho por Matéria (Barras Visuais Detalhadas) */}
+            <div className="space-y-4 pt-4">
+              <h3 className="text-sm font-extrabold uppercase tracking-wider text-white flex items-center gap-2">
+                <BarChart2 className="w-4 h-4 text-amber-400" />
+                Desempenho por Matéria do Edital TJSP[]
+              </h3>
 
-          {loading ? (
-            <div className="text-center py-20 text-zinc-500">A carregar simulados...</div>
-          ) : simulados.length === 0 ? (
-            <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-12 text-center space-y-3">
-              <BarChart2 className="w-12 h-12 text-zinc-600 mx-auto" />
-              <h3 className="text-lg font-semibold text-zinc-300">Ainda nenhum simulado registado</h3>
-              <p className="text-sm text-zinc-500 max-w-md mx-auto">
-                Clique no botão de adicionar simulado para guardar o seu histórico de notas.
-              </p>
+              {melhorias.length === 0 ? (
+                <p className="text-xs text-zinc-500 italic py-4">Nenhum detalhe por matéria cadastrado para este simulado. Adicione matérias ao registar o simulado para visualizar as barras de progresso.</p>
+              ) : (
+                <div className="space-y-3">
+                  {melhorias.map((m) => {
+                    const acertosMat = m.quantidade_acertos || 0;
+                    const errosMat = m.quantidade_erros || 0;
+                    const totalMat = acertosMat + errosMat;
+                    const percMat = totalMat > 0 ? Math.round((acertosMat / totalMat) * 100) : 0;
+                    const corBarra = percMat >= 70 ? 'bg-emerald-500' : percMat >= 50 ? 'bg-amber-400' : 'bg-rose-600';
+
+                    return (
+                      <div key={m.id} className="bg-zinc-950 border border-zinc-800 p-4 rounded-xl space-y-2">
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="font-bold text-white">{m.materia}</span>
+                          <span className="font-mono font-bold text-zinc-300">{acertosMat}/{totalMat} ({percMat}%)</span>
+                        </div>
+                        
+                        {/* Barra de Progresso Visual */}
+                        <div className="w-full bg-zinc-900 h-2.5 rounded-full overflow-hidden border border-zinc-800">
+                          <div className={`h-full ${corBarra} transition-all duration-500`} style={{ width: `${percMat}%` }}></div>
+                        </div>
+
+                        <div className="flex justify-between items-center text-[11px] text-zinc-400 pt-1">
+                          <span>Foco: <b className="text-zinc-200">{m.assunto_estudar}</b></span>
+                          <div className="flex items-center gap-2">
+                            <button onClick={() => abrirEdicaoMelhoria(m)} className="text-amber-400 hover:underline cursor-pointer">Editar</button>
+                            <button onClick={() => apagarMelhoria(m.id)} className="text-rose-400 hover:underline cursor-pointer">Excluir</button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {simulados.map((sim) => {
-                const percentual = sim.total_questoes > 0 ? Math.round((sim.acertos / sim.total_questoes) * 100) : 0;
-                return (
-                  <div key={sim.id} className="bg-zinc-900/80 border border-zinc-800 rounded-2xl p-6 space-y-4 shadow-xl relative flex flex-col justify-between">
-                    
-                    {/* Topo Ajustado para EVITAR Colisão de Texto/Nota */}
-                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-                      <div className="min-w-0 flex-1 pr-2">
-                        <h3 className="font-bold text-base text-white leading-snug break-words">
-                          {sim.titulo}
-                        </h3>
-                      </div>
 
-                      <div className="flex items-center gap-2 shrink-0 self-start">
-                        <span className="text-xs bg-amber-950/40 border border-amber-600/30 text-amber-400 px-2.5 py-1 rounded-lg font-semibold whitespace-nowrap">
-                          Nota: {sim.nota}
-                        </span>
+          </div>
+        ) : (
+          <div className="bg-zinc-900/50 border border-zinc-800 rounded-3xl p-12 text-center space-y-3">
+            <BarChart2 className="w-12 h-12 text-zinc-600 mx-auto" />
+            <h3 className="text-lg font-semibold text-zinc-300">Nenhum simulado registado ainda</h3>
+            <p className="text-xs text-zinc-500 max-w-sm mx-auto">
+              Clique no botão "Adicionar Simulado" acima para preencher suas notas e acompanhar seu avanço.
+            </p>
+          </div>
+        )}
 
-                        {/* Botão Editar Simulado */}
-                        <button
-                          onClick={() => abrirEdicaoSimulado(sim)}
-                          title="Editar simulado"
-                          className="text-zinc-500 hover:text-amber-400 transition-colors cursor-pointer p-1"
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </button>
-
-                        <button
-                          onClick={() => apagarSimulado(sim.id)}
-                          title="Apagar simulado"
-                          className="text-zinc-500 hover:text-red-500 transition-colors cursor-pointer p-1"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 text-xs text-zinc-400">
-                      <Calendar className="w-3.5 h-3.5 text-zinc-500" />
-                      {new Date(sim.created_at).toLocaleDateString('pt-BR')}
-                    </div>
-
-                    <div className="pt-2 border-t border-zinc-800/80 flex justify-between items-center text-sm">
-                      <div className="flex items-center gap-1.5 text-zinc-300">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                        <span>{sim.acertos} acertos / {sim.total_questoes}</span>
-                      </div>
-                      <span className={`font-bold ${percentual >= 70 ? 'text-emerald-400' : 'text-amber-400'}`}>
-                        {percentual}%
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* Modal Unificado (Adicionar Novo) */}
+        {/* Modal Unificado (Adicionar Novo Simulado com Matérias Opcionais) */}
         {modalOpen && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl max-w-lg w-full p-6 space-y-5 shadow-2xl my-8">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-lg w-full p-6 space-y-5 shadow-2xl my-8 relative">
               <div className="flex justify-between items-center border-b border-zinc-800 pb-4">
                 <h3 className="text-base font-bold text-white flex items-center gap-2">
-                  <Award className="w-5 h-5 text-amber-500" />
-                  Registar Simulado e Melhorias
+                  <Award className="w-5 h-5 text-amber-400" />
+                  Registar Simulado e Desempenho
                 </h3>
                 <button onClick={() => setModalOpen(false)} className="text-zinc-400 hover:text-white cursor-pointer">
                   <XCircle className="w-5 h-5" />
@@ -520,16 +526,16 @@ Analise o meu desempenho recente e gere um payload JSON estrito (retorne APENAS 
 
               <form onSubmit={handleSalvarTudo} className="space-y-4">
                 <div className="space-y-3">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-amber-500">1. Dados do Simulado</h4>
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-amber-400">1. Dados do Simulado</h4>
                   <div>
-                    <label className="block text-xs font-semibold text-zinc-400 mb-1">Título do Simulado</label>
+                    <label className="block text-xs font-semibold text-zinc-400 mb-1">Título do Simulado / Data</label>
                     <input
                       type="text"
                       required
                       placeholder="Ex: Simulado 01 - VUNESP TJSP"
                       value={titulo}
                       onChange={(e) => setTitulo(e.target.value)}
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-red-600"
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-amber-400"
                     />
                   </div>
 
@@ -540,10 +546,10 @@ Analise o meu desempenho recente e gere um payload JSON estrito (retorne APENAS 
                         <input
                           type="number"
                           required={!incluirMelhorias}
-                          placeholder="Ex: 17"
+                          placeholder="Ex: 75"
                           value={acertos}
                           onChange={(e) => setAcertos(e.target.value)}
-                          className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-red-600"
+                          className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-amber-400"
                         />
                       </div>
                       <div>
@@ -553,14 +559,14 @@ Analise o meu desempenho recente e gere um payload JSON estrito (retorne APENAS 
                           required={!incluirMelhorias}
                           value={total}
                           onChange={(e) => setTotal(e.target.value)}
-                          className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-red-600"
+                          className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-amber-400"
                         />
                       </div>
                     </div>
                   ) : (
                     <div className="text-[11px] text-zinc-400 bg-zinc-950 border border-zinc-800 p-3 rounded-xl flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 text-amber-500 shrink-0" />
-                      <span>O total de acertos e de questões do simulado será calculated automaticamente com base no JSON inserido abaixo.</span>
+                      <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
+                      <span>O total de acertos e questões será calculado automaticamente com base no JSON das matérias inserido abaixo.</span>
                     </div>
                   )}
                 </div>
@@ -572,28 +578,39 @@ Analise o meu desempenho recente e gere um payload JSON estrito (retorne APENAS 
                         type="checkbox"
                         checked={incluirMelhorias}
                         onChange={(e) => setIncluirMelhorias(e.target.checked)}
-                        className="rounded bg-zinc-950 border-zinc-800 text-amber-500 focus:ring-amber-500 w-4 h-4"
+                        className="rounded bg-zinc-950 border-zinc-800 text-amber-400 focus:ring-amber-400 w-4 h-4"
                       />
                       <span className="text-xs font-bold text-white flex items-center gap-1.5">
-                        <Target className="w-3.5 h-3.5 text-amber-500" /> Adicionar Pontos de Melhoria (Opcional)
+                        <Target className="w-3.5 h-3.5 text-amber-400" /> Adicionar Matérias do Edital (Opcional)
                       </span>
                     </label>
                   </div>
 
                   {incluirMelhorias && (
                     <div className="bg-zinc-950/60 border border-zinc-800 p-4 rounded-xl space-y-3">
+                      <div className="flex justify-between items-center">
+                        <button
+                          type="button"
+                          onClick={copiarPrompt}
+                          className="text-[11px] bg-zinc-900 border border-zinc-700 hover:border-amber-400 text-amber-300 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all cursor-pointer"
+                        >
+                          {copiado ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3 text-amber-400" />}
+                          {copiado ? 'Prompt Copiado!' : 'Copiar Prompt para IA'}
+                        </button>
+                      </div>
+
                       <div className="flex bg-zinc-950 p-1 rounded-xl border border-zinc-800">
                         <button
                           type="button"
                           onClick={() => setModoJson(true)}
-                          className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${modoJson ? 'bg-amber-600 text-white shadow' : 'text-zinc-400 hover:text-white'}`}
+                          className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${modoJson ? 'bg-amber-400 text-zinc-950 shadow' : 'text-zinc-400 hover:text-white'}`}
                         >
-                          <Code className="w-3.5 h-3.5" /> Payload JSON (Múltiplas Matérias)
+                          <Code className="w-3.5 h-3.5" /> Payload JSON (Todas as Matérias)
                         </button>
                         <button
                           type="button"
                           onClick={() => setModoJson(false)}
-                          className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${!modoJson ? 'bg-amber-600 text-white shadow' : 'text-zinc-400 hover:text-white'}`}
+                          className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${!modoJson ? 'bg-amber-400 text-zinc-950 shadow' : 'text-zinc-400 hover:text-white'}`}
                         >
                           Manual (1 a 1)
                         </button>
@@ -612,23 +629,23 @@ Analise o meu desempenho recente e gere um payload JSON estrito (retorne APENAS 
                             </button>
                           </div>
                           <textarea
-                            rows={8}
+                            rows={6}
                             value={jsonInput}
                             onChange={(e) => setJsonInput(e.target.value)}
-                            placeholder='[{"materia": "...", "quantidade_erros": 0, "quantidade_acertos": 0, "assunto_estudar": "..."}]'
-                            className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-xs text-white font-mono focus:outline-none focus:border-amber-600"
+                            placeholder='[{"materia": "Informática", "quantidade_erros": 1, "quantidade_acertos": 8, "assunto_estudar": "..."}]'
+                            className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-xs text-white font-mono focus:outline-none focus:border-amber-400"
                           />
                         </div>
                       ) : (
                         <div className="space-y-3">
                           <div>
-                            <label className="block text-[11px] font-semibold text-zinc-400 mb-1">Matéria</label>
+                            <label className="block text-[11px] font-semibold text-zinc-400 mb-1">Matéria do Edital</label>
                             <input
                               type="text"
                               value={novaMateria}
                               onChange={(e) => setNovaMateria(e.target.value)}
                               placeholder="Ex: Direito Constitucional"
-                              className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-600"
+                              className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
                             />
                           </div>
 
@@ -640,7 +657,7 @@ Analise o meu desempenho recente e gere um payload JSON estrito (retorne APENAS 
                                 value={errosInput}
                                 onChange={(e) => setErrosInput(e.target.value)}
                                 placeholder="0"
-                                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-600"
+                                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
                               />
                             </div>
                             <div>
@@ -650,7 +667,7 @@ Analise o meu desempenho recente e gere um payload JSON estrito (retorne APENAS 
                                 value={acertosInput}
                                 onChange={(e) => setAcertosInput(e.target.value)}
                                 placeholder="0"
-                                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-600"
+                                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
                               />
                             </div>
                           </div>
@@ -662,7 +679,7 @@ Analise o meu desempenho recente e gere um payload JSON estrito (retorne APENAS 
                               value={assuntoInput}
                               onChange={(e) => setAssuntoInput(e.target.value)}
                               placeholder="Ex: Direitos e Garantias Fundamentais"
-                              className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-600"
+                              className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
                             />
                           </div>
                         </div>
@@ -683,7 +700,7 @@ Analise o meu desempenho recente e gere um payload JSON estrito (retorne APENAS 
                   <button
                     type="submit"
                     disabled={aGuardar}
-                    className="px-5 py-2 rounded-xl text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white shadow-lg shadow-amber-600/20 cursor-pointer disabled:opacity-50"
+                    className="px-5 py-2 rounded-xl text-xs font-black bg-amber-400 hover:bg-amber-500 text-zinc-950 shadow-md cursor-pointer disabled:opacity-50"
                   >
                     {aGuardar ? 'A guardar...' : 'Guardar Registo'}
                   </button>
@@ -693,13 +710,13 @@ Analise o meu desempenho recente e gere um payload JSON estrito (retorne APENAS 
           </div>
         )}
 
-        {/* Modal de Edição de Ponto de Melhoria */}
+        {/* Modal de Edição de Ponto de Melhoria/Matéria */}
         {modalEditMelhoriaOpen && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl relative">
               <div className="flex justify-between items-center border-b border-zinc-800 pb-3">
                 <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                  <Pencil className="w-4 h-4 text-amber-400" /> Editar Ponto de Melhoria
+                  <Pencil className="w-4 h-4 text-amber-400" /> Editar Matéria / Desempenho
                 </h3>
                 <button onClick={() => setModalEditMelhoriaOpen(false)} className="text-zinc-400 hover:text-white cursor-pointer">
                   <XCircle className="w-5 h-5" />
@@ -714,7 +731,7 @@ Analise o meu desempenho recente e gere um payload JSON estrito (retorne APENAS 
                     required
                     value={editMateria}
                     onChange={(e) => setEditMateria(e.target.value)}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-600"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
                   />
                 </div>
 
@@ -726,7 +743,7 @@ Analise o meu desempenho recente e gere um payload JSON estrito (retorne APENAS 
                       required
                       value={editAcertos}
                       onChange={(e) => setEditAcertos(Number(e.target.value))}
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-600"
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
                     />
                   </div>
                   <div>
@@ -736,7 +753,7 @@ Analise o meu desempenho recente e gere um payload JSON estrito (retorne APENAS 
                       required
                       value={editErros}
                       onChange={(e) => setEditErros(Number(e.target.value))}
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-600"
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
                     />
                   </div>
                 </div>
@@ -748,7 +765,7 @@ Analise o meu desempenho recente e gere um payload JSON estrito (retorne APENAS 
                     required
                     value={editAssunto}
                     onChange={(e) => setEditAssunto(e.target.value)}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-amber-600 resize-none"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-amber-400 resize-none"
                   />
                 </div>
 
@@ -762,7 +779,7 @@ Analise o meu desempenho recente e gere um payload JSON estrito (retorne APENAS 
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-zinc-950 shadow-md cursor-pointer"
+                    className="px-4 py-2 rounded-xl text-xs font-bold bg-amber-400 hover:bg-amber-500 text-zinc-950 shadow-md cursor-pointer"
                   >
                     Salvar Alterações
                   </button>
@@ -775,7 +792,7 @@ Analise o meu desempenho recente e gere um payload JSON estrito (retorne APENAS 
         {/* Modal de Edição de Simulado */}
         {modalEditSimuladoOpen && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl relative">
               <div className="flex justify-between items-center border-b border-zinc-800 pb-3">
                 <h3 className="text-sm font-bold text-white flex items-center gap-2">
                   <Pencil className="w-4 h-4 text-amber-400" /> Editar Simulado
@@ -793,7 +810,7 @@ Analise o meu desempenho recente e gere um payload JSON estrito (retorne APENAS 
                     required
                     value={editSimTitulo}
                     onChange={(e) => setEditSimTitulo(e.target.value)}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-600"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
                   />
                 </div>
 
@@ -805,7 +822,7 @@ Analise o meu desempenho recente e gere um payload JSON estrito (retorne APENAS 
                       required
                       value={editSimAcertos}
                       onChange={(e) => setEditSimAcertos(Number(e.target.value))}
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-600"
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
                     />
                   </div>
                   <div>
@@ -815,7 +832,7 @@ Analise o meu desempenho recente e gere um payload JSON estrito (retorne APENAS 
                       required
                       value={editSimTotal}
                       onChange={(e) => setEditSimTotal(Number(e.target.value))}
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-600"
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
                     />
                   </div>
                 </div>
@@ -830,7 +847,7 @@ Analise o meu desempenho recente e gere um payload JSON estrito (retorne APENAS 
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-zinc-950 shadow-md cursor-pointer"
+                    className="px-4 py-2 rounded-xl text-xs font-bold bg-amber-400 hover:bg-amber-500 text-zinc-950 shadow-md cursor-pointer"
                   >
                     Salvar Alterações
                   </button>

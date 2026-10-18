@@ -90,7 +90,7 @@ export default function SimuladosPage() {
 
       if (simRes.data && simRes.data.length > 0) {
         setSimuladosList(simRes.data);
-        if (!simuladoSelecionadoId) {
+        if (!simuladoSelecionadoId || !simRes.data.some(s => s.id === simuladoSelecionadoId)) {
           setSimuladoSelecionadoId(simRes.data[0].id);
         }
       } else {
@@ -107,7 +107,7 @@ export default function SimuladosPage() {
 
   const simuladoAtivo = simuladosList.find(s => s.id === simuladoSelecionadoId) || simuladosList[0];
 
-  // Filtra as matérias exclusivamente do simulado ativo atual por simulado_id
+  // Filtra as matérias exclusivamente do simulado ativo atual utilizando o simulado_id
   const melhoriasDoSimuladoAtivo = melhorias.filter(
     (m) => m.simulado_id === simuladoAtivo?.id
   );
@@ -139,7 +139,7 @@ export default function SimuladosPage() {
     setListaManualTemporaria(listaManualTemporaria.filter((_, i) => i !== index));
   }
 
-  // --- FUNÇÃO DE SALVAR TUDO (SIMULADO + MATÉRIAS VINCULADAS) ---
+  // --- FUNÇÃO DE SALVAR TUDO (SIMULADO + MATÉRIAS VINCULADAS DIRETAMENTE) ---
   async function handleSalvarSimuladoCompleto(e: React.FormEvent) {
     e.preventDefault();
     if (aGuardar) return;
@@ -152,7 +152,7 @@ export default function SimuladosPage() {
         return;
       }
 
-      let itensParaInserir: any[] = [];
+      let arrayMateriasBrutas: any[] = [];
       let dataFinalSimulado = dataSimulado ? new Date(dataSimulado).toISOString() : new Date().toISOString();
 
       if (modoPreenchimento === 'json') {
@@ -169,32 +169,22 @@ export default function SimuladosPage() {
 
           const parsed = JSON.parse(textoLimpo);
 
-          let arrayMaterias: any[] = [];
           if (Array.isArray(parsed)) {
-            arrayMaterias = parsed;
+            arrayMateriasBrutas = parsed;
           } else if (parsed && Array.isArray(parsed.materias)) {
-            arrayMaterias = parsed.materias;
+            arrayMateriasBrutas = parsed.materias;
             if (parsed.data) {
               dataFinalSimulado = new Date(parsed.data).toISOString();
             }
           } else if (parsed && typeof parsed === 'object') {
-            arrayMaterias = [parsed];
+            arrayMateriasBrutas = [parsed];
           }
 
-          if (arrayMaterias.length === 0) {
+          if (arrayMateriasBrutas.length === 0) {
             alert('Nenhuma matéria válida foi encontrada no JSON.');
             setAGuardar(false);
             return;
           }
-
-          itensParaInserir = arrayMaterias.map((item) => ({
-            user_id: user.id,
-            materia: item.materia || item.nome || item.disciplina || '',
-            quantidade_erros: Number(item.quantidade_erros) || 0,
-            quantidade_acertos: Number(item.quantidade_acertos) || 0,
-            assunto_estudar: item.assunto_estudar || item.assunto || item.foco || '',
-            created_at: item.data ? new Date(item.data).toISOString() : dataFinalSimulado
-          }));
         } catch (err) {
           alert('JSON inválido. Verifique a sintaxe.');
           setAGuardar(false);
@@ -206,19 +196,16 @@ export default function SimuladosPage() {
           setAGuardar(false);
           return;
         }
-        itensParaInserir = listaManualTemporaria.map(item => ({
-          user_id: user.id,
-          ...item,
-          created_at: dataFinalSimulado
-        }));
+        arrayMateriasBrutas = listaManualTemporaria;
       }
 
-      const somaAcertos = itensParaInserir.reduce((acc, item) => acc + item.quantidade_acertos, 0);
-      const somaErros = itensParaInserir.reduce((acc, item) => acc + item.quantidade_erros, 0);
+      // Calcula totais com base nas matérias brutas
+      const somaAcertos = arrayMateriasBrutas.reduce((acc, item) => acc + (Number(item.quantidade_acertos) || 0), 0);
+      const somaErros = arrayMateriasBrutas.reduce((acc, item) => acc + (Number(item.quantidade_erros) || 0), 0);
       const numTotal = somaAcertos + somaErros;
       const notaCalculada = numTotal > 0 ? Number(((somaAcertos / numTotal) * 10).toFixed(2)) : 0;
 
-      // 1. Insere o Simulado principal
+      // 1. Insere o Simulado principal primeiro para gerar o ID
       const { data: novoSimuladoInserido, error: erroSimulado } = await supabase.from('simulados').insert([
         {
           user_id: user.id,
@@ -230,36 +217,39 @@ export default function SimuladosPage() {
         },
       ]).select().single();
 
-      if (erroSimulado) {
-        alert(`Erro ao guardar Simulado: ${erroSimulado.message}`);
+      if (erroSimulado || !novoSimuladoInserido) {
+        alert(`Erro ao guardar Simulado: ${erroSimulado?.message}`);
         setAGuardar(false);
         return;
       }
 
-      // 2. Insere as matérias associando o simulado_id do simulado recém criado
-      if (itensParaInserir.length > 0 && novoSimuladoInserido) {
-        const itensComSimuladoId = itensParaInserir.map((item) => ({
-          ...item,
-          simulado_id: novoSimuladoInserido.id
-        }));
+      // 2. Mapeia os itens garantindo o vínculo estrito com o simulado_id criado
+      const itensComSimuladoId = arrayMateriasBrutas.map((item) => ({
+        user_id: user.id,
+        simulado_id: novoSimuladoInserido.id,
+        materia: item.materia || item.nome || item.disciplina || '',
+        quantidade_erros: Number(item.quantidade_erros) || 0,
+        quantidade_acertos: Number(item.quantidade_acertos) || 0,
+        assunto_estudar: item.assunto_estudar || item.assunto || item.foco || '',
+        created_at: item.data ? new Date(item.data).toISOString() : dataFinalSimulado
+      }));
 
-        const { error: erroMelhoria } = await supabase.from('pontos_melhoria').insert(itensComSimuladoId);
-        if (erroMelhoria) {
-          alert(`Erro ao guardar Matérias: ${erroMelhoria.message}`);
-          setAGuardar(false);
-          return;
-        }
+      // 3. Insere os pontos de melhoria vinculados
+      const { error: erroMelhoria } = await supabase.from('pontos_melhoria').insert(itensComSimuladoId);
+      if (erroMelhoria) {
+        alert(`Erro ao guardar Matérias: ${erroMelhoria.message}`);
+        setAGuardar(false);
+        return;
       }
 
+      // Limpa formulários e fecha modal
       setTitulo('');
       setJsonInput('');
       setListaManualTemporaria([]);
       setModalOpen(false);
       
       await carregarDados();
-      if (novoSimuladoInserido) {
-        setSimuladoSelecionadoId(novoSimuladoInserido.id);
-      }
+      setSimuladoSelecionadoId(novoSimuladoInserido.id);
     } catch (error) {
       console.error('Erro ao guardar:', error);
       alert('Erro inesperado ao guardar registo.');
@@ -337,13 +327,18 @@ export default function SimuladosPage() {
   }
 
   async function apagarSimulado(id: string) {
-    if (!confirm('Deseja apagar este simulado?')) return;
+    if (!confirm('Deseja apagar este simulado? As matérias associadas também serão removidas.')) return;
     try {
+      // Como configuramos cascade no banco, deletar o simulado apaga as matérias atreladas
+      await supabase.from('pontos_melhoria').delete().eq('simulado_id', id);
       await supabase.from('simulados').delete().eq('id', id);
+      
       const restantes = simuladosList.filter((s) => s.id !== id);
       setSimuladosList(restantes);
       if (restantes.length > 0) setSimuladoSelecionadoId(restantes[0].id);
       else setSimuladoSelecionadoId('');
+      
+      await carregarDados();
     } catch (err) {
       console.error(err);
     }
@@ -490,7 +485,7 @@ Analise o meu desempenho no simulado e gere um payload JSON estrito contendo a d
               </div>
             </div>
 
-            {/* Desempenho por Matéria (Filtrado pelo Simulado Ativo) */}
+            {/* Desempenho por Matéria (Filtrado estritamente pelo Simulado Ativo) */}
             <div className="space-y-4 pt-4">
               <h3 className="text-sm font-extrabold uppercase tracking-wider text-white flex items-center gap-2">
                 <BarChart2 className="w-4 h-4 text-amber-400" />

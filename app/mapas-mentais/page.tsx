@@ -257,42 +257,48 @@ const mapaInicialExemplo = {
 };
 
 const PROMPT_MESTRE_TEXTO = `Atue como Especialista e Mentor para o concurso do TJSP (Banca VUNESP). 
-Gere um JSON estruturado para a tela de revisão em tela cheia (Raciocínio Lógico - Diagramas).
+Gere um JSON estruturado estrito para a tela de revisão em tela cheia contendo obrigatoriamente a chave "ramos".
 
-⚠️ **REGRA CRÍTICA PARA DIAGRAMAS DE CONJUNTOS (TODO / NENHUM)**:
-1. Para premissas de inclusão com exclusão ("Todo A é B e Nenhum B é C"):
-   Utilize o tipo "conjuntos_misto" no objeto "grafico" para garantir que o conjunto excluído fique SEPARADO e ISOLADO.
-   
-Estrutura exata do grafico para "conjuntos_misto":
-"grafico": {
-  "tipo": "conjuntos_misto",
-  "titulo": "PREMISSAS EM CAIXA ALTA",
-  "grupos": [
+Estrutura exata exigida para cada item dentro de "ramos":
+{
+  "ramos": [
     {
-      "posicaoX": 130,
-      "raioMaxX": 105,
-      "raioMaxY": 75,
-      "conjuntos": [
-        { "nome": "Conjunto Maior (ex: Servidor Público)" },
-        { "nome": "Conjunto Menor (ex: Escrevente)" }
-      ]
-    },
-    {
-      "posicaoX": 320,
-      "raioMaxX": 60,
-      "raioMaxY": 60,
-      "corBorda": "#EF4444",
-      "corFundo": "rgba(239, 68, 68, 0.15)",
-      "conjuntos": [
-        { "nome": "Conjunto Excluído (ex: Estrangeiro)" }
-      ]
+      "id": "identificador-unico-exemplo-123456",
+      "titulo": "Título Principal do Tópico",
+      "artigos": "LEGISLAÇÃO / CONCEITO",
+      "tag": "Categoria",
+      "assunto": "Nome exato do assunto para o filtro",
+      "tipo": "conceito",
+      "subnos": [
+        {
+          "titulo": "Subtítulo explicativo",
+          "descricao": "Explicação detalhada do conceito cobrado pela VUNESP.",
+          "itens": [
+            "Primeiro ponto importante",
+            "Segundo ponto importante"
+          ]
+        }
+      ],
+      "modalInfo": {
+        "title": "Dica de Ouro VUNESP",
+        "tag": "Estratégia",
+        "casosPraticos": [
+          {
+            "titulo": "PADRÃO DA BANCA:",
+            "texto": "Como a VUNESP costuma cobrar isto em prova."
+          }
+        ],
+        "conclusoes": [
+          "Conclusão prática para memorização."
+        ],
+        "pegadinha": "Cuidado com o erro mais comum neste tema."
+      },
+      "importante": true
     }
-  ],
-  "conclusao": "Conclusão válida do silogismo.",
-  "descricao": "Explicação visual demonstrando por que os conjuntos não se cruzam."
+  ]
 }
 
-Retorne EXCLUSIVAMENTE o JSON válido contendo a chave "ramos".`;
+Retorne EXCLUSIVAMENTE o JSON válido, sem textos adicionais antes ou depois.`;
 
 export default function MapaMentalPage() {
   const [mapasPorDisciplina, setMapasPorDisciplina] = useState<Record<string, any>>({});

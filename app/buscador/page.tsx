@@ -23,25 +23,25 @@ export default function BuscadorUniversalPage() {
   const [gabarito, setGabarito] = useState('A');
   const [urlQuestao, setUrlQuestao] = useState('');
 
-  // URLs geradas com espaçamento limpo e correto para o motor de busca dos portais
+  // URLs ajustadas para direcionar para o motor de busca com parâmetros limpos e separados por vírgula/espaço
   const gerarUrlQConcursos = () => {
-    const termoBusca = [disciplina, assunto, banca, orgao].filter(Boolean).join(' ');
-    return `https://www.qconcursos.com/questoes-de-concursos/questoes?q=${encodeURIComponent(termoBusca)}`;
+    const query = `${disciplina} ${assunto} ${banca} ${orgao}`;
+    return `https://www.qconcursos.com/questoes-de-concursos/questoes?q=${encodeURIComponent(query)}`;
   };
 
   const gerarUrlTEC = () => {
-    const termoBusca = [disciplina, assunto, banca, orgao].filter(Boolean).join(' ');
-    return `https://www.tecconcursos.com.br/questoes/foco?q=${encodeURIComponent(termoBusca)}`;
+    const query = `${assunto} ${banca} ${orgao}`;
+    return `https://www.tecconcursos.com.br/questoes/foco?q=${encodeURIComponent(query)}`;
   };
 
   const gerarUrlGran = () => {
-    const termoBusca = [disciplina, assunto, banca, orgao].filter(Boolean).join(' ');
-    return `https://questoes.grancursosonline.com.br/questoes?busca=${encodeURIComponent(termoBusca)}`;
+    const query = `${disciplina} ${assunto} ${banca} ${orgao}`;
+    return `https://questoes.grancursosonline.com.br/questoes?busca=${encodeURIComponent(query)}`;
   };
 
   const gerarUrlPCI = () => {
-    const termoBusca = [`Prova ${orgao}`, banca, disciplina, assunto].filter(Boolean).join(' ');
-    return `https://www.pciconcursos.com.br/pesquisa/?q=${encodeURIComponent(termoBusca)}`;
+    const query = `${orgao} ${banca} ${disciplina} ${assunto}`;
+    return `https://www.pciconcursos.com.br/pesquisa/?q=${encodeURIComponent(query)}`;
   };
 
   const salvarQuestaoRapida = async (e: React.FormEvent) => {
@@ -90,7 +90,7 @@ export default function BuscadorUniversalPage() {
               Buscador Dinâmico de Questões
             </h1>
             <p className="text-xs text-zinc-400 mt-1">
-              Altere os parâmetros e abra o filtro exato nos maiores bancos de questões sem falhas ou termos grudados.
+              Altere os parâmetros e abra o filtro exato nos maiores bancos de questões do país.
             </p>
           </div>
           <Zap className="w-10 h-10 text-amber-400 hidden sm:block" />
@@ -145,7 +145,7 @@ export default function BuscadorUniversalPage() {
           </div>
         </div>
 
-        {/* Botões de Ação Direta Rápidos com Espaçamento Limpo */}
+        {/* Botões de Ação Direta Rápidos */}
         <div className="space-y-4">
           <h3 className="text-sm font-bold text-white flex items-center gap-2">
             <Globe className="w-4 h-4 text-amber-400" />

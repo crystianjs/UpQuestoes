@@ -93,7 +93,7 @@ function LogicalDiagram({ grafico }: { grafico: any }) {
     );
   }
 
-  // 2. CONJUNTOS MISTOS OU SEPARADOS (Com suporte a múltiplos grupos, isolados e pontos de existência visíveis)
+  // 2. CONJUNTOS MISTOS OU SEPARADOS
   if ((grafico.tipo === 'conjuntos_misto' || grafico.tipo === 'conjuntos_separados') && Array.isArray(grafico.grupos)) {
     return (
       <div className="bg-zinc-950 border border-amber-400/30 rounded-2xl p-5 space-y-4 shadow-inner my-3">
@@ -147,7 +147,6 @@ function LogicalDiagram({ grafico }: { grafico: any }) {
               );
             })}
 
-            {/* Renderização explícita e visível do ponto de existência (∃) na interseção */}
             {Array.isArray(grafico.existencia) ? (
               grafico.existencia.map((pt: any, pIdx: number) => (
                 <g key={pIdx}>
@@ -159,7 +158,6 @@ function LogicalDiagram({ grafico }: { grafico: any }) {
               ))
             ) : null}
 
-            {/* Linha/Símbolo visual de exclusão (Disjunção total) mantido apenas se explicitamente solicitado */}
             {grafico.grupos.length > 1 && grafico.mostrarDisjuncao === true && (
               <g>
                 <line x1="240" y1="80" x2="240" y2="120" stroke="#EF4444" strokeWidth="2" strokeDasharray="4" />
@@ -413,7 +411,13 @@ export default function MapaMentalPage() {
 
   const handleCarregarJson = async () => {
     try {
-      const parsed = JSON.parse(jsonInputText);
+      let textoLimpo = jsonInputText.trim();
+      // Sanitização robusta contra blocos de código markdown ou aspas escapadas da IA
+      if (textoLimpo.startsWith('```')) {
+        textoLimpo = textoLimpo.replace(/^```(json)?/, '').replace(/```$/, '').trim();
+      }
+
+      const parsed = JSON.parse(textoLimpo);
       if (parsed && parsed.ramos && Array.isArray(parsed.ramos)) {
         const mapaExistente = mapasPorDisciplina[modalDisciplinaAlvo];
         let novosRamosValidos = parsed.ramos.filter(Boolean);
@@ -454,7 +458,7 @@ export default function MapaMentalPage() {
         alert('O JSON precisa conter obrigatoriamente a chave "ramos".');
       }
     } catch (e) {
-      alert('Erro de sintaxe no JSON.');
+      alert('Erro de sintaxe no JSON. Verifique se há aspas mal fechadas ou caracteres inválidos.');
     }
   };
 
@@ -707,7 +711,6 @@ export default function MapaMentalPage() {
                       </div>
 
                       <div className="flex items-center gap-2 self-start sm:self-center shrink-0">
-                        {/* Botão Importante */}
                         <button
                           onClick={() => toggleImportante(ramo.id)}
                           className={`text-xs font-extrabold px-3 py-1 rounded-lg border transition-all cursor-pointer shadow-md ${
@@ -733,7 +736,6 @@ export default function MapaMentalPage() {
                       </div>
                     </div>
 
-                    {/* RENDERIZAÇÃO DO GRÁFICO LÓGICO SE EXISTIR */}
                     {ramo.grafico && <LogicalDiagram grafico={ramo.grafico} />}
 
                     <div className="space-y-6">

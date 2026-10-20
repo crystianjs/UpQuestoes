@@ -27,7 +27,6 @@ const DISCIPLINAS_TJSP = [
 function LogicalDiagram({ grafico }: { grafico: any }) {
   if (!grafico || !grafico.tipo) return null;
 
-  // 1. CONJUNTOS ANINHADOS (Todo A é B)
   if (grafico.tipo === 'conjuntos_aninhados' && Array.isArray(grafico.conjuntos)) {
     return (
       <div className="bg-zinc-950 border border-amber-400/30 rounded-2xl p-5 space-y-4 shadow-inner my-3">
@@ -93,7 +92,6 @@ function LogicalDiagram({ grafico }: { grafico: any }) {
     );
   }
 
-  // 2. CONJUNTOS MISTOS OU SEPARADOS
   if ((grafico.tipo === 'conjuntos_misto' || grafico.tipo === 'conjuntos_separados') && Array.isArray(grafico.grupos)) {
     return (
       <div className="bg-zinc-950 border border-amber-400/30 rounded-2xl p-5 space-y-4 shadow-inner my-3">
@@ -296,7 +294,7 @@ Estrutura exata exigida para cada item dentro de "ramos":
   ]
 }
 
-Retorne EXCLUSIVAMENTE o JSON válido, sem textos adicionais antes ou depois.`;
+Retorne EXCLUSIVAMENTE o JSON válido, sem blocos de markdown, textos adicionais antes ou depois.`;
 
 export default function MapaMentalPage() {
   const [mapasPorDisciplina, setMapasPorDisciplina] = useState<Record<string, any>>({});
@@ -412,12 +410,21 @@ export default function MapaMentalPage() {
   const handleCarregarJson = async () => {
     try {
       let textoLimpo = jsonInputText.trim();
-      // Sanitização robusta contra blocos de código markdown ou aspas escapadas da IA
+      
+      // Limpeza exaustiva de tags de markdown que a IA costuma devolver
       if (textoLimpo.startsWith('```')) {
         textoLimpo = textoLimpo.replace(/^```(json)?/, '').replace(/```$/, '').trim();
       }
 
-      const parsed = JSON.parse(textoLimpo);
+      let parsed;
+      try {
+        parsed = JSON.parse(textoLimpo);
+      } catch (errParse) {
+        // Correção de emergência para vírgulas sobrando no fim de arrays/objetos
+        const textoCorrigido = textoLimpo.replace(/,\s*([\]}])/g, '$1');
+        parsed = JSON.parse(textoCorrigido);
+      }
+
       if (parsed && parsed.ramos && Array.isArray(parsed.ramos)) {
         const mapaExistente = mapasPorDisciplina[modalDisciplinaAlvo];
         let novosRamosValidos = parsed.ramos.filter(Boolean);
@@ -457,8 +464,8 @@ export default function MapaMentalPage() {
       } else {
         alert('O JSON precisa conter obrigatoriamente a chave "ramos".');
       }
-    } catch (e) {
-      alert('Erro de sintaxe no JSON. Verifique se há aspas mal fechadas ou caracteres inválidos.');
+    } catch (e: any) {
+      alert(`Erro de sintaxe no JSON: ${e.message || 'Verifique as aspas e colchetes.'}`);
     }
   };
 

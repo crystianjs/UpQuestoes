@@ -63,12 +63,6 @@ export default function Navbar() {
           Flashcards
         </Link>
         <Link 
-          href="/buscador" 
-          className={`px-3 py-2 rounded-xl transition-all ${isActive('/buscador') ? 'bg-red-600 text-white font-bold shadow-lg shadow-red-600/20' : 'text-zinc-400 hover:text-white hover:bg-zinc-900'}`}
-        >
-          Quiz
-        </Link>
-        <Link 
           href="/mapas-mentais" 
           className={`px-3 py-2 rounded-xl transition-all ${isActive('/mapas-mentais') ? 'bg-red-600 text-white font-bold shadow-lg shadow-red-600/20' : 'text-zinc-400 hover:text-white hover:bg-zinc-900'}`}
         >

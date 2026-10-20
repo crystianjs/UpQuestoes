@@ -411,18 +411,26 @@ export default function MapaMentalPage() {
     try {
       let textoLimpo = jsonInputText.trim();
       
-      // Limpeza exaustiva de tags de markdown que a IA costuma devolver
+      // Remove blocos de markdown se houver
       if (textoLimpo.startsWith('```')) {
         textoLimpo = textoLimpo.replace(/^```(json)?/, '').replace(/```$/, '').trim();
       }
 
       let parsed;
       try {
+        // Tenta o parse normal
         parsed = JSON.parse(textoLimpo);
       } catch (errParse) {
-        // Correção de emergência para vírgulas sobrando no fim de arrays/objetos
-        const textoCorrigido = textoLimpo.replace(/,\s*([\]}])/g, '$1');
-        parsed = JSON.parse(textoCorrigido);
+        try {
+          // Tratamento avançado: corrige aspas escapadas problemáticas de fórmulas e vírgulas sobrando
+          let corrigido = textoLimpo
+            .replace(/\\"/g, '"') // Remove escapes problemáticos de aspas gerados por IA
+            .replace(/,\s*([\]}])/g, '$1'); // Remove trailing commas
+          
+          parsed = JSON.parse(corrigido);
+        } catch (err2) {
+          throw new Error("Erro de leitura no JSON gerado pela IA. Verifique caracteres especiais em fórmulas.");
+        }
       }
 
       if (parsed && parsed.ramos && Array.isArray(parsed.ramos)) {
@@ -465,7 +473,7 @@ export default function MapaMentalPage() {
         alert('O JSON precisa conter obrigatoriamente a chave "ramos".');
       }
     } catch (e: any) {
-      alert(`Erro de sintaxe no JSON: ${e.message || 'Verifique as aspas e colchetes.'}`);
+      alert(`Erro de sintaxe no JSON: ${e.message || 'Verifique o formato do texto.'}`);
     }
   };
 

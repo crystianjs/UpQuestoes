@@ -17,15 +17,15 @@ export default function BuscadorUniversalPage() {
   const [banca, setBanca] = useState('VUNESP');
   const [orgao, setOrgao] = useState('TJ-SP');
 
-  // Estado para cadastro rápido manual da questão encontrada se desejar salvar
   const [showCadastroRapido, setShowCadastroRapido] = useState(false);
   const [enunciado, setEnunciado] = useState('');
   const [gabarito, setGabarito] = useState('A');
   const [urlQuestao, setUrlQuestao] = useState('');
 
-  // URLs ajustadas para direcionar para o motor de busca com parâmetros limpos e separados por vírgula/espaço
+  // URLs otimizadas com parâmetros estruturados de busca
   const gerarUrlQConcursos = () => {
-    const query = `${disciplina} ${assunto} ${banca} ${orgao}`;
+    // Parâmetro formatado para o motor de busca avançada do QConcursos
+    const query = `banca:${banca} orgao:${orgao} ${disciplina} ${assunto}`;
     return `https://www.qconcursos.com/questoes-de-concursos/questoes?q=${encodeURIComponent(query)}`;
   };
 
@@ -40,7 +40,7 @@ export default function BuscadorUniversalPage() {
   };
 
   const gerarUrlPCI = () => {
-    const query = `${orgao} ${banca} ${disciplina} ${assunto}`;
+    const query = `Prova ${orgao} ${banca} ${disciplina} ${assunto}`;
     return `https://www.pciconcursos.com.br/pesquisa/?q=${encodeURIComponent(query)}`;
   };
 
@@ -145,7 +145,7 @@ export default function BuscadorUniversalPage() {
           </div>
         </div>
 
-        {/* Botões de Ação Direta Rápidos */}
+        {/* Botões de Ação Direta */}
         <div className="space-y-4">
           <h3 className="text-sm font-bold text-white flex items-center gap-2">
             <Globe className="w-4 h-4 text-amber-400" />

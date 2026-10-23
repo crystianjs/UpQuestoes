@@ -23,10 +23,11 @@ const DISCIPLINAS_TJSP = [
   "Estatuto da Pessoa com Deficiência"
 ];
 
-// --- COMPONENTE VISUAL AVANÇADO DE DIAGRAMAS LÓGICOS ---
+// --- COMPONENTE VISUAL UNIVERSAL DE DIAGRAMAS, CARDS E FLUXOGRAMAS ---
 function LogicalDiagram({ grafico }: { grafico: any }) {
   if (!grafico || !grafico.tipo) return null;
 
+  // 1. MANTER INTATOS OS GRÁFICOS DE MATEMÁTICA / LÓGICA (CONJUNTOS / VENN / ELIPSES)
   if (grafico.tipo === 'conjuntos_aninhados' && Array.isArray(grafico.conjuntos)) {
     return (
       <div className="bg-zinc-950 border border-amber-400/30 rounded-2xl p-5 space-y-4 shadow-inner my-3">
@@ -181,6 +182,139 @@ function LogicalDiagram({ grafico }: { grafico: any }) {
     );
   }
 
+  // 2. NOVO MOTOR UNIVERSAL: CARDS RETANGULARES / QUADRADOS / COMPARATIVOS (DIREITO, PORTUGUÊS, INFORMÁTICA)
+  if (grafico.tipo === 'cards_flexiveis' && Array.isArray(grafico.cards)) {
+    return (
+      <div className="bg-zinc-950 border border-amber-400/30 rounded-2xl p-5 space-y-4 shadow-inner my-3">
+        {grafico.titulo && (
+          <div className="border-b border-zinc-800 pb-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-amber-400">
+              📌 {grafico.titulo}
+            </span>
+          </div>
+        )}
+
+        <div className={`grid gap-4 ${grafico.cards.length > 1 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
+          {grafico.cards.map((card: any, idx: number) => (
+            <div 
+              key={idx}
+              className="rounded-2xl p-4 border space-y-2.5 transition-all shadow-lg"
+              style={{
+                backgroundColor: card.corFundo || 'rgba(24, 24, 27, 0.9)',
+                borderColor: card.corBorda || '#3F3F46'
+              }}
+            >
+              <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                <span className="text-xs font-black uppercase tracking-wider flex items-center gap-1.5" style={{ color: card.corTitulo || '#F59E0B' }}>
+                  {card.icone && <span>{card.icone}</span>}
+                  {card.titulo}
+                </span>
+                {card.badge && (
+                  <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-white/10 text-white border border-white/20">
+                    {card.badge}
+                  </span>
+                )}
+              </div>
+
+              {card.subtitulo && (
+                <p className="text-xs font-bold text-zinc-200">{card.subtitulo}</p>
+              )}
+
+              {card.conteudo && (
+                <p className="text-xs text-zinc-300 leading-relaxed">{card.conteudo}</p>
+              )}
+
+              {Array.isArray(card.topicos) && card.topicos.length > 0 && (
+                <ul className="text-xs text-zinc-300 space-y-1.5 pt-1">
+                  {card.topicos.map((tp: string, tIdx: number) => (
+                    <li key={tIdx} className="flex items-start gap-1.5 leading-snug">
+                      <span className="text-amber-400 font-bold">•</span>
+                      <span>{tp}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {(grafico.conclusao || grafico.descricao) && (
+          <div className="bg-zinc-900/80 border border-zinc-800 p-3.5 rounded-xl space-y-1.5 text-xs mt-2">
+            {grafico.conclusao && (
+              <p className="text-amber-300 font-bold flex items-center gap-1.5">
+                <span>💡 Resumo do Estudo:</span> {grafico.conclusao}
+              </p>
+            )}
+            {grafico.descricao && (
+              <p className="text-zinc-400 leading-relaxed">{grafico.descricao}</p>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // 3. NOVO MOTOR UNIVERSAL: FLUXOGRAMAS DE ETAPAS / PRAZOS / REQUISITOS COM SETAS
+  if (grafico.tipo === 'fluxograma' && Array.isArray(grafico.etapas)) {
+    return (
+      <div className="bg-zinc-950 border border-amber-400/30 rounded-2xl p-5 space-y-4 shadow-inner my-3">
+        {grafico.titulo && (
+          <div className="border-b border-zinc-800 pb-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-amber-400">
+              ⚡ Fluxograma: {grafico.titulo}
+            </span>
+          </div>
+        )}
+
+        <div className="flex flex-col items-center space-y-3 py-2">
+          {grafico.etapas.map((etapa: any, eIdx: number) => (
+            <React.Fragment key={eIdx}>
+              <div 
+                className="w-full max-w-lg rounded-2xl p-4 border shadow-md space-y-1.5 text-center relative"
+                style={{
+                  backgroundColor: etapa.corFundo || 'rgba(24, 24, 27, 0.95)',
+                  borderColor: etapa.corBorda || '#F59E0B'
+                }}
+              >
+                {etapa.titulo && (
+                  <p className="text-xs font-black uppercase tracking-wide" style={{ color: etapa.corTexto || '#F59E0B' }}>
+                    {etapa.titulo}
+                  </p>
+                )}
+                {etapa.destaque && (
+                  <p className="text-sm font-bold text-white">{etapa.destaque}</p>
+                )}
+                {etapa.descricao && (
+                  <p className="text-xs text-zinc-300 leading-relaxed">{etapa.descricao}</p>
+                )}
+              </div>
+
+              {eIdx < grafico.etapas.length - 1 && (
+                <div className="flex flex-col items-center justify-center my-1 text-amber-400 font-black">
+                  <span className="text-xs text-zinc-500 font-semibold">{etapa.rotuloSeta || ''}</span>
+                  <span className="text-lg leading-none">↓</span>
+                </div>
+              )}
+            </React.Fragment>
+          ))}
+        </div>
+
+        {(grafico.conclusao || grafico.descricao) && (
+          <div className="bg-zinc-900/80 border border-zinc-800 p-3.5 rounded-xl space-y-1.5 text-xs">
+            {grafico.conclusao && (
+              <p className="text-amber-300 font-bold flex items-center gap-1.5">
+                <span>💡 Regra de Ouro:</span> {grafico.conclusao}
+              </p>
+            )}
+            {grafico.descricao && (
+              <p className="text-zinc-400 leading-relaxed">{grafico.descricao}</p>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return null;
 }
 
@@ -252,27 +386,92 @@ const mapaInicialExemplo = {
   ]
 };
 
-const PROMPT_MESTRE_TEXTO = `Atue como Especialista e Mentor para o concurso do TJSP (Banca VUNESP). 
-Gere um JSON estruturado estrito para a tela de revisão em tela cheia contendo obrigatoriamente a chave "ramos".
+const PROMPT_MESTRE_TEXTO = `Atue como Especialista e Mentor para o concurso do TJSP (Banca VUNESP).
+Gere um JSON estruturado estrito contendo obrigatoriamente a chave "ramos".
 
-Estrutura exata exigida para cada item dentro de "ramos":
+DIRETRIZES DE CRIAÇÃO LIBERADA DE GRÁFICOS E FLUXOGRAMAS:
+Seja extremamente criativo, didático e visual na elaboração do campo "grafico". Escolha o formato visual perfeito de acordo com a disciplina:
+
+1. PARA MATEMÁTICA / RACIOCÍNIO LÓGICO (Conjuntos, Silogismos, Venn):
+   Use "tipo": "conjuntos_misto" ou "conjuntos_aninhados" com elipses e posições X/Y.
+
+2. PARA DIREITO CONSTITUCIONAL / ADMINISTRATIVO / PENAL / PORTUGUÊS (Cards Comparativos, Quadrados, Retângulos, Tabelas Visuais):
+   Use "tipo": "cards_flexiveis" com a estrutura:
+   "grafico": {
+     "tipo": "cards_flexiveis",
+     "titulo": "Nacionalidade Brasileira (Art. 12, CF)",
+     "cards": [
+       {
+         "titulo": "Brasileiro Nato",
+         "icone": "👤",
+         "badge": "Art. 12, I",
+         "corFundo": "rgba(30, 58, 138, 0.4)",
+         "corBorda": "#3B82F6",
+         "corTitulo": "#60A5FA",
+         "subtitulo": "Critério de Origem",
+         "topicos": [
+           "Nascimento no Brasil (jus soli), salvo pais a serviço do seu país.",
+           "Nascimento no exterior de pai ou mãe brasileira a serviço do Brasil."
+         ]
+       },
+       {
+         "titulo": "Naturalizado",
+         "icone": "📜",
+         "badge": "Art. 12, II",
+         "corFundo": "rgba(120, 53, 15, 0.4)",
+         "corBorda": "#F59E0B",
+         "corTitulo": "#FBBF24",
+         "subtitulo": "Critério de Vontade / Requisitos",
+         "topicos": [
+           "Ordinária: 1 ano ininterrupto + idoneidade moral (países de língua portuguesa).",
+           "Extraordinária: mais de 15 anos + ausência de condenação penal."
+         ]
+       }
+     ],
+     "conclusao": "Brasileiro nato jamais será extraditado; naturalizado pode apenas em crime comum antes da naturalização ou tráfico ilícito.",
+     "descricao": "Resumo comparativo direto para questões de prova VUNESP."
+   }
+
+3. PARA FLUXOGRAMAS / PROCEDIMENTOS / PRAZOS PROCESSUAIS (Com Setas Conectoras):
+   Use "tipo": "fluxograma" com a estrutura:
+   "grafico": {
+     "tipo": "fluxograma",
+     "titulo": "Fluxograma de Naturalização Extraordinária",
+     "etapas": [
+       {
+         "titulo": "Ponto de Partida",
+         "destaque": "Qualquer Nacionalidade",
+         "corFundo": "rgba(24, 24, 27, 0.95)",
+         "corBorda": "#3F3F46",
+         "rotuloSeta": "Requisitos Temporais"
+       },
+       {
+         "titulo": "Exigência Principal",
+         "destaque": "Mais de 15 Anos Ininterruptos",
+         "descricao": "Residência contínua no Brasil sem infrações penais gravemente apenadas.",
+         "corFundo": "rgba(6, 78, 59, 0.4)",
+         "corBorda": "#10B981",
+         "corTexto": "#34D399"
+       }
+     ],
+     "conclusao": "A concessão extraordinária não exige idoneidade prévia em rol taxativo além da ausência de condenação."
+   }
+
+ESTRUTURA COMPLETA DO JSON EXIGIDA:
 {
   "ramos": [
     {
-      "id": "identificador-unico-exemplo-123456",
-      "titulo": "Título Principal do Tópico",
-      "artigos": "LEGISLAÇÃO / CONCEITO",
-      "tag": "Categoria",
-      "assunto": "Nome exato do assunto para o filtro",
+      "id": "identificador-unico-12345",
+      "titulo": "Título do Tópico",
+      "artigos": "CF/88 Art. 12",
+      "tag": "Constitucional",
+      "assunto": "Nacionalidade",
       "tipo": "conceito",
+      "grafico": { ... },
       "subnos": [
         {
-          "titulo": "Subtítulo explicativo",
-          "descricao": "Explicação detalhada do conceito cobrado pela VUNESP.",
-          "itens": [
-            "Primeiro ponto importante",
-            "Segundo ponto importante"
-          ]
+          "titulo": "Destaque da Legislação",
+          "itens": ["Ponto 1", "Ponto 2"]
         }
       ],
       "modalInfo": {
@@ -281,20 +480,18 @@ Estrutura exata exigida para cada item dentro de "ramos":
         "casosPraticos": [
           {
             "titulo": "PADRÃO DA BANCA:",
-            "texto": "Como a VUNESP costuma cobrar isto em prova."
+            "texto": "Explicação da pegadinha."
           }
         ],
-        "conclusoes": [
-          "Conclusão prática para memorização."
-        ],
-        "pegadinha": "Cuidado com o erro mais comum neste tema."
+        "conclusoes": ["Conclusão para prova."],
+        "pegadinha": "Pegadinha clássica da VUNESP."
       },
       "importante": true
     }
   ]
 }
 
-Retorne EXCLUSIVAMENTE o JSON válido, sem blocos de markdown, textos adicionais antes ou depois.`;
+Retorne EXCLUSIVAMENTE o JSON válido, sem markdown ou textos antes/depois.`;
 
 export default function MapaMentalPage() {
   const [mapasPorDisciplina, setMapasPorDisciplina] = useState<Record<string, any>>({});
@@ -418,14 +615,12 @@ export default function MapaMentalPage() {
 
       let parsed;
       try {
-        // Tenta o parse normal
         parsed = JSON.parse(textoLimpo);
       } catch (errParse) {
         try {
-          // Tratamento avançado: corrige aspas escapadas problemáticas de fórmulas e vírgulas sobrando
           let corrigido = textoLimpo
-            .replace(/\\"/g, '"') // Remove escapes problemáticos de aspas gerados por IA
-            .replace(/,\s*([\]}])/g, '$1'); // Remove trailing commas
+            .replace(/\\"/g, '"')
+            .replace(/,\s*([\]}])/g, '$1');
           
           parsed = JSON.parse(corrigido);
         } catch (err2) {
@@ -806,10 +1001,10 @@ export default function MapaMentalPage() {
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <span className="bg-amber-400 text-zinc-950 font-bold text-xs px-2.5 py-0.5 rounded-full">Mentor VUNESP</span>
-              <h2 className="text-sm font-bold text-white">Prompt Mestre com Backup Automático em temp_mapas_mentais</h2>
+              <h2 className="text-sm font-bold text-white">Prompt Mestre com Suporte a Gráficos e Fluxogramas</h2>
             </div>
             <p className="text-xs text-zinc-400">
-              Gera conteúdos estruturados com IDs seguros e suporte a gráficos lógicos.
+              Gera conteúdos estruturados com IDs seguros e suporte livre a diagramas lógicos e comparativos.
             </p>
           </div>
 

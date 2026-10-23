@@ -36,7 +36,27 @@ function TextoGrifavel({ children, idUnico }: { children: React.ReactNode; idUni
     }
   }, [idUnico]);
 
-  const handleMouseUp = () => {
+  // Abertura via Clique com Botão Direito no texto selecionado
+  const handleContextMenu = (e: React.MouseEvent) => {
+    const selecao = window.getSelection();
+    if (!selecao || selecao.isCollapsed) {
+      setMenuPos(null);
+      return;
+    }
+
+    const texto = selecao.toString().trim();
+    if (texto.length > 1) {
+      e.preventDefault(); // Evita menu nativo do navegador
+      setMenuPos({ x: e.clientX, y: e.clientY });
+      setTextoSelecionado(texto);
+    }
+  };
+
+  // Abertura alternativa via Soltar de Seleção Normal do Mouse
+  const handleMouseUp = (e: React.MouseEvent) => {
+    // Se for clique com o botão direito, o handleContextMenu trata
+    if (e.button === 2) return;
+
     const selecao = window.getSelection();
     if (!selecao || selecao.isCollapsed) {
       setTimeout(() => setMenuPos(null), 200);
@@ -44,11 +64,11 @@ function TextoGrifavel({ children, idUnico }: { children: React.ReactNode; idUni
     }
 
     const texto = selecao.toString().trim();
-    if (texto.length > 2) {
+    if (texto.length > 1) {
       const range = selecao.getRangeAt(0).getBoundingClientRect();
       setMenuPos({
         x: range.left + range.width / 2,
-        y: range.top - 42 + window.scrollY
+        y: Math.max(range.top - 42, 10)
       });
       setTextoSelecionado(texto);
     }
@@ -70,38 +90,54 @@ function TextoGrifavel({ children, idUnico }: { children: React.ReactNode; idUni
   };
 
   return (
-    <div onMouseUp={handleMouseUp} className="relative select-text">
+    <div onContextMenu={handleContextMenu} onMouseUp={handleMouseUp} className="relative select-text">
       {children}
 
-      {/* Pop-up Flutuante de Marca-Texto ao Selecionar Trecho */}
+      {/* Pop-up Flutuante de Cores Marca-Texto */}
       {menuPos && (
-        <div 
-          className="fixed z-50 bg-zinc-900 border border-amber-400/50 shadow-2xl rounded-2xl p-2 flex items-center gap-2 transform -translate-x-1/2 animate-in fade-in zoom-in-95 duration-150"
-          style={{ top: `${menuPos.y}px`, left: `${menuPos.x}px` }}
-        >
-          <span className="text-[10px] font-black text-zinc-300 px-1 uppercase tracking-wider">Grifar:</span>
-          
-          {/* Amarelo */}
-          <button
-            onMouseDown={(e) => { e.preventDefault(); aplicarGrifo('bg-yellow-400/30 text-yellow-200 border-b-2 border-yellow-400'); }}
-            className="w-6 h-6 rounded-full bg-yellow-400 hover:scale-110 transition shadow cursor-pointer border border-yellow-200"
-            title="Grifar em Amarelo"
+        <>
+          <div 
+            className="fixed inset-0 z-40" 
+            onClick={() => setMenuPos(null)} 
+            onContextMenu={(e) => { e.preventDefault(); setMenuPos(null); }}
           />
 
-          {/* Azul Claro */}
-          <button
-            onMouseDown={(e) => { e.preventDefault(); aplicarGrifo('bg-sky-400/30 text-sky-200 border-b-2 border-sky-400'); }}
-            className="w-6 h-6 rounded-full bg-sky-400 hover:scale-110 transition shadow cursor-pointer border border-sky-200"
-            title="Grifar em Azul Claro"
-          />
+          <div 
+            className="fixed z-50 bg-zinc-900 border border-amber-400/80 shadow-2xl rounded-2xl p-2 flex items-center gap-2.5 animate-in fade-in zoom-in-95 duration-100"
+            style={{ top: `${menuPos.y}px`, left: `${menuPos.x}px` }}
+          >
+            <span className="text-[10px] font-black text-amber-400 px-1 uppercase tracking-wider">
+              Grifar:
+            </span>
+            
+            {/* Amarelo */}
+            <button
+              onClick={() => aplicarGrifo('bg-yellow-400/30 text-yellow-200 border-b-2 border-yellow-400')}
+              className="w-6 h-6 rounded-full bg-yellow-400 hover:scale-110 transition shadow cursor-pointer border border-yellow-200 flex items-center justify-center text-[10px] text-zinc-950 font-bold"
+              title="Grifar em Amarelo"
+            >
+              A
+            </button>
 
-          {/* Verde Claro */}
-          <button
-            onMouseDown={(e) => { e.preventDefault(); aplicarGrifo('bg-emerald-400/30 text-emerald-200 border-b-2 border-emerald-400'); }}
-            className="w-6 h-6 rounded-full bg-emerald-400 hover:scale-110 transition shadow cursor-pointer border border-emerald-200"
-            title="Grifar em Verde Claro"
-          />
-        </div>
+            {/* Azul Claro */}
+            <button
+              onClick={() => aplicarGrifo('bg-sky-400/30 text-sky-200 border-b-2 border-sky-400')}
+              className="w-6 h-6 rounded-full bg-sky-400 hover:scale-110 transition shadow cursor-pointer border border-sky-200 flex items-center justify-center text-[10px] text-zinc-950 font-bold"
+              title="Grifar em Azul Claro"
+            >
+              A
+            </button>
+
+            {/* Verde Claro */}
+            <button
+              onClick={() => aplicarGrifo('bg-emerald-400/30 text-emerald-200 border-b-2 border-emerald-400')}
+              className="w-6 h-6 rounded-full bg-emerald-400 hover:scale-110 transition shadow cursor-pointer border border-emerald-200 flex items-center justify-center text-[10px] text-zinc-950 font-bold"
+              title="Grifar em Verde Claro"
+            >
+              A
+            </button>
+          </div>
+        </>
       )}
 
       {/* Lista visual dos trechos grifados neste tópico */}
@@ -290,7 +326,7 @@ function LogicalDiagram({ grafico }: { grafico: any }) {
     );
   }
 
-  // 2. NOVO MOTOR UNIVERSAL: CARDS RETANGULARES / QUADRADOS / COMPARATIVOS (DIREITO, PORTUGUÊS, INFORMÁTICA)
+  // 2. MOTOR UNIVERSAL: CARDS RETANGULARES / QUADRADOS / COMPARATIVOS (DIREITO, PORTUGUÊS, INFORMÁTICA)
   if (grafico.tipo === 'cards_flexiveis' && Array.isArray(grafico.cards)) {
     return (
       <div className="bg-zinc-950 border border-amber-400/30 rounded-2xl p-5 space-y-4 shadow-inner my-3">
@@ -362,7 +398,7 @@ function LogicalDiagram({ grafico }: { grafico: any }) {
     );
   }
 
-  // 3. NOVO MOTOR UNIVERSAL: FLUXOGRAMAS DE ETAPAS / PRAZOS / REQUISITOS COM SETAS
+  // 3. MOTOR UNIVERSAL: FLUXOGRAMAS DE ETAPAS / PRAZOS / REQUISITOS COM SETAS
   if (grafico.tipo === 'fluxograma' && Array.isArray(grafico.etapas)) {
     return (
       <div className="bg-zinc-950 border border-amber-400/30 rounded-2xl p-5 space-y-4 shadow-inner my-3">
@@ -716,7 +752,6 @@ export default function MapaMentalPage() {
     try {
       let textoLimpo = jsonInputText.trim();
       
-      // Remove blocos de markdown se houver
       if (textoLimpo.startsWith('```')) {
         textoLimpo = textoLimpo.replace(/^```(json)?/, '').replace(/```$/, '').trim();
       }

@@ -578,7 +578,111 @@ const mapaInicialExemplo = {
 };
 
 const PROMPT_MESTRE_TEXTO = `Atue como Especialista e Mentor para o concurso do TJSP (Banca VUNESP).
-Gere um JSON estruturado estrito contendo obrigatoriamente a chave "ramos".`;
+Gere um JSON estruturado estrito contendo obrigatoriamente a chave "ramos".
+
+DIRETRIZES DE CRIAÇÃO LIBERADA DE GRÁFICOS E FLUXOGRAMAS:
+Seja extremamente criativo, didático e visual na elaboração do campo "grafico". Escolha o formato visual perfeito de acordo com a disciplina:
+
+1. PARA MATEMÁTICA / RACIOCÍNIO LÓGICO (Conjuntos, Silogismos, Venn):
+   Use "tipo": "conjuntos_misto" ou "conjuntos_aninhados" com elipses e posições X/Y.
+
+2. PARA DIREITO CONSTITUCIONAL / ADMINISTRATIVO / PENAL / PORTUGUÊS (Cards Comparativos, Quadrados, Retângulos, Tabelas Visuais):
+   Use "tipo": "cards_flexiveis" com a estrutura:
+   "grafico": {
+     "tipo": "cards_flexiveis",
+     "titulo": "Nacionalidade Brasileira (Art. 12, CF)",
+     "cards": [
+       {
+         "titulo": "Brasileiro Nato",
+         "icone": "👤",
+         "badge": "Art. 12, I",
+         "corFundo": "rgba(30, 58, 138, 0.4)",
+         "corBorda": "#3B82F6",
+         "corTitulo": "#60A5FA",
+         "subtitulo": "Critério de Origem",
+         "topicos": [
+           "Nascimento no Brasil (jus soli), salvo pais a serviço do seu país.",
+           "Nascimento no exterior de pai ou mãe brasileira a serviço do Brasil."
+         ]
+       },
+       {
+         "titulo": "Naturalizado",
+         "icone": "📜",
+         "badge": "Art. 12, II",
+         "corFundo": "rgba(120, 53, 15, 0.4)",
+         "corBorda": "#F59E0B",
+         "corTitulo": "#FBBF24",
+         "subtitulo": "Critério de Vontade / Requisitos",
+         "topicos": [
+           "Ordinária: 1 ano ininterrupto + idoneidade moral (países de língua portuguesa).",
+           "Extraordinária: mais de 15 anos + ausência de condenação penal."
+         ]
+       }
+     ],
+     "conclusao": "Brasileiro nato jamais será extraditado; naturalizado pode apenas em crime comum antes da naturalização ou tráfico ilícito.",
+     "descricao": "Resumo comparativo direto para questões de prova VUNESP."
+   }
+
+3. PARA FLUXOGRAMAS / PROCEDIMENTOS / PRAZOS PROCESSUAIS (Com Setas Conectoras):
+   Use "tipo": "fluxograma" com a estrutura:
+   "grafico": {
+     "tipo": "fluxograma",
+     "titulo": "Fluxograma de Naturalização Extraordinária",
+     "etapas": [
+       {
+         "titulo": "Ponto de Partida",
+         "destaque": "Qualquer Nacionalidade",
+         "corFundo": "rgba(24, 24, 27, 0.95)",
+         "corBorda": "#3F3F46",
+         "rotuloSeta": "Requisitos Temporais"
+       },
+       {
+         "titulo": "Exigência Principal",
+         "destaque": "Mais de 15 Anos Ininterruptos",
+         "descricao": "Residência contínua no Brasil sem infrações penais gravemente apenadas.",
+         "corFundo": "rgba(6, 78, 59, 0.4)",
+         "corBorda": "#10B981",
+         "corTexto": "#34D399"
+       }
+     ],
+     "conclusao": "A concessão extraordinária não exige idoneidade prévia em rol taxativo além da ausência de condenação."
+   }
+
+ESTRUTURA COMPLETA DO JSON EXIGIDA:
+{
+  "ramos": [
+    {
+      "id": "identificador-unico-12345",
+      "titulo": "Título do Tópico",
+      "artigos": "CF/88 Art. 12",
+      "tag": "Constitucional",
+      "assunto": "Nacionalidade",
+      "tipo": "conceito",
+      "grafico": { ... },
+      "subnos": [
+        {
+          "titulo": "Destaque da Legislação",
+          "itens": ["Ponto 1", "Ponto 2"]
+        }
+      ],
+      "modalInfo": {
+        "title": "Dica de Ouro VUNESP",
+        "tag": "Estratégia",
+        "casosPraticos": [
+          {
+            "titulo": "PADRÃO DA BANCA:",
+            "texto": "Explicação da pegadinha."
+          }
+        ],
+        "conclusoes": ["Conclusão para prova."],
+        "pegadinha": "Pegadinha clássica da VUNESP."
+      },
+      "importante": true
+    }
+  ]
+}
+
+Retorne EXCLUSIVAMENTE o JSON válido, sem markdown ou textos antes/depois. Explore ao máximo sua criatividade, didática e visualidade. Evite respostas vagas ou superficiais. Use exemplos práticos, diagramas, fluxogramas e cards comparativos para facilitar a compreensão do conteúdo.`;
 
 export default function MapaMentalPage() {
   const [mapasPorDisciplina, setMapasPorDisciplina] = useState<Record<string, any>>({});

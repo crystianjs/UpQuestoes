@@ -23,7 +23,7 @@ const DISCIPLINAS_TJSP = [
   "Estatuto da Pessoa com Deficiência"
 ];
 
-// --- COMPONENTE DE SELEÇÃO E MARCA-TEXTO (GRIFO REAL NO DOM) ---
+// --- COMPONENTE DE SELEÇÃO E MARCA-TEXTO (GRIFO REAL NO DOM SEGURO) ---
 function TextoGrifavel({ children, idUnico }: { children: React.ReactNode; idUnico: string }) {
   const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -105,42 +105,26 @@ function TextoGrifavel({ children, idUnico }: { children: React.ReactNode; idUni
     if (!range || !containerRef.current) return;
 
     try {
-      const fragmento = range.cloneContents();
-      const marks = fragmento.querySelectorAll('mark');
+      // Encontra todas as tags <mark> que intersectam a seleção atual
+      const marks = containerRef.current.querySelectorAll('mark');
+      
+      marks.forEach(mark => {
+        const markRange = document.createRange();
+        markRange.selectNode(mark);
 
-      if (marks.length > 0) {
-        // Se selecionou um trecho com <mark>, remove todos os marks
-        const noPai = range.commonAncestorContainer;
-        const noMark = noPai.nodeType === Node.ELEMENT_NODE 
-          ? (noPai as Element).closest('mark') 
-          : noPai.parentElement?.closest('mark');
-
-        if (noMark) {
-          const textoTexto = document.createTextNode(noMark.textContent || '');
-          noMark.parentNode?.replaceChild(textoTexto, noMark);
-        } else {
-          // Remove marks contidos na seleção
-          const noConteudo = range.extractContents();
-          const divTemp = document.createElement('div');
-          divTemp.appendChild(noConteudo);
-          divTemp.querySelectorAll('mark').forEach(m => {
-            const txt = document.createTextNode(m.textContent || '');
-            m.parentNode?.replaceChild(txt, m);
-          });
-          range.insertNode(divTemp.firstChild || document.createTextNode(''));
+        // Verifica se há sobreposição entre a seleção do utilizador e a tag mark
+        if (
+          range.compareBoundaryPoints(Range.END_TO_START, markRange) < 0 &&
+          range.compareBoundaryPoints(Range.START_TO_END, markRange) > 0
+        ) {
+          // Desembrulha o mark de forma segura sem perder nenhum caractere
+          const pai = mark.parentNode;
+          while (mark.firstChild) {
+            pai?.insertBefore(mark.firstChild, mark);
+          }
+          pai?.removeChild(mark);
         }
-      } else {
-        // Caso a seleção esteja inteiramente dentro de um único <mark>
-        const noPai = range.commonAncestorContainer;
-        const noMark = noPai.nodeType === Node.ELEMENT_NODE 
-          ? (noPai as Element).closest('mark') 
-          : noPai.parentElement?.closest('mark');
-
-        if (noMark) {
-          const textoTexto = document.createTextNode(noMark.textContent || '');
-          noMark.parentNode?.replaceChild(textoTexto, noMark);
-        }
-      }
+      });
 
       localStorage.setItem(`grifos_dom_${idUnico}`, containerRef.current.innerHTML);
     } catch (e) {

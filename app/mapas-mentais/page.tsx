@@ -217,11 +217,27 @@ function TextoGrifavel({ children, idUnico }: { children: React.ReactNode; idUni
   );
 }
 
-// --- COMPONENTE VISUAL UNIVERSAL DE DIAGRAMAS, CARDS E FLUXOGRAMAS ---
+// --- COMPONENTE VISUAL UNIVERSAL DE DIAGRAMAS, CARDS E FLUXOGRAMAS (RESILIENTE A QUALQUER JSON) ---
 function LogicalDiagram({ grafico }: { grafico: any }) {
-  if (!grafico || !grafico.tipo) return null;
+  if (!grafico) return null;
 
-  if (grafico.tipo === 'conjuntos_aninhados' && Array.isArray(grafico.conjuntos)) {
+  const tipo = (grafico.tipo || 'universal').toLowerCase();
+
+  // Extração inteligente de coleções (normalização de chaves)
+  const listaItens = Array.isArray(grafico.elementos) ? grafico.elementos
+                   : Array.isArray(grafico.conjuntos) ? grafico.conjuntos
+                   : Array.isArray(grafico.grupos) ? grafico.grupos
+                   : Array.isArray(grafico.cards) ? grafico.cards
+                   : Array.isArray(grafico.etapas) ? grafico.etapas
+                   : Array.isArray(grafico.itens) ? grafico.itens
+                   : Array.isArray(grafico.nos) ? grafico.nos
+                   : Array.isArray(grafico.passos) ? grafico.passos
+                   : [];
+
+  // 1. RENDERIZADOR DE CONJUNTOS ANINHADOS E INCLUSÃO
+  if (tipo.includes('aninhado') || tipo.includes('inclusao') || tipo.includes('conjunto') && !tipo.includes('misto') && !tipo.includes('separado')) {
+    const possuiDimensoesCustom = listaItens.some((i: any) => i.x !== undefined || i.largura !== undefined);
+
     return (
       <div className="bg-zinc-950 border border-amber-400/30 rounded-2xl p-5 space-y-4 shadow-inner my-3">
         {grafico.titulo && (
@@ -233,40 +249,77 @@ function LogicalDiagram({ grafico }: { grafico: any }) {
         )}
 
         <div className="flex flex-col items-center justify-center py-2">
-          <svg className="w-full max-w-[320px] h-[220px] overflow-visible" viewBox="0 0 300 200">
-            {grafico.conjuntos.map((c: any, index: number) => {
-              const rx = 130 - index * 38;
-              const ry = 85 - index * 24;
-              const cx = 150;
-              const cy = 100;
+          <svg className="w-full max-w-[380px] h-[220px] overflow-visible" viewBox="0 0 300 200">
+            {possuiDimensoesCustom ? (
+              /* Caso a IA forneça x, y, largura, altura ou posições dinâmicas */
+              listaItens.map((el: any, idx: number) => {
+                const rx = el.largura ? el.largura * 1.4 : (130 - idx * 36);
+                const ry = el.altura ? el.altura * 0.9 : (85 - idx * 22);
+                const cx = el.x ? (el.x * 2.5 + 40) : 150;
+                const cy = el.y ? (el.y * 1.5 + 30) : 100;
+                const nome = el.titulo || el.nome || el.rotulo || `Conjunto ${idx + 1}`;
 
-              const coresFundo = ['rgba(245, 158, 11, 0.08)', 'rgba(245, 158, 11, 0.18)', 'rgba(245, 158, 11, 0.32)'];
-              const coresBorda = ['rgba(245, 158, 11, 0.4)', 'rgba(245, 158, 11, 0.7)', '#F59E0B'];
+                return (
+                  <g key={el.id || idx}>
+                    <ellipse
+                      cx={cx}
+                      cy={cy}
+                      rx={Math.max(rx, 25)}
+                      ry={Math.max(ry, 18)}
+                      fill={el.corFundo || 'rgba(245, 158, 11, 0.15)'}
+                      stroke={el.corBorda || '#F59E0B'}
+                      strokeWidth="2"
+                    />
+                    <text
+                      x={cx}
+                      y={cy - Math.max(ry, 18) + 14}
+                      fill="#F3F4F6"
+                      fontSize="11"
+                      fontWeight="bold"
+                      textAnchor="middle"
+                    >
+                      {nome}
+                    </text>
+                  </g>
+                );
+              })
+            ) : (
+              /* Formato padrão com elipses concêntricas */
+              listaItens.map((c: any, index: number) => {
+                const rx = 130 - index * 36;
+                const ry = 85 - index * 22;
+                const cx = 150;
+                const cy = 100;
 
-              return (
-                <g key={index}>
-                  <ellipse
-                    cx={cx}
-                    cy={cy}
-                    rx={rx}
-                    ry={ry}
-                    fill={coresFundo[index % coresFundo.length]}
-                    stroke={coresBorda[index % coresBorda.length]}
-                    strokeWidth="2"
-                  />
-                  <text
-                    x={cx}
-                    y={cy - ry + 16}
-                    fill="#F3F4F6"
-                    fontSize="11"
-                    fontWeight="bold"
-                    textAnchor="middle"
-                  >
-                    {c.nome}
-                  </text>
-                </g>
-              );
-            })}
+                const coresFundo = ['rgba(59, 130, 246, 0.12)', 'rgba(16, 185, 129, 0.18)', 'rgba(245, 158, 11, 0.28)'];
+                const coresBorda = ['#3B82F6', '#10B981', '#F59E0B'];
+                const nome = c.nome || c.titulo || c.rotulo || `Conjunto ${index + 1}`;
+
+                return (
+                  <g key={index}>
+                    <ellipse
+                      cx={cx}
+                      cy={cy}
+                      rx={Math.max(rx, 30)}
+                      ry={Math.max(ry, 20)}
+                      fill={c.corFundo || coresFundo[index % coresFundo.length]}
+                      stroke={c.corBorda || coresBorda[index % coresBorda.length]}
+                      strokeWidth="2"
+                    />
+                    <text
+                      x={cx}
+                      y={cy - Math.max(ry, 20) + 14}
+                      fill="#F3F4F6"
+                      fontSize="11"
+                      fontWeight="bold"
+                      textAnchor="middle"
+                    >
+                      {nome}
+                    </text>
+                  </g>
+                );
+              })
+            )}
           </svg>
         </div>
 
@@ -286,7 +339,8 @@ function LogicalDiagram({ grafico }: { grafico: any }) {
     );
   }
 
-  if ((grafico.tipo === 'conjuntos_misto' || grafico.tipo === 'conjuntos_separados') && Array.isArray(grafico.grupos)) {
+  // 2. RENDERIZADOR DE CONJUNTOS MISTOS / SEPARADOS (DISJUNTOS)
+  if (tipo.includes('misto') || tipo.includes('separado') || tipo.includes('disjunto')) {
     return (
       <div className="bg-zinc-950 border border-amber-400/30 rounded-2xl p-5 space-y-4 shadow-inner my-3">
         {grafico.titulo && (
@@ -299,15 +353,16 @@ function LogicalDiagram({ grafico }: { grafico: any }) {
 
         <div className="flex flex-col items-center justify-center py-2">
           <svg className="w-full max-w-[440px] h-[220px] overflow-visible" viewBox="0 0 420 200">
-            {grafico.grupos.map((grupo: any, gIdx: number) => {
-              const cx = grupo.posicaoX || (gIdx === 0 ? 130 : 320);
-              const cy = grupo.posicaoY || 100;
+            {listaItens.map((grupo: any, gIdx: number) => {
+              const cx = grupo.posicaoX || grupo.x || (gIdx === 0 ? 130 : 320);
+              const cy = grupo.posicaoY || grupo.y || 100;
               const corBorda = grupo.corBorda || (gIdx === 0 ? '#F59E0B' : '#EF4444');
               const corFundo = grupo.corFundo || (gIdx === 0 ? 'rgba(245, 158, 11, 0.15)' : 'rgba(239, 68, 68, 0.15)');
+              const subConjutos = Array.isArray(grupo.conjuntos) ? grupo.conjuntos : [grupo];
 
               return (
                 <g key={gIdx}>
-                  {grupo.conjuntos && grupo.conjuntos.map((c: any, cIdx: number) => {
+                  {subConjutos.map((c: any, cIdx: number) => {
                     const rx = (grupo.raioMaxX || 100) - cIdx * 32;
                     const ry = (grupo.raioMaxY || 75) - cIdx * 20;
 
@@ -316,21 +371,21 @@ function LogicalDiagram({ grafico }: { grafico: any }) {
                         <ellipse
                           cx={cx}
                           cy={cy}
-                          rx={rx}
-                          ry={ry}
+                          rx={Math.max(rx, 30)}
+                          ry={Math.max(ry, 20)}
                           fill={cIdx === 0 ? corFundo : 'rgba(245, 158, 11, 0.25)'}
                           stroke={corBorda}
                           strokeWidth="2"
                         />
                         <text
                           x={cx}
-                          y={cy - ry + 16}
+                          y={cy - Math.max(ry, 20) + 16}
                           fill="#F3F4F6"
                           fontSize="11"
                           fontWeight="bold"
                           textAnchor="middle"
                         >
-                          {c.nome}
+                          {c.nome || c.titulo || `Conjunto ${cIdx + 1}`}
                         </text>
                       </g>
                     );
@@ -339,23 +394,14 @@ function LogicalDiagram({ grafico }: { grafico: any }) {
               );
             })}
 
-            {Array.isArray(grafico.existencia) ? (
-              grafico.existencia.map((pt: any, pIdx: number) => (
-                <g key={pIdx}>
-                  <circle cx={pt.x} cy={pt.y} r="6" fill="#FFFFFF" stroke="#0F172A" strokeWidth="2" />
-                  <text x={pt.x + 10} y={pt.y + 4} fill="#38BDF8" fontSize="13" fontWeight="bold">
-                    {pt.rotulo || '∃'}
-                  </text>
-                </g>
-              ))
-            ) : null}
-
-            {grafico.grupos.length > 1 && grafico.mostrarDisjuncao === true && (
-              <g>
-                <line x1="240" y1="80" x2="240" y2="120" stroke="#EF4444" strokeWidth="2" strokeDasharray="4" />
-                <text x="240" y="70" fill="#EF4444" fontSize="16" fontWeight="bold" textAnchor="middle">≠</text>
+            {Array.isArray(grafico.existencia) && grafico.existencia.map((pt: any, pIdx: number) => (
+              <g key={pIdx}>
+                <circle cx={pt.x} cy={pt.y} r="6" fill="#FFFFFF" stroke="#0F172A" strokeWidth="2" />
+                <text x={pt.x + 10} y={pt.y + 4} fill="#38BDF8" fontSize="13" fontWeight="bold">
+                  {pt.rotulo || '∃'}
+                </text>
               </g>
-            )}
+            ))}
           </svg>
         </div>
 
@@ -375,78 +421,8 @@ function LogicalDiagram({ grafico }: { grafico: any }) {
     );
   }
 
-  if (grafico.tipo === 'cards_flexiveis' && Array.isArray(grafico.cards)) {
-    return (
-      <div className="bg-zinc-950 border border-amber-400/30 rounded-2xl p-5 space-y-4 shadow-inner my-3">
-        {grafico.titulo && (
-          <div className="border-b border-zinc-800 pb-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-amber-400">
-              📌 {grafico.titulo}
-            </span>
-          </div>
-        )}
-
-        <div className={`grid gap-4 ${grafico.cards.length > 1 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
-          {grafico.cards.map((card: any, idx: number) => (
-            <div 
-              key={idx}
-              className="rounded-2xl p-4 border space-y-2.5 transition-all shadow-lg"
-              style={{
-                backgroundColor: card.corFundo || 'rgba(24, 24, 27, 0.9)',
-                borderColor: card.corBorda || '#3F3F46'
-              }}
-            >
-              <div className="flex items-center justify-between border-b border-white/10 pb-2">
-                <span className="text-xs font-black uppercase tracking-wider flex items-center gap-1.5" style={{ color: card.corTitulo || '#F59E0B' }}>
-                  {card.icone && <span>{card.icone}</span>}
-                  {card.titulo}
-                </span>
-                {card.badge && (
-                  <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-white/10 text-white border border-white/20">
-                    {card.badge}
-                  </span>
-                )}
-              </div>
-
-              {card.subtitulo && (
-                <p className="text-xs font-bold text-zinc-200">{card.subtitulo}</p>
-              )}
-
-              {card.conteudo && (
-                <p className="text-xs text-zinc-300 leading-relaxed">{card.conteudo}</p>
-              )}
-
-              {Array.isArray(card.topicos) && card.topicos.length > 0 && (
-                <ul className="text-xs text-zinc-300 space-y-1.5 pt-1">
-                  {card.topicos.map((tp: string, tIdx: number) => (
-                    <li key={tIdx} className="flex items-start gap-1.5 leading-snug">
-                      <span className="text-amber-400 font-bold">•</span>
-                      <span>{tp}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          ))}
-        </div>
-
-        {(grafico.conclusao || grafico.descricao) && (
-          <div className="bg-zinc-900/80 border border-zinc-800 p-3.5 rounded-xl space-y-1.5 text-xs mt-2">
-            {grafico.conclusao && (
-              <p className="text-amber-300 font-bold flex items-center gap-1.5">
-                <span>💡 Resumo do Estudo:</span> {grafico.conclusao}
-              </p>
-            )}
-            {grafico.descricao && (
-              <p className="text-zinc-400 leading-relaxed">{grafico.descricao}</p>
-            )}
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  if (grafico.tipo === 'fluxograma' && Array.isArray(grafico.etapas)) {
+  // 3. RENDERIZADOR DE FLUXOGRAMA E PASSO A PASSO
+  if (tipo.includes('fluxo') || tipo.includes('passo') || tipo.includes('etapa')) {
     return (
       <div className="bg-zinc-950 border border-amber-400/30 rounded-2xl p-5 space-y-4 shadow-inner my-3">
         {grafico.titulo && (
@@ -458,7 +434,7 @@ function LogicalDiagram({ grafico }: { grafico: any }) {
         )}
 
         <div className="flex flex-col items-center space-y-3 py-2">
-          {grafico.etapas.map((etapa: any, eIdx: number) => (
+          {listaItens.map((etapa: any, eIdx: number) => (
             <React.Fragment key={eIdx}>
               <div 
                 className="w-full max-w-lg rounded-2xl p-4 border shadow-md space-y-1.5 text-center relative"
@@ -467,20 +443,20 @@ function LogicalDiagram({ grafico }: { grafico: any }) {
                   borderColor: etapa.corBorda || '#F59E0B'
                 }}
               >
-                {etapa.titulo && (
+                {(etapa.titulo || etapa.nome) && (
                   <p className="text-xs font-black uppercase tracking-wide" style={{ color: etapa.corTexto || '#F59E0B' }}>
-                    {etapa.titulo}
+                    {etapa.titulo || etapa.nome}
                   </p>
                 )}
-                {etapa.destaque && (
-                  <p className="text-sm font-bold text-white">{etapa.destaque}</p>
+                {(etapa.destaque || etapa.subtitulo) && (
+                  <p className="text-sm font-bold text-white">{etapa.destaque || etapa.subtitulo}</p>
                 )}
-                {etapa.descricao && (
-                  <p className="text-xs text-zinc-300 leading-relaxed">{etapa.descricao}</p>
+                {(etapa.descricao || etapa.conteudo) && (
+                  <p className="text-xs text-zinc-300 leading-relaxed">{etapa.descricao || etapa.conteudo}</p>
                 )}
               </div>
 
-              {eIdx < grafico.etapas.length - 1 && (
+              {eIdx < listaItens.length - 1 && (
                 <div className="flex flex-col items-center justify-center my-1 text-amber-400 font-black">
                   <span className="text-xs text-zinc-500 font-semibold">{etapa.rotuloSeta || ''}</span>
                   <span className="text-lg leading-none">↓</span>
@@ -506,7 +482,82 @@ function LogicalDiagram({ grafico }: { grafico: any }) {
     );
   }
 
-  return null;
+  // 4. FALLBACK UNIVERSAL (Sempre Funciona para Cards, Tabelas ou Estruturas Desconhecidas)
+  return (
+    <div className="bg-zinc-950 border border-amber-400/30 rounded-2xl p-5 space-y-4 shadow-inner my-3">
+      {grafico.titulo && (
+        <div className="border-b border-zinc-800 pb-2">
+          <span className="text-xs font-bold uppercase tracking-wider text-amber-400">
+            📌 {grafico.titulo}
+          </span>
+        </div>
+      )}
+
+      <div className={`grid gap-4 ${listaItens.length > 1 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
+        {listaItens.map((card: any, idx: number) => {
+          const tituloCard = card.titulo || card.nome || card.rotulo || `Item ${idx + 1}`;
+          const subtituloCard = card.subtitulo || card.destaque || '';
+          const conteudoCard = card.conteudo || card.descricao || '';
+          const topicosCard = Array.isArray(card.topicos) ? card.topicos : Array.isArray(card.itens) ? card.itens : [];
+
+          return (
+            <div 
+              key={idx}
+              className="rounded-2xl p-4 border space-y-2.5 transition-all shadow-lg"
+              style={{
+                backgroundColor: card.corFundo || 'rgba(24, 24, 27, 0.9)',
+                borderColor: card.corBorda || '#3F3F46'
+              }}
+            >
+              <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                <span className="text-xs font-black uppercase tracking-wider flex items-center gap-1.5" style={{ color: card.corTitulo || '#F59E0B' }}>
+                  {card.icone && <span>{card.icone}</span>}
+                  {tituloCard}
+                </span>
+                {card.badge && (
+                  <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-white/10 text-white border border-white/20">
+                    {card.badge}
+                  </span>
+                )}
+              </div>
+
+              {subtituloCard && (
+                <p className="text-xs font-bold text-zinc-200">{subtituloCard}</p>
+              )}
+
+              {conteudoCard && (
+                <p className="text-xs text-zinc-300 leading-relaxed">{conteudoCard}</p>
+              )}
+
+              {topicosCard.length > 0 && (
+                <ul className="text-xs text-zinc-300 space-y-1.5 pt-1">
+                  {topicosCard.map((tp: string, tIdx: number) => (
+                    <li key={tIdx} className="flex items-start gap-1.5 leading-snug">
+                      <span className="text-amber-400 font-bold">•</span>
+                      <span>{tp}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {(grafico.conclusao || grafico.descricao) && (
+        <div className="bg-zinc-900/80 border border-zinc-800 p-3.5 rounded-xl space-y-1.5 text-xs mt-2">
+          {grafico.conclusao && (
+            <p className="text-amber-300 font-bold flex items-center gap-1.5">
+              <span>💡 Resumo do Estudo:</span> {grafico.conclusao}
+            </p>
+          )}
+          {grafico.descricao && (
+            <p className="text-zinc-400 leading-relaxed">{grafico.descricao}</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 const mapaInicialExemplo = {

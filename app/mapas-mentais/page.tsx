@@ -23,6 +23,114 @@ const DISCIPLINAS_TJSP = [
   "Estatuto da Pessoa com Deficiência"
 ];
 
+// --- COMPONENTE DE SELEÇÃO E MARCA-TEXTO (GRIFO) ---
+function TextoGrifavel({ children, idUnico }: { children: React.ReactNode; idUnico: string }) {
+  const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null);
+  const [textoSelecionado, setTextoSelecionado] = useState('');
+  const [grifos, setGrifos] = useState<{ id: string; texto: string; corClass: string }[]>([]);
+
+  useEffect(() => {
+    const salvo = localStorage.getItem(`grifos_${idUnico}`);
+    if (salvo) {
+      try { setGrifos(JSON.parse(salvo)); } catch (e) {}
+    }
+  }, [idUnico]);
+
+  const handleMouseUp = () => {
+    const selecao = window.getSelection();
+    if (!selecao || selecao.isCollapsed) {
+      setTimeout(() => setMenuPos(null), 200);
+      return;
+    }
+
+    const texto = selecao.toString().trim();
+    if (texto.length > 2) {
+      const range = selecao.getRangeAt(0).getBoundingClientRect();
+      setMenuPos({
+        x: range.left + range.width / 2,
+        y: range.top - 42 + window.scrollY
+      });
+      setTextoSelecionado(texto);
+    }
+  };
+
+  const aplicarGrifo = (corClass: string) => {
+    if (!textoSelecionado) return;
+    const novoGrifo = { id: Date.now().toString(), texto: textoSelecionado, corClass };
+    const atualizados = [...grifos, novoGrifo];
+    setGrifos(atualizados);
+    localStorage.setItem(`grifos_${idUnico}`, JSON.stringify(atualizados));
+    setMenuPos(null);
+    window.getSelection()?.removeAllRanges();
+  };
+
+  const limparGrifos = () => {
+    setGrifos([]);
+    localStorage.removeItem(`grifos_${idUnico}`);
+  };
+
+  return (
+    <div onMouseUp={handleMouseUp} className="relative select-text">
+      {children}
+
+      {/* Pop-up Flutuante de Marca-Texto ao Selecionar Trecho */}
+      {menuPos && (
+        <div 
+          className="fixed z-50 bg-zinc-900 border border-amber-400/50 shadow-2xl rounded-2xl p-2 flex items-center gap-2 transform -translate-x-1/2 animate-in fade-in zoom-in-95 duration-150"
+          style={{ top: `${menuPos.y}px`, left: `${menuPos.x}px` }}
+        >
+          <span className="text-[10px] font-black text-zinc-300 px-1 uppercase tracking-wider">Grifar:</span>
+          
+          {/* Amarelo */}
+          <button
+            onMouseDown={(e) => { e.preventDefault(); aplicarGrifo('bg-yellow-400/30 text-yellow-200 border-b-2 border-yellow-400'); }}
+            className="w-6 h-6 rounded-full bg-yellow-400 hover:scale-110 transition shadow cursor-pointer border border-yellow-200"
+            title="Grifar em Amarelo"
+          />
+
+          {/* Azul Claro */}
+          <button
+            onMouseDown={(e) => { e.preventDefault(); aplicarGrifo('bg-sky-400/30 text-sky-200 border-b-2 border-sky-400'); }}
+            className="w-6 h-6 rounded-full bg-sky-400 hover:scale-110 transition shadow cursor-pointer border border-sky-200"
+            title="Grifar em Azul Claro"
+          />
+
+          {/* Verde Claro */}
+          <button
+            onMouseDown={(e) => { e.preventDefault(); aplicarGrifo('bg-emerald-400/30 text-emerald-200 border-b-2 border-emerald-400'); }}
+            className="w-6 h-6 rounded-full bg-emerald-400 hover:scale-110 transition shadow cursor-pointer border border-emerald-200"
+            title="Grifar em Verde Claro"
+          />
+        </div>
+      )}
+
+      {/* Lista visual dos trechos grifados neste tópico */}
+      {grifos.length > 0 && (
+        <div className="mt-3 pt-3 border-t border-zinc-800/80 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">
+              🖍️ Trechos Grifados ({grifos.length})
+            </span>
+            <button
+              onClick={limparGrifos}
+              className="text-[10px] text-zinc-500 hover:text-rose-400 transition cursor-pointer"
+            >
+              Limpar grifos
+            </button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {grifos.map((g) => (
+              <span key={g.id} className={`text-xs px-2.5 py-1 rounded-lg font-medium ${g.corClass}`}>
+                "{g.texto}"
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // --- COMPONENTE VISUAL UNIVERSAL DE DIAGRAMAS, CARDS E FLUXOGRAMAS ---
 function LogicalDiagram({ grafico }: { grafico: any }) {
   if (!grafico || !grafico.tipo) return null;
@@ -856,141 +964,142 @@ export default function MapaMentalPage() {
                 const ehImportante = ramo.importante === true;
 
                 return (
-                  <div 
-                    key={ramo.id}
-                    className={`rounded-2xl p-6 sm:p-8 shadow-xl space-y-6 relative transition-all border ${
-                      ehImportante 
-                        ? 'bg-amber-950/20 border-amber-400/60 shadow-amber-500/10' 
-                        : 'bg-zinc-900/60 border-zinc-800/80'
-                    }`}
-                  >
-                    <div className={`flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b gap-3 ${ehImportante ? 'border-amber-400/40' : 'border-zinc-800'}`}>
-                      <div className="space-y-1 w-full">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className={`text-xs font-bold uppercase tracking-wider px-2.5 py-1 rounded-md border ${
-                            ehImportante 
-                              ? 'text-amber-300 bg-amber-400/20 border-amber-400/40' 
-                              : 'text-amber-400 bg-amber-400/10 border-amber-400/20'
-                          }`}>
-                            {selectedDisciplina}
+                  <TextoGrifavel key={ramo.id} idUnico={ramo.id}>
+                    <div 
+                      className={`rounded-2xl p-6 sm:p-8 shadow-xl space-y-6 relative transition-all border ${
+                        ehImportante 
+                          ? 'bg-amber-950/20 border-amber-400/60 shadow-amber-500/10' 
+                          : 'bg-zinc-900/60 border-zinc-800/80'
+                      }`}
+                    >
+                      <div className={`flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b gap-3 ${ehImportante ? 'border-amber-400/40' : 'border-zinc-800'}`}>
+                        <div className="space-y-1 w-full">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className={`text-xs font-bold uppercase tracking-wider px-2.5 py-1 rounded-md border ${
+                              ehImportante 
+                                ? 'text-amber-300 bg-amber-400/20 border-amber-400/40' 
+                                : 'text-amber-400 bg-amber-400/10 border-amber-400/20'
+                            }`}>
+                              {selectedDisciplina}
+                            </span>
+
+                            {!estaEditando ? (
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-semibold text-zinc-300">
+                                  • {assuntoExibicao}
+                                </span>
+                                <button
+                                  onClick={() => {
+                                    setEditandoRamoId(ramo.id);
+                                    setNovoAssuntoInput(ramo.assunto || '');
+                                  }}
+                                  className="text-[10px] text-amber-400 hover:underline bg-zinc-900 px-2 py-0.5 rounded border border-amber-400/20 cursor-pointer"
+                                >
+                                  ✏️ Editar Assunto
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2 mt-1">
+                                <input
+                                  type="text"
+                                  value={novoAssuntoInput}
+                                  onChange={(e) => setNovoAssuntoInput(e.target.value)}
+                                  className="bg-zinc-900 border border-amber-400 text-zinc-100 text-xs px-2.5 py-1 rounded-lg outline-none"
+                                  placeholder="Novo assunto..."
+                                />
+                                <button
+                                  onClick={() => salvarAssuntoEditado(ramo.id)}
+                                  className="px-3 py-1 bg-amber-400 text-zinc-950 text-xs font-bold rounded-lg cursor-pointer"
+                                >
+                                  Salvar
+                                </button>
+                                <button
+                                  onClick={() => setEditandoRamoId(null)}
+                                  className="px-2 py-1 bg-zinc-800 text-zinc-400 text-xs rounded-lg cursor-pointer"
+                                >
+                                  Cancelar
+                                </button>
+                              </div>
+                            )}
+                          </div>
+
+                          <h2 className="text-lg sm:text-xl font-extrabold text-white tracking-tight pt-2">
+                            {ramo.titulo ? ramo.titulo.replace(/^[📌📍🚩⚡]\s*/, '') : "Tópico de Revisão"}
+                          </h2>
+                        </div>
+
+                        <div className="flex items-center gap-2 self-start sm:self-center shrink-0">
+                          <button
+                            onClick={() => toggleImportante(ramo.id)}
+                            className={`text-xs font-extrabold px-3 py-1 rounded-lg border transition-all cursor-pointer shadow-md ${
+                              ehImportante
+                                ? 'bg-amber-400 text-zinc-950 border-amber-300 ring-2 ring-amber-400/50'
+                                : 'bg-zinc-950 text-amber-400/70 border-amber-500/30 hover:text-amber-400 hover:border-amber-400/50'
+                            }`}
+                          >
+                            ⭐ Importante
+                          </button>
+
+                          <span className="text-xs font-bold px-3 py-1 rounded-lg bg-zinc-950 text-amber-400 border border-amber-400/30 whitespace-nowrap">
+                            {ramo.tag}
                           </span>
 
-                          {!estaEditando ? (
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-semibold text-zinc-300">
-                                • {assuntoExibicao}
-                              </span>
-                              <button
-                                onClick={() => {
-                                  setEditandoRamoId(ramo.id);
-                                  setNovoAssuntoInput(ramo.assunto || '');
-                                }}
-                                className="text-[10px] text-amber-400 hover:underline bg-zinc-900 px-2 py-0.5 rounded border border-amber-400/20 cursor-pointer"
-                              >
-                                ✏️ Editar Assunto
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-2 mt-1">
-                              <input
-                                type="text"
-                                value={novoAssuntoInput}
-                                onChange={(e) => setNovoAssuntoInput(e.target.value)}
-                                className="bg-zinc-900 border border-amber-400 text-zinc-100 text-xs px-2.5 py-1 rounded-lg outline-none"
-                                placeholder="Novo assunto..."
-                              />
-                              <button
-                                onClick={() => salvarAssuntoEditado(ramo.id)}
-                                className="px-3 py-1 bg-amber-400 text-zinc-950 text-xs font-bold rounded-lg cursor-pointer"
-                              >
-                                Salvar
-                              </button>
-                              <button
-                                onClick={() => setEditandoRamoId(null)}
-                                className="px-2 py-1 bg-zinc-800 text-zinc-400 text-xs rounded-lg cursor-pointer"
-                              >
-                                Cancelar
-                              </button>
-                            </div>
-                          )}
+                          <button
+                            onClick={() => excluirRamo(ramo.id)}
+                            className="text-zinc-500 hover:text-rose-400 bg-zinc-950 p-2 rounded-lg border border-zinc-800 hover:border-rose-500/40 transition-all text-xs cursor-pointer"
+                            title="Apagar este tópico"
+                          >
+                            ✕
+                          </button>
                         </div>
-
-                        <h2 className="text-lg sm:text-xl font-extrabold text-white tracking-tight pt-2">
-                          {ramo.titulo ? ramo.titulo.replace(/^[📌📍🚩⚡]\s*/, '') : "Tópico de Revisão"}
-                        </h2>
                       </div>
 
-                      <div className="flex items-center gap-2 self-start sm:self-center shrink-0">
-                        <button
-                          onClick={() => toggleImportante(ramo.id)}
-                          className={`text-xs font-extrabold px-3 py-1 rounded-lg border transition-all cursor-pointer shadow-md ${
-                            ehImportante
-                              ? 'bg-amber-400 text-zinc-950 border-amber-300 ring-2 ring-amber-400/50'
-                              : 'bg-zinc-950 text-amber-400/70 border-amber-500/30 hover:text-amber-400 hover:border-amber-400/50'
-                          }`}
-                        >
-                          ⭐ Importante
-                        </button>
+                      {ramo.grafico && <LogicalDiagram grafico={ramo.grafico} />}
 
-                        <span className="text-xs font-bold px-3 py-1 rounded-lg bg-zinc-950 text-amber-400 border border-amber-400/30 whitespace-nowrap">
-                          {ramo.tag}
-                        </span>
+                      <div className="space-y-6">
+                        {ramo.subnos && ramo.subnos.map((sub: any, idx: number) => (
+                          <div 
+                            key={idx} 
+                            className={`p-5 sm:p-6 rounded-xl border-l-4 border-amber-400 shadow-md space-y-3 transition-all ${
+                              ehImportante 
+                                ? 'bg-zinc-900/90 border-t border-r border-b border-amber-400/40' 
+                                : 'bg-zinc-950 border-t border-r border-b border-zinc-800/80'
+                            } ${ramo.tipo === 'exatas' ? 'font-mono' : ''}`}
+                          >
+                            {sub.titulo && (
+                              <h3 className="text-sm sm:text-base font-bold text-amber-300 leading-snug">
+                                {sub.titulo}
+                              </h3>
+                            )}
+                            {sub.descricao && (
+                              <p className="text-zinc-300 text-xs sm:text-sm leading-relaxed font-medium">
+                                {sub.descricao}
+                              </p>
+                            )}
+                            {sub.itens && sub.itens.length > 0 && (
+                              <ul className="text-xs sm:text-sm text-zinc-200 space-y-2.5 pt-2 border-t border-zinc-900 font-medium">
+                                {sub.itens.map((item: string, iIdx: number) => (
+                                  <li key={iIdx} className="leading-relaxed flex items-start gap-2.5">
+                                    <span className="text-amber-400 font-bold select-none mt-0.5">•</span>
+                                    <span className="flex-1">{item}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
+                        ))}
+                      </div>
 
-                        <button
-                          onClick={() => excluirRamo(ramo.id)}
-                          className="text-zinc-500 hover:text-rose-400 bg-zinc-950 p-2 rounded-lg border border-zinc-800 hover:border-rose-500/40 transition-all text-xs cursor-pointer"
-                          title="Apagar este tópico"
+                      <div className="pt-2">
+                        <button 
+                          onClick={() => setActiveModal(ramo.id)} 
+                          className="w-full py-3.5 bg-amber-400 hover:bg-amber-300 text-zinc-950 text-xs sm:text-sm font-black rounded-xl border border-amber-500 transition-all flex items-center justify-center gap-2 shadow-lg cursor-pointer"
                         >
-                          ✕
+                          💡 Ver Exemplo Prático e Pegadinha VUNESP
                         </button>
                       </div>
                     </div>
-
-                    {ramo.grafico && <LogicalDiagram grafico={ramo.grafico} />}
-
-                    <div className="space-y-6">
-                      {ramo.subnos && ramo.subnos.map((sub: any, idx: number) => (
-                        <div 
-                          key={idx} 
-                          className={`p-5 sm:p-6 rounded-xl border-l-4 border-amber-400 shadow-md space-y-3 transition-all ${
-                            ehImportante 
-                              ? 'bg-zinc-900/90 border-t border-r border-b border-amber-400/40' 
-                              : 'bg-zinc-950 border-t border-r border-b border-zinc-800/80'
-                          } ${ramo.tipo === 'exatas' ? 'font-mono' : ''}`}
-                        >
-                          {sub.titulo && (
-                            <h3 className="text-sm sm:text-base font-bold text-amber-300 leading-snug">
-                              {sub.titulo}
-                            </h3>
-                          )}
-                          {sub.descricao && (
-                            <p className="text-zinc-300 text-xs sm:text-sm leading-relaxed font-medium">
-                              {sub.descricao}
-                            </p>
-                          )}
-                          {sub.itens && sub.itens.length > 0 && (
-                            <ul className="text-xs sm:text-sm text-zinc-200 space-y-2.5 pt-2 border-t border-zinc-900 font-medium">
-                              {sub.itens.map((item: string, iIdx: number) => (
-                                <li key={iIdx} className="leading-relaxed flex items-start gap-2.5">
-                                  <span className="text-amber-400 font-bold select-none mt-0.5">•</span>
-                                  <span className="flex-1">{item}</span>
-                                </li>
-                              ))}
-                            </ul>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="pt-2">
-                      <button 
-                        onClick={() => setActiveModal(ramo.id)} 
-                        className="w-full py-3.5 bg-amber-400 hover:bg-amber-300 text-zinc-950 text-xs sm:text-sm font-black rounded-xl border border-amber-500 transition-all flex items-center justify-center gap-2 shadow-lg cursor-pointer"
-                      >
-                        💡 Ver Exemplo Prático e Pegadinha VUNESP
-                      </button>
-                    </div>
-                  </div>
+                  </TextoGrifavel>
                 );
               })}
             </div>
@@ -1001,10 +1110,10 @@ export default function MapaMentalPage() {
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <span className="bg-amber-400 text-zinc-950 font-bold text-xs px-2.5 py-0.5 rounded-full">Mentor VUNESP</span>
-              <h2 className="text-sm font-bold text-white">Prompt Mestre com Suporte a Gráficos e Fluxogramas</h2>
+              <h2 className="text-sm font-bold text-white">Prompt Mestre com Marca-Texto e Suporte Grafico</h2>
             </div>
             <p className="text-xs text-zinc-400">
-              Gera conteúdos estruturados com IDs seguros e suporte livre a diagramas lógicos e comparativos.
+              Gera conteúdos estruturados com IDs seguros, grifos de texto e diagramas visuais.
             </p>
           </div>
 

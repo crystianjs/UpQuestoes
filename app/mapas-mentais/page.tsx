@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Navbar from '../components/Navbar';
 import { createClient } from '@supabase/supabase-js';
 
@@ -23,21 +23,25 @@ const DISCIPLINAS_TJSP = [
   "Estatuto da Pessoa com Deficiência"
 ];
 
-// --- COMPONENTE DE SELEÇÃO E MARCA-TEXTO (GRIFO) ---
+// --- COMPONENTE DE SELEÇÃO E MARCA-TEXTO (GRIFO REAL NO DOM) ---
 function TextoGrifavel({ children, idUnico }: { children: React.ReactNode; idUnico: string }) {
   const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null);
-  const [textoSelecionado, setTextoSelecionado] = useState('');
-  const [grifos, setGrifos] = useState<{ id: string; texto: string; corClass: string }[]>([]);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const rangeRef = useRef<Range | null>(null);
 
   useEffect(() => {
-    const salvo = localStorage.getItem(`grifos_${idUnico}`);
-    if (salvo) {
-      try { setGrifos(JSON.parse(salvo)); } catch (e) {}
+    // Carrega os grifos guardados
+    const salvo = localStorage.getItem(`grifos_dom_${idUnico}`);
+    if (salvo && containerRef.current) {
+      try {
+        containerRef.current.innerHTML = salvo;
+      } catch (e) {
+        console.error("Erro ao carregar grifos visualmente", e);
+      }
     }
   }, [idUnico]);
 
-  // Abertura via Clique com Botão Direito no texto selecionado
-  const handleContextMenu = (e: React.MouseEvent) => {
+  const processarSelecao = (clientX: number, clientY: number) => {
     const selecao = window.getSelection();
     if (!selecao || selecao.isCollapsed) {
       setMenuPos(null);
@@ -45,55 +49,82 @@ function TextoGrifavel({ children, idUnico }: { children: React.ReactNode; idUni
     }
 
     const texto = selecao.toString().trim();
-    if (texto.length > 1) {
-      e.preventDefault(); // Evita menu nativo do navegador
-      setMenuPos({ x: e.clientX, y: e.clientY });
-      setTextoSelecionado(texto);
+    if (texto.length > 0) {
+      const range = selecao.getRangeAt(0);
+      // Garante que a seleção pertence a este card
+      if (containerRef.current && containerRef.current.contains(range.commonAncestorContainer)) {
+        rangeRef.current = range.cloneRange();
+        setMenuPos({ x: clientX, y: clientY });
+      }
     }
   };
 
-  // Abertura alternativa via Soltar de Seleção Normal do Mouse
-  const handleMouseUp = (e: React.MouseEvent) => {
-    // Se for clique com o botão direito, o handleContextMenu trata
-    if (e.button === 2) return;
-
+  const handleContextMenu = (e: React.MouseEvent) => {
     const selecao = window.getSelection();
-    if (!selecao || selecao.isCollapsed) {
-      setTimeout(() => setMenuPos(null), 200);
-      return;
-    }
-
-    const texto = selecao.toString().trim();
-    if (texto.length > 1) {
-      const range = selecao.getRangeAt(0).getBoundingClientRect();
-      setMenuPos({
-        x: range.left + range.width / 2,
-        y: Math.max(range.top - 42, 10)
-      });
-      setTextoSelecionado(texto);
+    if (selecao && !selecao.isCollapsed) {
+      e.preventDefault();
+      processarSelecao(e.clientX, e.clientY);
     }
   };
 
-  const aplicarGrifo = (corClass: string) => {
-    if (!textoSelecionado) return;
-    const novoGrifo = { id: Date.now().toString(), texto: textoSelecionado, corClass };
-    const atualizados = [...grifos, novoGrifo];
-    setGrifos(atualizados);
-    localStorage.setItem(`grifos_${idUnico}`, JSON.stringify(atualizados));
+  const handleMouseUp = (e: React.MouseEvent) => {
+    if (e.button === 2) return;
+    setTimeout(() => {
+      const selecao = window.getSelection();
+      if (selecao && !selecao.isCollapsed) {
+        const range = selecao.getRangeAt(0).getBoundingClientRect();
+        processarSelecao(range.left + range.width / 2, range.top - 10);
+      } else {
+        setMenuPos(null);
+      }
+    }, 50);
+  };
+
+  const aplicarGrifo = (estiloBg: string, corTexto: string) => {
+    const range = rangeRef.current;
+    if (!range || !containerRef.current) return;
+
+    try {
+      const span = document.createElement('mark');
+      span.className = `${estiloBg} ${corTexto} rounded px-1 font-semibold transition-all`;
+      span.appendChild(range.extractContents());
+      range.insertNode(span);
+
+      // Guarda o HTML interno grifado no localStorage
+      localStorage.setItem(`grifos_dom_${idUnico}`, containerRef.current.innerHTML);
+    } catch (e) {
+      console.error("Erro ao aplicar grifo no DOM:", e);
+    }
+
     setMenuPos(null);
     window.getSelection()?.removeAllRanges();
   };
 
   const limparGrifos = () => {
-    setGrifos([]);
-    localStorage.removeItem(`grifos_${idUnico}`);
+    localStorage.removeItem(`grifos_dom_${idUnico}`);
+    window.location.reload();
   };
 
   return (
-    <div onContextMenu={handleContextMenu} onMouseUp={handleMouseUp} className="relative select-text">
-      {children}
+    <div className="relative group">
+      <div 
+        ref={containerRef}
+        onContextMenu={handleContextMenu} 
+        onMouseUp={handleMouseUp} 
+        className="select-text"
+      >
+        {children}
+      </div>
 
-      {/* Pop-up Flutuante de Cores Marca-Texto */}
+      {/* Botão discreto para limpar grifos do tópico */}
+      <button
+        onClick={limparGrifos}
+        className="text-[10px] text-zinc-500 hover:text-rose-400 mt-2 transition cursor-pointer opacity-0 group-hover:opacity-100 block"
+      >
+        🧹 Limpar grifos deste card
+      </button>
+
+      {/* Pop-up Flutuante do Marca-Texto */}
       {menuPos && (
         <>
           <div 
@@ -103,7 +134,7 @@ function TextoGrifavel({ children, idUnico }: { children: React.ReactNode; idUni
           />
 
           <div 
-            className="fixed z-50 bg-zinc-900 border border-amber-400/80 shadow-2xl rounded-2xl p-2 flex items-center gap-2.5 animate-in fade-in zoom-in-95 duration-100"
+            className="fixed z-50 bg-zinc-900 border border-amber-400 shadow-2xl rounded-2xl p-2 flex items-center gap-2 animate-in fade-in zoom-in-95 duration-100 transform -translate-x-1/2 -translate-y-full"
             style={{ top: `${menuPos.y}px`, left: `${menuPos.x}px` }}
           >
             <span className="text-[10px] font-black text-amber-400 px-1 uppercase tracking-wider">
@@ -112,56 +143,32 @@ function TextoGrifavel({ children, idUnico }: { children: React.ReactNode; idUni
             
             {/* Amarelo */}
             <button
-              onClick={() => aplicarGrifo('bg-yellow-400/30 text-yellow-200 border-b-2 border-yellow-400')}
+              onClick={() => aplicarGrifo('bg-yellow-400/40', 'text-yellow-100')}
               className="w-6 h-6 rounded-full bg-yellow-400 hover:scale-110 transition shadow cursor-pointer border border-yellow-200 flex items-center justify-center text-[10px] text-zinc-950 font-bold"
-              title="Grifar em Amarelo"
+              title="Amarelo"
             >
               A
             </button>
 
             {/* Azul Claro */}
             <button
-              onClick={() => aplicarGrifo('bg-sky-400/30 text-sky-200 border-b-2 border-sky-400')}
+              onClick={() => aplicarGrifo('bg-sky-400/40', 'text-sky-100')}
               className="w-6 h-6 rounded-full bg-sky-400 hover:scale-110 transition shadow cursor-pointer border border-sky-200 flex items-center justify-center text-[10px] text-zinc-950 font-bold"
-              title="Grifar em Azul Claro"
+              title="Azul"
             >
               A
             </button>
 
             {/* Verde Claro */}
             <button
-              onClick={() => aplicarGrifo('bg-emerald-400/30 text-emerald-200 border-b-2 border-emerald-400')}
+              onClick={() => aplicarGrifo('bg-emerald-400/40', 'text-emerald-100')}
               className="w-6 h-6 rounded-full bg-emerald-400 hover:scale-110 transition shadow cursor-pointer border border-emerald-200 flex items-center justify-center text-[10px] text-zinc-950 font-bold"
-              title="Grifar em Verde Claro"
+              title="Verde"
             >
               A
             </button>
           </div>
         </>
-      )}
-
-      {/* Lista visual dos trechos grifados neste tópico */}
-      {grifos.length > 0 && (
-        <div className="mt-3 pt-3 border-t border-zinc-800/80 space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">
-              🖍️ Trechos Grifados ({grifos.length})
-            </span>
-            <button
-              onClick={limparGrifos}
-              className="text-[10px] text-zinc-500 hover:text-rose-400 transition cursor-pointer"
-            >
-              Limpar grifos
-            </button>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {grifos.map((g) => (
-              <span key={g.id} className={`text-xs px-2.5 py-1 rounded-lg font-medium ${g.corClass}`}>
-                "{g.texto}"
-              </span>
-            ))}
-          </div>
-        </div>
       )}
     </div>
   );
@@ -171,7 +178,6 @@ function TextoGrifavel({ children, idUnico }: { children: React.ReactNode; idUni
 function LogicalDiagram({ grafico }: { grafico: any }) {
   if (!grafico || !grafico.tipo) return null;
 
-  // 1. MANTER INTATOS OS GRÁFICOS DE MATEMÁTICA / LÓGICA (CONJUNTOS / VENN / ELIPSES)
   if (grafico.tipo === 'conjuntos_aninhados' && Array.isArray(grafico.conjuntos)) {
     return (
       <div className="bg-zinc-950 border border-amber-400/30 rounded-2xl p-5 space-y-4 shadow-inner my-3">
@@ -326,7 +332,6 @@ function LogicalDiagram({ grafico }: { grafico: any }) {
     );
   }
 
-  // 2. MOTOR UNIVERSAL: CARDS RETANGULARES / QUADRADOS / COMPARATIVOS (DIREITO, PORTUGUÊS, INFORMÁTICA)
   if (grafico.tipo === 'cards_flexiveis' && Array.isArray(grafico.cards)) {
     return (
       <div className="bg-zinc-950 border border-amber-400/30 rounded-2xl p-5 space-y-4 shadow-inner my-3">
@@ -398,7 +403,6 @@ function LogicalDiagram({ grafico }: { grafico: any }) {
     );
   }
 
-  // 3. MOTOR UNIVERSAL: FLUXOGRAMAS DE ETAPAS / PRAZOS / REQUISITOS COM SETAS
   if (grafico.tipo === 'fluxograma' && Array.isArray(grafico.etapas)) {
     return (
       <div className="bg-zinc-950 border border-amber-400/30 rounded-2xl p-5 space-y-4 shadow-inner my-3">
@@ -531,111 +535,7 @@ const mapaInicialExemplo = {
 };
 
 const PROMPT_MESTRE_TEXTO = `Atue como Especialista e Mentor para o concurso do TJSP (Banca VUNESP).
-Gere um JSON estruturado estrito contendo obrigatoriamente a chave "ramos".
-
-DIRETRIZES DE CRIAÇÃO LIBERADA DE GRÁFICOS E FLUXOGRAMAS:
-Seja extremamente criativo, didático e visual na elaboração do campo "grafico". Escolha o formato visual perfeito de acordo com a disciplina:
-
-1. PARA MATEMÁTICA / RACIOCÍNIO LÓGICO (Conjuntos, Silogismos, Venn):
-   Use "tipo": "conjuntos_misto" ou "conjuntos_aninhados" com elipses e posições X/Y.
-
-2. PARA DIREITO CONSTITUCIONAL / ADMINISTRATIVO / PENAL / PORTUGUÊS (Cards Comparativos, Quadrados, Retângulos, Tabelas Visuais):
-   Use "tipo": "cards_flexiveis" com a estrutura:
-   "grafico": {
-     "tipo": "cards_flexiveis",
-     "titulo": "Nacionalidade Brasileira (Art. 12, CF)",
-     "cards": [
-       {
-         "titulo": "Brasileiro Nato",
-         "icone": "👤",
-         "badge": "Art. 12, I",
-         "corFundo": "rgba(30, 58, 138, 0.4)",
-         "corBorda": "#3B82F6",
-         "corTitulo": "#60A5FA",
-         "subtitulo": "Critério de Origem",
-         "topicos": [
-           "Nascimento no Brasil (jus soli), salvo pais a serviço do seu país.",
-           "Nascimento no exterior de pai ou mãe brasileira a serviço do Brasil."
-         ]
-       },
-       {
-         "titulo": "Naturalizado",
-         "icone": "📜",
-         "badge": "Art. 12, II",
-         "corFundo": "rgba(120, 53, 15, 0.4)",
-         "corBorda": "#F59E0B",
-         "corTitulo": "#FBBF24",
-         "subtitulo": "Critério de Vontade / Requisitos",
-         "topicos": [
-           "Ordinária: 1 ano ininterrupto + idoneidade moral (países de língua portuguesa).",
-           "Extraordinária: mais de 15 anos + ausência de condenação penal."
-         ]
-       }
-     ],
-     "conclusao": "Brasileiro nato jamais será extraditado; naturalizado pode apenas em crime comum antes da naturalização ou tráfico ilícito.",
-     "descricao": "Resumo comparativo direto para questões de prova VUNESP."
-   }
-
-3. PARA FLUXOGRAMAS / PROCEDIMENTOS / PRAZOS PROCESSUAIS (Com Setas Conectoras):
-   Use "tipo": "fluxograma" com a estrutura:
-   "grafico": {
-     "tipo": "fluxograma",
-     "titulo": "Fluxograma de Naturalização Extraordinária",
-     "etapas": [
-       {
-         "titulo": "Ponto de Partida",
-         "destaque": "Qualquer Nacionalidade",
-         "corFundo": "rgba(24, 24, 27, 0.95)",
-         "corBorda": "#3F3F46",
-         "rotuloSeta": "Requisitos Temporais"
-       },
-       {
-         "titulo": "Exigência Principal",
-         "destaque": "Mais de 15 Anos Ininterruptos",
-         "descricao": "Residência contínua no Brasil sem infrações penais gravemente apenadas.",
-         "corFundo": "rgba(6, 78, 59, 0.4)",
-         "corBorda": "#10B981",
-         "corTexto": "#34D399"
-       }
-     ],
-     "conclusao": "A concessão extraordinária não exige idoneidade prévia em rol taxativo além da ausência de condenação."
-   }
-
-ESTRUTURA COMPLETA DO JSON EXIGIDA:
-{
-  "ramos": [
-    {
-      "id": "identificador-unico-12345",
-      "titulo": "Título do Tópico",
-      "artigos": "CF/88 Art. 12",
-      "tag": "Constitucional",
-      "assunto": "Nacionalidade",
-      "tipo": "conceito",
-      "grafico": { ... },
-      "subnos": [
-        {
-          "titulo": "Destaque da Legislação",
-          "itens": ["Ponto 1", "Ponto 2"]
-        }
-      ],
-      "modalInfo": {
-        "title": "Dica de Ouro VUNESP",
-        "tag": "Estratégia",
-        "casosPraticos": [
-          {
-            "titulo": "PADRÃO DA BANCA:",
-            "texto": "Explicação da pegadinha."
-          }
-        ],
-        "conclusoes": ["Conclusão para prova."],
-        "pegadinha": "Pegadinha clássica da VUNESP."
-      },
-      "importante": true
-    }
-  ]
-}
-
-Retorne EXCLUSIVAMENTE o JSON válido, sem markdown ou textos antes/depois.`;
+Gere um JSON estruturado estrito contendo obrigatoriamente a chave "ramos".`;
 
 export default function MapaMentalPage() {
   const [mapasPorDisciplina, setMapasPorDisciplina] = useState<Record<string, any>>({});

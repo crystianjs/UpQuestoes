@@ -206,13 +206,22 @@ function TextoGrifavel({ children, idUnico }: { children: React.ReactNode; idUni
               A
             </button>
 
+            {/* Vermelho */}
+            <button
+              onClick={() => aplicarGrifo('bg-rose-500/40', 'text-rose-100')}
+              className="w-6 h-6 rounded-full bg-rose-500 hover:scale-110 transition shadow cursor-pointer border border-rose-300 flex items-center justify-center text-[10px] text-zinc-950 font-bold"
+              title="Vermelho"
+            >
+              A
+            </button>
+
             {/* Divisor */}
             <div className="w-[1px] h-4 bg-zinc-700 mx-0.5" />
 
             {/* Opção de Limpar Grifo do Trecho Selecionado */}
             <button
               onClick={removerGrifoTrecho}
-              className="w-6 h-6 rounded-full bg-rose-500/20 hover:bg-rose-500 hover:text-white text-rose-400 border border-rose-500/40 hover:scale-110 transition shadow cursor-pointer flex items-center justify-center text-[10px] font-bold"
+              className="w-6 h-6 rounded-full bg-zinc-800 hover:bg-rose-600 hover:text-white text-zinc-400 border border-zinc-700 hover:border-rose-500 hover:scale-110 transition shadow cursor-pointer flex items-center justify-center text-[10px] font-bold"
               title="Remover grifo do trecho"
             >
               ✕

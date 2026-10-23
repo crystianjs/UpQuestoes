@@ -100,13 +100,59 @@ function TextoGrifavel({ children, idUnico }: { children: React.ReactNode; idUni
     window.getSelection()?.removeAllRanges();
   };
 
-  const limparGrifos = () => {
-    localStorage.removeItem(`grifos_dom_${idUnico}`);
-    window.location.reload();
+  const removerGrifoTrecho = () => {
+    const range = rangeRef.current;
+    if (!range || !containerRef.current) return;
+
+    try {
+      const fragmento = range.cloneContents();
+      const marks = fragmento.querySelectorAll('mark');
+
+      if (marks.length > 0) {
+        // Se selecionou um trecho com <mark>, remove todos os marks
+        const noPai = range.commonAncestorContainer;
+        const noMark = noPai.nodeType === Node.ELEMENT_NODE 
+          ? (noPai as Element).closest('mark') 
+          : noPai.parentElement?.closest('mark');
+
+        if (noMark) {
+          const textoTexto = document.createTextNode(noMark.textContent || '');
+          noMark.parentNode?.replaceChild(textoTexto, noMark);
+        } else {
+          // Remove marks contidos na seleção
+          const noConteudo = range.extractContents();
+          const divTemp = document.createElement('div');
+          divTemp.appendChild(noConteudo);
+          divTemp.querySelectorAll('mark').forEach(m => {
+            const txt = document.createTextNode(m.textContent || '');
+            m.parentNode?.replaceChild(txt, m);
+          });
+          range.insertNode(divTemp.firstChild || document.createTextNode(''));
+        }
+      } else {
+        // Caso a seleção esteja inteiramente dentro de um único <mark>
+        const noPai = range.commonAncestorContainer;
+        const noMark = noPai.nodeType === Node.ELEMENT_NODE 
+          ? (noPai as Element).closest('mark') 
+          : noPai.parentElement?.closest('mark');
+
+        if (noMark) {
+          const textoTexto = document.createTextNode(noMark.textContent || '');
+          noMark.parentNode?.replaceChild(textoTexto, noMark);
+        }
+      }
+
+      localStorage.setItem(`grifos_dom_${idUnico}`, containerRef.current.innerHTML);
+    } catch (e) {
+      console.error("Erro ao remover grifo do trecho:", e);
+    }
+
+    setMenuPos(null);
+    window.getSelection()?.removeAllRanges();
   };
 
   return (
-    <div className="relative group">
+    <div className="relative">
       <div 
         ref={containerRef}
         onContextMenu={handleContextMenu} 
@@ -115,14 +161,6 @@ function TextoGrifavel({ children, idUnico }: { children: React.ReactNode; idUni
       >
         {children}
       </div>
-
-      {/* Botão discreto para limpar grifos do tópico */}
-      <button
-        onClick={limparGrifos}
-        className="text-[10px] text-zinc-500 hover:text-rose-400 mt-2 transition cursor-pointer opacity-0 group-hover:opacity-100 block"
-      >
-        🧹 Limpar grifos deste card
-      </button>
 
       {/* Pop-up Flutuante do Marca-Texto */}
       {menuPos && (
@@ -166,6 +204,18 @@ function TextoGrifavel({ children, idUnico }: { children: React.ReactNode; idUni
               title="Verde"
             >
               A
+            </button>
+
+            {/* Divisor */}
+            <div className="w-[1px] h-4 bg-zinc-700 mx-0.5" />
+
+            {/* Opção de Limpar Grifo do Trecho Selecionado */}
+            <button
+              onClick={removerGrifoTrecho}
+              className="w-6 h-6 rounded-full bg-rose-500/20 hover:bg-rose-500 hover:text-white text-rose-400 border border-rose-500/40 hover:scale-110 transition shadow cursor-pointer flex items-center justify-center text-[10px] font-bold"
+              title="Remover grifo do trecho"
+            >
+              ✕
             </button>
           </div>
         </>

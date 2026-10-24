@@ -861,26 +861,29 @@ export default function MapaMentalPage() {
         textoLimpo = textoLimpo.replace(/^```(json)?/i, '').replace(/```$/, '').trim();
       }
 
-      // 2. HIGIENIZAÇÃO: Remove quebras de linha literais dentro das strings
-      textoLimpo = textoLimpo.replace(/\r?\n/g, ' ');
-
-      // 3. Remove entidades HTML comuns e barras invertidas perdidas
+      // 2. PRIMEIRA HIGIENIZAÇÃO: Remove entidades HTML comuns primeiro
       textoLimpo = textoLimpo
         .replace(/&#x20;/gi, ' ')
         .replace(/&nbsp;/gi, ' ')
         .replace(/&quot;/gi, '"')
         .replace(/&amp;/gi, '&')
         .replace(/&lt;/gi, '<')
-        .replace(/&gt;/gi, '>')
-        .replace(/\\+\s*$/gm, '');
+        .replace(/&gt;/gi, '>');
 
-      // 4. Remove vírgulas sobressalentes antes de fechamentos de objetos ou arrays
+      // 3. SEGUNDA HIGIENIZAÇÃO: Remove barras invertidas soltas no final de cada linha antes de remover as quebras
+      textoLimpo = textoLimpo.replace(/\\+\s*$/gm, '');
+
+      // 4. TERCEIRA HIGIENIZAÇÃO: Converte quebras de linha em espaços
+      textoLimpo = textoLimpo.replace(/\r?\n/g, ' ');
+
+      // 5. Remove vírgulas sobressalentes antes de fechamentos de objetos ou arrays
       textoLimpo = textoLimpo.replace(/,\s*([\]}])/g, '$1');
 
       let parsed;
       try {
         parsed = JSON.parse(textoLimpo);
       } catch (errParse) {
+        // Tentativa secundária de higienização de aspas duplas e escapes corrompidos
         try {
           const sanetizado = textoLimpo
             .replace(/[\u0000-\u001F\u007F-\u009F]/g, "")
@@ -888,7 +891,7 @@ export default function MapaMentalPage() {
             .replace(/\\\\/g, '\\');
           parsed = JSON.parse(sanetizado);
         } catch (err2) {
-          throw new Error("O JSON contém erros de sintaxe graves. Verifique se o texto foi cortado.");
+          throw new Error("O JSON colado possui falhas de aspas ou foi cortado no final.");
         }
       }
 
@@ -896,16 +899,14 @@ export default function MapaMentalPage() {
         const mapaExistente = mapasPorDisciplina[modalDisciplinaAlvo];
         let novosRamosValidos = parsed.ramos.filter(Boolean);
 
-        // --- PRESERVAÇÃO SEGURA DOS RAMOS ANTERIORES (SEM PERDER NADA) ---
+        // PRESERVAÇÃO SEGURA DOS RAMOS ANTERIORES
         if (mapaExistente && mapaExistente.ramos) {
           const ramosAtualizadosMap = new Map();
           
-          // Preserva todos os ramos atuais
           mapaExistente.ramos.forEach((r: any) => {
             if (r && r.id) ramosAtualizadosMap.set(r.id, r);
           });
           
-          // Adiciona ou atualiza os novos ramos
           novosRamosValidos.forEach((r: any) => {
             if (r && r.id) {
               ramosAtualizadosMap.set(r.id, r);

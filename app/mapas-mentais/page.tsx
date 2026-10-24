@@ -235,7 +235,7 @@ function LogicalDiagram({ grafico }: { grafico: any }) {
                    : [];
 
   // 1. RENDERIZADOR DE CONJUNTOS ANINHADOS E INCLUSÃO
-  if (tipo.includes('aninhado') || tipo.includes('inclusao') || tipo.includes('conjunto') && !tipo.includes('misto') && !tipo.includes('separado')) {
+  if (tipo.includes('aninhado') || tipo.includes('inclusao') || (tipo.includes('conjunto') && !tipo.includes('misto') && !tipo.includes('separado'))) {
     const possuiDimensoesCustom = listaItens.some((i: any) => i.x !== undefined || i.largura !== undefined);
 
     return (
@@ -631,6 +631,12 @@ const mapaInicialExemplo = {
 const PROMPT_MESTRE_TEXTO = `Atue como Especialista e Mentor para o concurso do TJSP (Banca VUNESP).
 Gere um JSON estruturado estrito contendo obrigatoriamente a chave "ramos".
 
+REGRAS CRÍTICAS DE FORMATAÇÃO DO JSON (OBRIGATÓRIO):
+1. NUNCA insira quebras de linha literais dentro dos valores de texto/string (ex: NUNCA faça "titulo": "Linha 1 \\n Linha 2"). Mantenha todo o texto de cada campo em UMA ÚNICA LINHA sem dar Enter dentro de aspas.
+2. NUNCA utilize entidades HTML (como &#x20;, &nbsp;, &quot;).
+3. Mantenha todas as chaves de fechamento (}, ]) devidamente pareadas.
+4. Garanta que cada objeto dentro do array "ramos" possua um campo "id" único e descritivo.
+
 DIRETRIZES DE CRIAÇÃO LIBERADA DE GRÁFICOS E FLUXOGRAMAS:
 Seja extremamente criativo, didático e visual na elaboração do campo "grafico". Escolha o formato visual perfeito de acordo com a disciplina:
 
@@ -704,7 +710,7 @@ ESTRUTURA COMPLETA DO JSON EXIGIDA:
   "ramos": [
     {
       "id": "identificador-unico-12345",
-      "titulo": "Título do Tópico",
+      "titulo": "Título do Tópico em linha única",
       "artigos": "CF/88 Art. 12",
       "tag": "Constitucional",
       "assunto": "Nacionalidade",
@@ -849,23 +855,40 @@ export default function MapaMentalPage() {
   const handleCarregarJson = async () => {
     try {
       let textoLimpo = jsonInputText.trim();
-      
+
+      // 1. Remove blocos de código Markdown (```json ... ```) se houver
       if (textoLimpo.startsWith('```')) {
-        textoLimpo = textoLimpo.replace(/^```(json)?/, '').replace(/```$/, '').trim();
+        textoLimpo = textoLimpo.replace(/^```(json)?/i, '').replace(/```$/, '').trim();
       }
+
+      // 2. HIGIENIZAÇÃO: Remove quebras de linha literais dentro das strings
+      textoLimpo = textoLimpo.replace(/\r?\n/g, ' ');
+
+      // 3. Remove entidades HTML comuns e barras invertidas perdidas
+      textoLimpo = textoLimpo
+        .replace(/&#x20;/gi, ' ')
+        .replace(/&nbsp;/gi, ' ')
+        .replace(/&quot;/gi, '"')
+        .replace(/&amp;/gi, '&')
+        .replace(/&lt;/gi, '<')
+        .replace(/&gt;/gi, '>')
+        .replace(/\\+\s*$/gm, '');
+
+      // 4. Remove vírgulas sobressalentes antes de fechamentos de objetos ou arrays
+      textoLimpo = textoLimpo.replace(/,\s*([\]}])/g, '$1');
 
       let parsed;
       try {
         parsed = JSON.parse(textoLimpo);
       } catch (errParse) {
         try {
-          let corrigido = textoLimpo
+          const sanetizado = textoLimpo
+            .replace(/[\u0000-\u001F\u007F-\u009F]/g, "")
             .replace(/\\"/g, '"')
-            .replace(/,\s*([\]}])/g, '$1');
-          
-          parsed = JSON.parse(corrigido);
+            .replace(/\\\\/g, '\\');
+          parsed = JSON.parse(sanetizado);
         } catch (err2) {
-          throw new Error("Erro de leitura no JSON gerado pela IA. Verifique caracteres especiais em fórmulas.");
+          throw new Error("O JSON contém erros de sintaxe graves. Verifique se o texto foi cortado.");
         }
       }
 
@@ -873,20 +896,20 @@ export default function MapaMentalPage() {
         const mapaExistente = mapasPorDisciplina[modalDisciplinaAlvo];
         let novosRamosValidos = parsed.ramos.filter(Boolean);
 
+        // --- PRESERVAÇÃO SEGURA DOS RAMOS ANTERIORES (SEM PERDER NADA) ---
         if (mapaExistente && mapaExistente.ramos) {
-          const idsExistentes = new Set(mapaExistente.ramos.map((r: any) => r.id));
-          const idsConflitantes = novosRamosValidos.filter((r: any) => idsExistentes.has(r.id));
-
-          if (idsConflitantes.length > 0) {
-            const confirmar = confirm(`⚠️ ALERTA DE SEGURANÇA: Encontramos ${idsConflitantes.length} ID(s) repetidos. Deseja mesclar atualizando estes itens?`);
-            if (!confirmar) return;
-          }
-
           const ramosAtualizadosMap = new Map();
-          mapaExistente.ramos.forEach((r: any) => ramosAtualizadosMap.set(r.id, r));
           
+          // Preserva todos os ramos atuais
+          mapaExistente.ramos.forEach((r: any) => {
+            if (r && r.id) ramosAtualizadosMap.set(r.id, r);
+          });
+          
+          // Adiciona ou atualiza os novos ramos
           novosRamosValidos.forEach((r: any) => {
-            ramosAtualizadosMap.set(r.id, r);
+            if (r && r.id) {
+              ramosAtualizadosMap.set(r.id, r);
+            }
           });
 
           novosRamosValidos = Array.from(ramosAtualizadosMap.values());
@@ -904,7 +927,7 @@ export default function MapaMentalPage() {
         setJsonInputText('');
         setSelectedDisciplina(modalDisciplinaAlvo);
         setSelectedAssunto('all');
-        alert(`Conteúdo incorporado com segurança para ${modalDisciplinaAlvo}!`);
+        alert(`Conteúdo incorporado com segurança para ${modalDisciplinaAlvo}! Seus ramos anteriores foram preservados.`);
       } else {
         alert('O JSON precisa conter obrigatoriamente a chave "ramos".');
       }

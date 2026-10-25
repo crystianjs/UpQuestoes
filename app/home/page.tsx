@@ -135,6 +135,23 @@ export default function HomePage() {
                 </div>
               </div>
 
+              {/* Viagem */}
+              <div className="group relative h-48 rounded-2xl overflow-hidden border border-zinc-800 bg-zinc-900 flex items-end p-4">
+                <Image 
+                  src="/eua.jpeg" 
+                  alt="Viagem" 
+                  fill 
+                  className="object-cover group-hover:scale-105 transition-transform duration-500 opacity-70 group-hover:opacity-90"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/40 to-transparent"></div>
+                <div className="relative z-10">
+                  <span className="text-[10px] font-black text-amber-400 uppercase tracking-widest bg-zinc-950/80 px-2 py-0.5 rounded border border-zinc-800">
+                    Liberdade
+                  </span>
+                  <h4 className="text-sm font-bold text-white mt-1">Viagem</h4>
+                </div>
+              </div>
+
             </div>
           </div>
 
@@ -213,49 +230,6 @@ export default function HomePage() {
               <p className="text-xs text-zinc-500">Contrato com o TJSP vigente até jun/2027: </p>
             </div>
 
-          </div>
-
-          {/* Status da Linha do Tempo */}
-          <div className="bg-zinc-900/60 border border-zinc-800 p-6 rounded-2xl space-y-4">
-            <span className="text-xs font-bold uppercase tracking-wider text-zinc-400">Status do Concurso: </span>
-            
-            <div className="grid grid-cols-5 gap-2 text-center">
-              <div className="space-y-1">
-                <div className="h-2 rounded-full bg-amber-400"></div>
-                <span className="text-[11px] font-bold text-amber-400">PREVISTO: </span>
-              </div>
-              <div className="space-y-1">
-                <div className="h-2 rounded-full bg-zinc-700"></div>
-                <span className="text-[11px] font-semibold text-zinc-500">AUTORIZADO: </span>
-              </div>
-              <div className="space-y-1">
-                <div className="h-2 rounded-full bg-zinc-700"></div>
-                <span className="text-[11px] font-semibold text-zinc-500">BANCA: </span>
-              </div>
-              <div className="space-y-1">
-                <div className="h-2 rounded-full bg-zinc-700"></div>
-                <span className="text-[11px] font-semibold text-zinc-500">EDITAL: </span>
-              </div>
-                <div className="space-y-1">
-                <div className="h-2 rounded-full bg-zinc-700"></div>
-                <span className="text-[11px] font-semibold text-zinc-500">INSCRIÇÕES: </span>
-              </div>
-            </div>
-          </div>
-
-          {/* No Radar / Alerta */}
-          <div className="p-5 rounded-2xl bg-zinc-900/90 border-l-4 border-amber-400 border-t border-r border-b border-zinc-800 space-y-1.5">
-            <p className="font-extrabold text-xs text-amber-400 uppercase tracking-wider">
-              🚨 NO RADAR: :
-            </p>
-            <p className="text-xs sm:text-sm text-zinc-300 leading-relaxed font-medium">
-              Possivel publicação do edital em 2026, com inscrições previstas para o mesmo ano. Acompanhe as atualizações e prepare-se para garantir sua vaga!
-            </p>
-          </div>
-
-          {/* Atalhos Rápidos para Estudo */}
-          <div className="pt-4 border-t border-zinc-800 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <span className="text-xs text-zinc-500">Atualizado em 23/09/2026 • Sujeito a mudanças: </span>
           </div>
 
         </div>

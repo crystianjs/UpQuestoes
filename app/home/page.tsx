@@ -108,7 +108,7 @@ export default function HomePage() {
               {/* Carro do Sonho */}
               <div className="group relative h-48 rounded-2xl overflow-hidden border border-zinc-800 bg-zinc-900 flex items-end p-4">
                 <Image 
-                  src="/polo-tracker.jpg" 
+                  src="/polo_vw2025.jpg" 
                   alt="Carro do Sonho" 
                   fill 
                   className="object-cover group-hover:scale-105 transition-transform duration-500 opacity-70 group-hover:opacity-90"

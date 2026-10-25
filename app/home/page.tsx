@@ -47,30 +47,34 @@ export default function HomePage() {
 
           {/* Os 4 Motivos */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="p-5 rounded-2xl bg-zinc-900/90 border border-zinc-800 hover:border-amber-400/50 transition-all space-y-2">
-              <span className="text-xs font-black text-amber-400 tracking-wider uppercase">Motivo 01</span>
-              <p className="text-sm font-bold text-zinc-200 leading-snug">
+            <div className="p-5 rounded-2xl bg-amber-400 border border-zinc-800 hover:border-amber-400/50 transition-all space-y-2">
+              <span className="inline-block bg-zinc-950 text-amber-400 text-[11px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md">
+                Motivo 01</span>
+              <p className="text-sm font-bold text-zinc-950 leading-snug">
                 Hoje, se você perder o emprego, tem segurança financeira garantida?
               </p>
             </div>
 
-            <div className="p-5 rounded-2xl bg-zinc-900/90 border border-zinc-800 hover:border-amber-400/50 transition-all space-y-2">
-              <span className="text-xs font-black text-amber-400 tracking-wider uppercase">Motivo 02</span>
-              <p className="text-sm font-bold text-zinc-200 leading-snug">
+            <div className="p-5 rounded-2xl bg-amber-400 border border-zinc-800 hover:border-amber-400/50 transition-all space-y-2">
+              <span className="inline-block bg-zinc-950 text-amber-400 text-[11px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md">
+                Motivo 02</span>
+              <p className="text-sm font-bold text-zinc-950 leading-snug">
                 Você se sujeita a qualquer tratamento indesejado apenas por conta da necessidade do salário?
               </p>
             </div>
 
-            <div className="p-5 rounded-2xl bg-zinc-900/90 border border-zinc-800 hover:border-amber-400/50 transition-all space-y-2">
-              <span className="text-xs font-black text-amber-400 tracking-wider uppercase">Motivo 03</span>
-              <p className="text-sm font-bold text-zinc-200 leading-snug">
+            <div className="p-5 rounded-2xl bg-amber-400 border border-zinc-800 hover:border-amber-400/50 transition-all space-y-2">
+              <span className="inline-block bg-zinc-950 text-amber-400 text-[11px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md">
+                Motivo 03</span>
+              <p className="text-sm font-bold text-zinc-950 leading-snug">
                 Você vive segundo o que os outros determinam sobre a sua vida e o seu tempo?
               </p>
             </div>
 
-            <div className="p-5 rounded-2xl bg-zinc-900/90 border border-zinc-800 hover:border-amber-400/50 transition-all space-y-2">
-              <span className="text-xs font-black text-amber-400 tracking-wider uppercase">Motivo 04</span>
-              <p className="text-sm font-bold text-zinc-200 leading-snug">
+            <div className="p-5 rounded-2xl bg-amber-400 border border-zinc-800 hover:border-amber-400/50 transition-all space-y-2">
+              <span className="inline-block bg-zinc-950 text-amber-400 text-[11px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md">
+                Motivo 04</span>
+              <p className="text-sm font-bold text-zinc-950 leading-snug">
                 Querer fazer um rolê, aproveitar a vida e simplesmente não ter dinheiro para isso.
               </p>
             </div>
@@ -148,7 +152,7 @@ export default function HomePage() {
                   <span className="text-[10px] font-black text-amber-400 uppercase tracking-widest bg-zinc-950/80 px-2 py-0.5 rounded border border-zinc-800">
                     Liberdade
                   </span>
-                  <h4 className="text-sm font-bold text-white mt-1">Viagem</h4>
+                  <h4 className="text-sm font-bold text-white mt-1">Viagem - EUA, ESPANHA E OUTROS</h4>
                 </div>
               </div>
 

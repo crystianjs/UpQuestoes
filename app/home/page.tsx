@@ -142,7 +142,7 @@ export default function HomePage() {
               {/* Viagem */}
               <div className="group relative h-48 rounded-2xl overflow-hidden border border-zinc-800 bg-zinc-900 flex items-end p-4">
                 <Image 
-                  src="/eua.jpeg" 
+                  src="/eua.jpg" 
                   alt="Viagem" 
                   fill 
                   className="object-cover group-hover:scale-105 transition-transform duration-500 opacity-70 group-hover:opacity-90"

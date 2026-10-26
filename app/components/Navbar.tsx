@@ -68,6 +68,12 @@ export default function Navbar() {
         >
           Mapas Mentais
         </Link>
+         <Link 
+          href="/vale-a-pena" 
+          className={`px-3 py-2 rounded-xl transition-all ${isActive('/vale-a-pena') ? 'bg-red-600 text-white font-bold shadow-lg shadow-red-600/20' : 'text-zinc-400 hover:text-white hover:bg-zinc-900'}`}
+        >
+          Vale a Pena ver de novo
+        </Link>
                 {/* Novo Link de Cronograma */}
         <Link 
           href="/cronograma" 

@@ -30,7 +30,6 @@ function TextoGrifavel({ children, idUnico }: { children: React.ReactNode; idUni
   const rangeRef = useRef<Range | null>(null);
 
   useEffect(() => {
-    // Carrega os grifos guardados
     const salvo = localStorage.getItem(`grifos_dom_${idUnico}`);
     if (salvo && containerRef.current) {
       try {
@@ -51,7 +50,6 @@ function TextoGrifavel({ children, idUnico }: { children: React.ReactNode; idUni
     const texto = selecao.toString().trim();
     if (texto.length > 0) {
       const range = selecao.getRangeAt(0);
-      // Garante que a seleção pertence a este card
       if (containerRef.current && containerRef.current.contains(range.commonAncestorContainer)) {
         rangeRef.current = range.cloneRange();
         setMenuPos({ x: clientX, y: clientY });
@@ -90,7 +88,6 @@ function TextoGrifavel({ children, idUnico }: { children: React.ReactNode; idUni
       span.appendChild(range.extractContents());
       range.insertNode(span);
 
-      // Guarda o HTML interno grifado no localStorage
       localStorage.setItem(`grifos_dom_${idUnico}`, containerRef.current.innerHTML);
     } catch (e) {
       console.error("Erro ao aplicar grifo no DOM:", e);
@@ -105,19 +102,16 @@ function TextoGrifavel({ children, idUnico }: { children: React.ReactNode; idUni
     if (!range || !containerRef.current) return;
 
     try {
-      // Encontra todas as tags <mark> que intersectam a seleção atual
       const marks = containerRef.current.querySelectorAll('mark');
       
       marks.forEach(mark => {
         const markRange = document.createRange();
         markRange.selectNode(mark);
 
-        // Verifica se há sobreposição entre a seleção do utilizador e a tag mark
         if (
           range.compareBoundaryPoints(Range.END_TO_START, markRange) < 0 &&
           range.compareBoundaryPoints(Range.START_TO_END, markRange) > 0
         ) {
-          // Desembrulha o mark de forma segura sem perder nenhum caractere
           const pai = mark.parentNode;
           while (mark.firstChild) {
             pai?.insertBefore(mark.firstChild, mark);
@@ -146,7 +140,6 @@ function TextoGrifavel({ children, idUnico }: { children: React.ReactNode; idUni
         {children}
       </div>
 
-      {/* Pop-up Flutuante do Marca-Texto */}
       {menuPos && (
         <>
           <div 
@@ -163,7 +156,6 @@ function TextoGrifavel({ children, idUnico }: { children: React.ReactNode; idUni
               Grifar:
             </span>
             
-            {/* Amarelo */}
             <button
               onClick={() => aplicarGrifo('bg-yellow-400/40', 'text-yellow-100')}
               className="w-6 h-6 rounded-full bg-yellow-400 hover:scale-110 transition shadow cursor-pointer border border-yellow-200 flex items-center justify-center text-[10px] text-zinc-950 font-bold"
@@ -172,7 +164,6 @@ function TextoGrifavel({ children, idUnico }: { children: React.ReactNode; idUni
               A
             </button>
 
-            {/* Azul Claro */}
             <button
               onClick={() => aplicarGrifo('bg-sky-400/40', 'text-sky-100')}
               className="w-6 h-6 rounded-full bg-sky-400 hover:scale-110 transition shadow cursor-pointer border border-sky-200 flex items-center justify-center text-[10px] text-zinc-950 font-bold"
@@ -181,7 +172,6 @@ function TextoGrifavel({ children, idUnico }: { children: React.ReactNode; idUni
               A
             </button>
 
-            {/* Verde Claro */}
             <button
               onClick={() => aplicarGrifo('bg-emerald-400/40', 'text-emerald-100')}
               className="w-6 h-6 rounded-full bg-emerald-400 hover:scale-110 transition shadow cursor-pointer border border-emerald-200 flex items-center justify-center text-[10px] text-zinc-950 font-bold"
@@ -190,7 +180,6 @@ function TextoGrifavel({ children, idUnico }: { children: React.ReactNode; idUni
               A
             </button>
 
-            {/* Vermelho */}
             <button
               onClick={() => aplicarGrifo('bg-rose-500/40', 'text-rose-100')}
               className="w-6 h-6 rounded-full bg-rose-500 hover:scale-110 transition shadow cursor-pointer border border-rose-300 flex items-center justify-center text-[10px] text-zinc-950 font-bold"
@@ -199,10 +188,8 @@ function TextoGrifavel({ children, idUnico }: { children: React.ReactNode; idUni
               A
             </button>
 
-            {/* Divisor */}
             <div className="w-[1px] h-4 bg-zinc-700 mx-0.5" />
 
-            {/* Opção de Limpar Grifo do Trecho Selecionado */}
             <button
               onClick={removerGrifoTrecho}
               className="w-6 h-6 rounded-full bg-zinc-800 hover:bg-rose-600 hover:text-white text-zinc-400 border border-zinc-700 hover:border-rose-500 hover:scale-110 transition shadow cursor-pointer flex items-center justify-center text-[10px] font-bold"
@@ -217,13 +204,11 @@ function TextoGrifavel({ children, idUnico }: { children: React.ReactNode; idUni
   );
 }
 
-// --- COMPONENTE VISUAL UNIVERSAL DE DIAGRAMAS, CARDS E FLUXOGRAMAS (RESILIENTE A QUALQUER JSON) ---
+// --- COMPONENTE VISUAL UNIVERSAL DE DIAGRAMAS, CARDS E FLUXOGRAMAS ---
 function LogicalDiagram({ grafico }: { grafico: any }) {
   if (!grafico) return null;
 
   const tipo = (grafico.tipo || 'universal').toLowerCase();
-
-  // Extração inteligente de coleções (normalização de chaves)
   const listaItens = Array.isArray(grafico.elementos) ? grafico.elementos
                    : Array.isArray(grafico.conjuntos) ? grafico.conjuntos
                    : Array.isArray(grafico.grupos) ? grafico.grupos
@@ -234,255 +219,6 @@ function LogicalDiagram({ grafico }: { grafico: any }) {
                    : Array.isArray(grafico.passos) ? grafico.passos
                    : [];
 
-  // 1. RENDERIZADOR DE CONJUNTOS ANINHADOS E INCLUSÃO
-  if (tipo.includes('aninhado') || tipo.includes('inclusao') || (tipo.includes('conjunto') && !tipo.includes('misto') && !tipo.includes('separado'))) {
-    const possuiDimensoesCustom = listaItens.some((i: any) => i.x !== undefined || i.largura !== undefined);
-
-    return (
-      <div className="bg-zinc-950 border border-amber-400/30 rounded-2xl p-5 space-y-4 shadow-inner my-3">
-        {grafico.titulo && (
-          <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-amber-400">
-              📊 Diagrama Lógico: {grafico.titulo}
-            </span>
-          </div>
-        )}
-
-        <div className="flex flex-col items-center justify-center py-2">
-          <svg className="w-full max-w-[380px] h-[220px] overflow-visible" viewBox="0 0 300 200">
-            {possuiDimensoesCustom ? (
-              /* Caso a IA forneça x, y, largura, altura ou posições dinâmicas */
-              listaItens.map((el: any, idx: number) => {
-                const rx = el.largura ? el.largura * 1.4 : (130 - idx * 36);
-                const ry = el.altura ? el.altura * 0.9 : (85 - idx * 22);
-                const cx = el.x ? (el.x * 2.5 + 40) : 150;
-                const cy = el.y ? (el.y * 1.5 + 30) : 100;
-                const nome = el.titulo || el.nome || el.rotulo || `Conjunto ${idx + 1}`;
-
-                return (
-                  <g key={el.id || idx}>
-                    <ellipse
-                      cx={cx}
-                      cy={cy}
-                      rx={Math.max(rx, 25)}
-                      ry={Math.max(ry, 18)}
-                      fill={el.corFundo || 'rgba(245, 158, 11, 0.15)'}
-                      stroke={el.corBorda || '#F59E0B'}
-                      strokeWidth="2"
-                    />
-                    <text
-                      x={cx}
-                      y={cy - Math.max(ry, 18) + 14}
-                      fill="#F3F4F6"
-                      fontSize="11"
-                      fontWeight="bold"
-                      textAnchor="middle"
-                    >
-                      {nome}
-                    </text>
-                  </g>
-                );
-              })
-            ) : (
-              /* Formato padrão com elipses concêntricas */
-              listaItens.map((c: any, index: number) => {
-                const rx = 130 - index * 36;
-                const ry = 85 - index * 22;
-                const cx = 150;
-                const cy = 100;
-
-                const coresFundo = ['rgba(59, 130, 246, 0.12)', 'rgba(16, 185, 129, 0.18)', 'rgba(245, 158, 11, 0.28)'];
-                const coresBorda = ['#3B82F6', '#10B981', '#F59E0B'];
-                const nome = c.nome || c.titulo || c.rotulo || `Conjunto ${index + 1}`;
-
-                return (
-                  <g key={index}>
-                    <ellipse
-                      cx={cx}
-                      cy={cy}
-                      rx={Math.max(rx, 30)}
-                      ry={Math.max(ry, 20)}
-                      fill={c.corFundo || coresFundo[index % coresFundo.length]}
-                      stroke={c.corBorda || coresBorda[index % coresBorda.length]}
-                      strokeWidth="2"
-                    />
-                    <text
-                      x={cx}
-                      y={cy - Math.max(ry, 20) + 14}
-                      fill="#F3F4F6"
-                      fontSize="11"
-                      fontWeight="bold"
-                      textAnchor="middle"
-                    >
-                      {nome}
-                    </text>
-                  </g>
-                );
-              })
-            )}
-          </svg>
-        </div>
-
-        {(grafico.conclusao || grafico.descricao) && (
-          <div className="bg-zinc-900/80 border border-zinc-800 p-3.5 rounded-xl space-y-1.5 text-xs">
-            {grafico.conclusao && (
-              <p className="text-amber-300 font-bold flex items-center gap-1.5">
-                <span>💡 Conclusão:</span> {grafico.conclusao}
-              </p>
-            )}
-            {grafico.descricao && (
-              <p className="text-zinc-400 leading-relaxed">{grafico.descricao}</p>
-            )}
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  // 2. RENDERIZADOR DE CONJUNTOS MISTOS / SEPARADOS (DISJUNTOS)
-  if (tipo.includes('misto') || tipo.includes('separado') || tipo.includes('disjunto')) {
-    return (
-      <div className="bg-zinc-950 border border-amber-400/30 rounded-2xl p-5 space-y-4 shadow-inner my-3">
-        {grafico.titulo && (
-          <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-amber-400">
-              📊 Diagrama Lógico: {grafico.titulo}
-            </span>
-          </div>
-        )}
-
-        <div className="flex flex-col items-center justify-center py-2">
-          <svg className="w-full max-w-[440px] h-[220px] overflow-visible" viewBox="0 0 420 200">
-            {listaItens.map((grupo: any, gIdx: number) => {
-              const cx = grupo.posicaoX || grupo.x || (gIdx === 0 ? 130 : 320);
-              const cy = grupo.posicaoY || grupo.y || 100;
-              const corBorda = grupo.corBorda || (gIdx === 0 ? '#F59E0B' : '#EF4444');
-              const corFundo = grupo.corFundo || (gIdx === 0 ? 'rgba(245, 158, 11, 0.15)' : 'rgba(239, 68, 68, 0.15)');
-              const subConjutos = Array.isArray(grupo.conjuntos) ? grupo.conjuntos : [grupo];
-
-              return (
-                <g key={gIdx}>
-                  {subConjutos.map((c: any, cIdx: number) => {
-                    const rx = (grupo.raioMaxX || 100) - cIdx * 32;
-                    const ry = (grupo.raioMaxY || 75) - cIdx * 20;
-
-                    return (
-                      <g key={cIdx}>
-                        <ellipse
-                          cx={cx}
-                          cy={cy}
-                          rx={Math.max(rx, 30)}
-                          ry={Math.max(ry, 20)}
-                          fill={cIdx === 0 ? corFundo : 'rgba(245, 158, 11, 0.25)'}
-                          stroke={corBorda}
-                          strokeWidth="2"
-                        />
-                        <text
-                          x={cx}
-                          y={cy - Math.max(ry, 20) + 16}
-                          fill="#F3F4F6"
-                          fontSize="11"
-                          fontWeight="bold"
-                          textAnchor="middle"
-                        >
-                          {c.nome || c.titulo || `Conjunto ${cIdx + 1}`}
-                        </text>
-                      </g>
-                    );
-                  })}
-                </g>
-              );
-            })}
-
-            {Array.isArray(grafico.existencia) && grafico.existencia.map((pt: any, pIdx: number) => (
-              <g key={pIdx}>
-                <circle cx={pt.x} cy={pt.y} r="6" fill="#FFFFFF" stroke="#0F172A" strokeWidth="2" />
-                <text x={pt.x + 10} y={pt.y + 4} fill="#38BDF8" fontSize="13" fontWeight="bold">
-                  {pt.rotulo || '∃'}
-                </text>
-              </g>
-            ))}
-          </svg>
-        </div>
-
-        {(grafico.conclusao || grafico.descricao) && (
-          <div className="bg-zinc-900/80 border border-zinc-800 p-3.5 rounded-xl space-y-1.5 text-xs">
-            {grafico.conclusao && (
-              <p className="text-amber-300 font-bold flex items-center gap-1.5">
-                <span>💡 Conclusão:</span> {grafico.conclusao}
-              </p>
-            )}
-            {grafico.descricao && (
-              <p className="text-zinc-400 leading-relaxed">{grafico.descricao}</p>
-            )}
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  // 3. RENDERIZADOR DE FLUXOGRAMA E PASSO A PASSO
-  if (tipo.includes('fluxo') || tipo.includes('passo') || tipo.includes('etapa')) {
-    return (
-      <div className="bg-zinc-950 border border-amber-400/30 rounded-2xl p-5 space-y-4 shadow-inner my-3">
-        {grafico.titulo && (
-          <div className="border-b border-zinc-800 pb-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-amber-400">
-              ⚡ Fluxograma: {grafico.titulo}
-            </span>
-          </div>
-        )}
-
-        <div className="flex flex-col items-center space-y-3 py-2">
-          {listaItens.map((etapa: any, eIdx: number) => (
-            <React.Fragment key={eIdx}>
-              <div 
-                className="w-full max-w-lg rounded-2xl p-4 border shadow-md space-y-1.5 text-center relative"
-                style={{
-                  backgroundColor: etapa.corFundo || 'rgba(24, 24, 27, 0.95)',
-                  borderColor: etapa.corBorda || '#F59E0B'
-                }}
-              >
-                {(etapa.titulo || etapa.nome) && (
-                  <p className="text-xs font-black uppercase tracking-wide" style={{ color: etapa.corTexto || '#F59E0B' }}>
-                    {etapa.titulo || etapa.nome}
-                  </p>
-                )}
-                {(etapa.destaque || etapa.subtitulo) && (
-                  <p className="text-sm font-bold text-white">{etapa.destaque || etapa.subtitulo}</p>
-                )}
-                {(etapa.descricao || etapa.conteudo) && (
-                  <p className="text-xs text-zinc-300 leading-relaxed">{etapa.descricao || etapa.conteudo}</p>
-                )}
-              </div>
-
-              {eIdx < listaItens.length - 1 && (
-                <div className="flex flex-col items-center justify-center my-1 text-amber-400 font-black">
-                  <span className="text-xs text-zinc-500 font-semibold">{etapa.rotuloSeta || ''}</span>
-                  <span className="text-lg leading-none">↓</span>
-                </div>
-              )}
-            </React.Fragment>
-          ))}
-        </div>
-
-        {(grafico.conclusao || grafico.descricao) && (
-          <div className="bg-zinc-900/80 border border-zinc-800 p-3.5 rounded-xl space-y-1.5 text-xs">
-            {grafico.conclusao && (
-              <p className="text-amber-300 font-bold flex items-center gap-1.5">
-                <span>💡 Regra de Ouro:</span> {grafico.conclusao}
-              </p>
-            )}
-            {grafico.descricao && (
-              <p className="text-zinc-400 leading-relaxed">{grafico.descricao}</p>
-            )}
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  // 4. FALLBACK UNIVERSAL (Sempre Funciona para Cards, Tabelas ou Estruturas Desconhecidas)
   return (
     <div className="bg-zinc-950 border border-amber-400/30 rounded-2xl p-5 space-y-4 shadow-inner my-3">
       {grafico.titulo && (
@@ -514,20 +250,10 @@ function LogicalDiagram({ grafico }: { grafico: any }) {
                   {card.icone && <span>{card.icone}</span>}
                   {tituloCard}
                 </span>
-                {card.badge && (
-                  <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-white/10 text-white border border-white/20">
-                    {card.badge}
-                  </span>
-                )}
               </div>
 
-              {subtituloCard && (
-                <p className="text-xs font-bold text-zinc-200">{subtituloCard}</p>
-              )}
-
-              {conteudoCard && (
-                <p className="text-xs text-zinc-300 leading-relaxed">{conteudoCard}</p>
-              )}
+              {subtituloCard && <p className="text-xs font-bold text-zinc-200">{subtituloCard}</p>}
+              {conteudoCard && <p className="text-xs text-zinc-300 leading-relaxed">{conteudoCard}</p>}
 
               {topicosCard.length > 0 && (
                 <ul className="text-xs text-zinc-300 space-y-1.5 pt-1">
@@ -543,19 +269,6 @@ function LogicalDiagram({ grafico }: { grafico: any }) {
           );
         })}
       </div>
-
-      {(grafico.conclusao || grafico.descricao) && (
-        <div className="bg-zinc-900/80 border border-zinc-800 p-3.5 rounded-xl space-y-1.5 text-xs mt-2">
-          {grafico.conclusao && (
-            <p className="text-amber-300 font-bold flex items-center gap-1.5">
-              <span>💡 Resumo do Estudo:</span> {grafico.conclusao}
-            </p>
-          )}
-          {grafico.descricao && (
-            <p className="text-zinc-400 leading-relaxed">{grafico.descricao}</p>
-          )}
-        </div>
-      )}
     </div>
   );
 }
@@ -572,174 +285,19 @@ const mapaInicialExemplo = {
       tag: "Silogismo",
       assunto: "Proposições Categóricas - Conjuntos (Todo-Nenhum)",
       tipo: "exatas",
-      grafico: {
-        tipo: "conjuntos_misto",
-        titulo: "TODO ESCREVENTE É SERVIDOR PÚBLICO E NENHUM SERVIDOR PÚBLICO É ESTRANGEIRO",
-        grupos: [
-          {
-            posicaoX: 130,
-            raioMaxX: 105,
-            raioMaxY: 75,
-            conjuntos: [
-              { nome: "Servidor Público" },
-              { nome: "Escrevente" }
-            ]
-          },
-          {
-            posicaoX: 320,
-            raioMaxX: 60,
-            raioMaxY: 60,
-            corBorda: "#EF4444",
-            corFundo: "rgba(239, 68, 68, 0.15)",
-            conjuntos: [
-              { nome: "Estrangeiro" }
-            ]
-          }
-        ],
-        conclusao: "Nenhum escrevente é estrangeiro.",
-        descricao: "O conjunto Escrevente está inteiramente dentro de Servidor Público. Como nenhum servidor público é estrangeiro, os conjuntos Estrangeiro e Servidor Público são totalmente disjuntos (não se cruzam)."
-      },
       subnos: [
         {
           titulo: "Validação Lógica VUNESP:",
-          itens: [
-            "Premissa 1: Todo Escrevente é Servidor Público (E ⊂ S)",
-            "Premissa 2: Nenhum Servidor Público é Estrangeiro (S ∩ Est = ∅)",
-            "Conclusão Necessária: Nenhum Escrevente é Estrangeiro (E ∩ Est = ∅)"
-          ]
+          itens: ["Premissa 1", "Premissa 2"]
         }
       ],
-      modalInfo: {
-        title: "Dica de Ouro VUNESP",
-        tag: "Estratégia",
-        casosPraticos: [
-          {
-            titulo: "PADRÃO DA BANCA:",
-            texto: "Se o conjunto maior (Servidor Público) não tem interseção com Estrangeiro, qualquer subconjunto contido nele (Escrevente) também JAMAIS poderá ter interseção com Estrangeiro."
-          }
-        ],
-        conclusoes: [
-          "Desenhe sempre os conjuntos inclusos juntos e coloque o conjunto excluído isolado do lado de fora."
-        ],
-        pegadinha: "Nunca coloque um elemento totalmente excluído dentro do diagrama principal!"
-      },
-      importante: true
+      revisar: false,
+      revisarParaProva: true
     }
   ]
 };
 
-const PROMPT_MESTRE_TEXTO = `Atue como Especialista e Mentor para o concurso do TJSP (Banca VUNESP).
-Gere um JSON estruturado estrito contendo obrigatoriamente a chave "ramos".
-
-REGRAS CRÍTICAS DE FORMATAÇÃO DO JSON (OBRIGATÓRIO):
-1. NUNCA insira quebras de linha literais dentro dos valores de texto/string (ex: NUNCA faça "titulo": "Linha 1 \\n Linha 2"). Mantenha todo o texto de cada campo em UMA ÚNICA LINHA sem dar Enter dentro de aspas.
-2. NUNCA utilize entidades HTML (como &#x20;, &nbsp;, &quot;).
-3. Mantenha todas as chaves de fechamento (}, ]) devidamente pareadas.
-4. Garanta que cada objeto dentro do array "ramos" possua um campo "id" único e descritivo.
-
-DIRETRIZES DE CRIAÇÃO LIBERADA DE GRÁFICOS E FLUXOGRAMAS:
-Seja extremamente criativo, didático e visual na elaboração do campo "grafico". Escolha o formato visual perfeito de acordo com a disciplina:
-
-1. PARA MATEMÁTICA / RACIOCÍNIO LÓGICO (Conjuntos, Silogismos, Venn):
-   Use "tipo": "conjuntos_misto" ou "conjuntos_aninhados" com elipses e posições X/Y.
-
-2. PARA DIREITO CONSTITUCIONAL / ADMINISTRATIVO / PENAL / PORTUGUÊS (Cards Comparativos, Quadrados, Retângulos, Tabelas Visuais):
-   Use "tipo": "cards_flexiveis" com a estrutura:
-   "grafico": {
-     "tipo": "cards_flexiveis",
-     "titulo": "Nacionalidade Brasileira (Art. 12, CF)",
-     "cards": [
-       {
-         "titulo": "Brasileiro Nato",
-         "icone": "👤",
-         "badge": "Art. 12, I",
-         "corFundo": "rgba(30, 58, 138, 0.4)",
-         "corBorda": "#3B82F6",
-         "corTitulo": "#60A5FA",
-         "subtitulo": "Critério de Origem",
-         "topicos": [
-           "Nascimento no Brasil (jus soli), salvo pais a serviço do seu país.",
-           "Nascimento no exterior de pai ou mãe brasileira a serviço do Brasil."
-         ]
-       },
-       {
-         "titulo": "Naturalizado",
-         "icone": "📜",
-         "badge": "Art. 12, II",
-         "corFundo": "rgba(120, 53, 15, 0.4)",
-         "corBorda": "#F59E0B",
-         "corTitulo": "#FBBF24",
-         "subtitulo": "Critério de Vontade / Requisitos",
-         "topicos": [
-           "Ordinária: 1 ano ininterrupto + idoneidade moral (países de língua portuguesa).",
-           "Extraordinária: mais de 15 anos + ausência de condenação penal."
-         ]
-       }
-     ],
-     "conclusao": "Brasileiro nato jamais será extraditado; naturalizado pode apenas em crime comum antes da naturalização ou tráfico ilícito.",
-     "descricao": "Resumo comparativo direto para questões de prova VUNESP."
-   }
-
-3. PARA FLUXOGRAMAS / PROCEDIMENTOS / PRAZOS PROCESSUAIS (Com Setas Conectoras):
-   Use "tipo": "fluxograma" com a estrutura:
-   "grafico": {
-     "tipo": "fluxograma",
-     "titulo": "Fluxograma de Naturalização Extraordinária",
-     "etapas": [
-       {
-         "titulo": "Ponto de Partida",
-         "destaque": "Qualquer Nacionalidade",
-         "corFundo": "rgba(24, 24, 27, 0.95)",
-         "corBorda": "#3F3F46",
-         "rotuloSeta": "Requisitos Temporais"
-       },
-       {
-         "titulo": "Exigência Principal",
-         "destaque": "Mais de 15 Anos Ininterruptos",
-         "descricao": "Residência contínua no Brasil sem infrações penais gravemente apenadas.",
-         "corFundo": "rgba(6, 78, 59, 0.4)",
-         "corBorda": "#10B981",
-         "corTexto": "#34D399"
-       }
-     ],
-     "conclusao": "A concessão extraordinária não exige idoneidade prévia em rol taxativo além da ausência de condenação."
-   }
-
-ESTRUTURA COMPLETA DO JSON EXIGIDA:
-{
-  "ramos": [
-    {
-      "id": "identificador-unico-12345",
-      "titulo": "Título do Tópico em linha única",
-      "artigos": "CF/88 Art. 12",
-      "tag": "Constitucional",
-      "assunto": "Nacionalidade",
-      "tipo": "conceito",
-      "grafico": { ... },
-      "subnos": [
-        {
-          "titulo": "Destaque da Legislação",
-          "itens": ["Ponto 1", "Ponto 2"]
-        }
-      ],
-      "modalInfo": {
-        "title": "Dica de Ouro VUNESP",
-        "tag": "Estratégia",
-        "casosPraticos": [
-          {
-            "titulo": "PADRÃO DA BANCA:",
-            "texto": "Explicação da pegadinha."
-          }
-        ],
-        "conclusoes": ["Conclusão para prova."],
-        "pegadinha": "Pegadinha clássica da VUNESP."
-      },
-      "importante": true
-    }
-  ]
-}
-
-Retorne EXCLUSIVAMENTE o JSON válido, sem markdown ou textos antes/depois. Explore ao máximo sua criatividade, didática e visualidade. Evite respostas vagas ou superficiais. Use exemplos práticos, diagramas, fluxogramas e cards comparativos para facilitar a compreensão do conteúdo.`;
+const PROMPT_MESTRE_TEXTO = `Atue como Especialista e Mentor para o concurso do TJSP (Banca VUNESP). Gere um JSON estruturado estrito contendo obrigatoriamente a chave "ramos".`;
 
 export default function MapaMentalPage() {
   const [mapasPorDisciplina, setMapasPorDisciplina] = useState<Record<string, any>>({});
@@ -756,31 +314,14 @@ export default function MapaMentalPage() {
   const [editandoRamoId, setEditandoRamoId] = useState<string | null>(null);
   const [novoAssuntoInput, setNovoAssuntoInput] = useState<string>('');
 
-  useEffect(() => {
-    carregarDadosSupabase();
-  }, []);
+  useEffect(() => { carregarDadosSupabase(); }, []);
 
   const carregarDadosSupabase = async () => {
     try {
       setCarregando(true);
-      
       let { data: dadosEspelho } = await supabase.from('temp_mapas_mentais').select('*');
       const { data: dadosPrincipal, error: erroPrincipal } = await supabase.from('mapas_mentais').select('*');
       if (erroPrincipal) throw erroPrincipal;
-
-      if ((!dadosEspelho || dadosEspelho.length === 0) && dadosPrincipal && dadosPrincipal.length > 0) {
-        for (const item of dadosPrincipal) {
-          await supabase.from('temp_mapas_mentais').upsert({
-            disciplina: item.disciplina,
-            titulo: item.titulo,
-            banca: item.banca,
-            ramos: item.ramos,
-            backed_up_at: new Date().toISOString()
-          }, { onConflict: 'disciplina' });
-        }
-        const resEspelho = await supabase.from('temp_mapas_mentais').select('*');
-        dadosEspelho = resEspelho.data;
-      }
 
       const dadosParaUsar = (dadosEspelho && dadosEspelho.length > 0) ? dadosEspelho : dadosPrincipal;
 
@@ -797,10 +338,7 @@ export default function MapaMentalPage() {
             const assuntoDefinitivo = r.assunto && r.assunto.trim() !== ""
               ? r.assunto
               : (r.titulo ? r.titulo.replace(/^[📌📍🚩⚡0-9.\-\)]+\s*/, '').trim() : "Geral");
-            return {
-              ...r,
-              assunto: assuntoDefinitivo
-            };
+            return { ...r, assunto: assuntoDefinitivo };
           }) : [];
 
           mapaFormatado[item.disciplina] = {
@@ -813,7 +351,7 @@ export default function MapaMentalPage() {
         setMapasPorDisciplina(mapaFormatado);
       }
     } catch (e) {
-      console.error("Erro ao carregar:", e);
+      console.error(e);
     } finally {
       setCarregando(false);
     }
@@ -821,12 +359,7 @@ export default function MapaMentalPage() {
 
   const salvarNoSupabaseComBackup = async (disciplinaAlvo: string, payloadMapa: any) => {
     try {
-      const { data: dadosAtuais } = await supabase
-        .from('mapas_mentais')
-        .select('*')
-        .eq('disciplina', disciplinaAlvo)
-        .maybeSingle();
-
+      const { data: dadosAtuais } = await supabase.from('mapas_mentais').select('*').eq('disciplina', disciplinaAlvo).maybeSingle();
       if (dadosAtuais) {
         await supabase.from('temp_mapas_mentais').upsert({
           disciplina: dadosAtuais.disciplina,
@@ -848,71 +381,27 @@ export default function MapaMentalPage() {
       if (error) throw error;
       setMapasPorDisciplina(prev => ({ ...prev, [disciplinaAlvo]: payloadMapa }));
     } catch (e) {
-      alert("Erro crítico ao salvar no banco. O backup temp_mapas_mentais foi preservado.");
+      alert("Erro ao salvar no banco.");
     }
   };
 
   const handleCarregarJson = async () => {
     try {
       let textoLimpo = jsonInputText.trim();
-
-      // 1. Remove blocos de código Markdown (```json ... ```) se houver
       if (textoLimpo.startsWith('```')) {
         textoLimpo = textoLimpo.replace(/^```(json)?/i, '').replace(/```$/, '').trim();
       }
-
-      // 2. PRIMEIRA HIGIENIZAÇÃO: Remove entidades HTML comuns primeiro
-      textoLimpo = textoLimpo
-        .replace(/&#x20;/gi, ' ')
-        .replace(/&nbsp;/gi, ' ')
-        .replace(/&quot;/gi, '"')
-        .replace(/&amp;/gi, '&')
-        .replace(/&lt;/gi, '<')
-        .replace(/&gt;/gi, '>');
-
-      // 3. SEGUNDA HIGIENIZAÇÃO: Remove barras invertidas soltas no final de cada linha antes de remover as quebras
-      textoLimpo = textoLimpo.replace(/\\+\s*$/gm, '');
-
-      // 4. TERCEIRA HIGIENIZAÇÃO: Converte quebras de linha em espaços
       textoLimpo = textoLimpo.replace(/\r?\n/g, ' ');
-
-      // 5. Remove vírgulas sobressalentes antes de fechamentos de objetos ou arrays
-      textoLimpo = textoLimpo.replace(/,\s*([\]}])/g, '$1');
-
-      let parsed;
-      try {
-        parsed = JSON.parse(textoLimpo);
-      } catch (errParse) {
-        // Tentativa secundária de higienização de aspas duplas e escapes corrompidos
-        try {
-          const sanetizado = textoLimpo
-            .replace(/[\u0000-\u001F\u007F-\u009F]/g, "")
-            .replace(/\\"/g, '"')
-            .replace(/\\\\/g, '\\');
-          parsed = JSON.parse(sanetizado);
-        } catch (err2) {
-          throw new Error("O JSON colado possui falhas de aspas ou foi cortado no final.");
-        }
-      }
+      let parsed = JSON.parse(textoLimpo);
 
       if (parsed && parsed.ramos && Array.isArray(parsed.ramos)) {
         const mapaExistente = mapasPorDisciplina[modalDisciplinaAlvo];
         let novosRamosValidos = parsed.ramos.filter(Boolean);
 
-        // PRESERVAÇÃO SEGURA DOS RAMOS ANTERIORES
         if (mapaExistente && mapaExistente.ramos) {
           const ramosAtualizadosMap = new Map();
-          
-          mapaExistente.ramos.forEach((r: any) => {
-            if (r && r.id) ramosAtualizadosMap.set(r.id, r);
-          });
-          
-          novosRamosValidos.forEach((r: any) => {
-            if (r && r.id) {
-              ramosAtualizadosMap.set(r.id, r);
-            }
-          });
-
+          mapaExistente.ramos.forEach((r: any) => { if (r && r.id) ramosAtualizadosMap.set(r.id, r); });
+          novosRamosValidos.forEach((r: any) => { if (r && r.id) ramosAtualizadosMap.set(r.id, r); });
           novosRamosValidos = Array.from(ramosAtualizadosMap.values());
         }
 
@@ -927,56 +416,47 @@ export default function MapaMentalPage() {
         setShowJsonModal(false);
         setJsonInputText('');
         setSelectedDisciplina(modalDisciplinaAlvo);
-        setSelectedAssunto('all');
-        alert(`Conteúdo incorporado com segurança para ${modalDisciplinaAlvo}! Seus ramos anteriores foram preservados.`);
+        alert(`Conteúdo incorporado com segurança para ${modalDisciplinaAlvo}!`);
       } else {
-        alert('O JSON precisa conter obrigatoriamente a chave "ramos".');
+        alert('O JSON precisa conter a chave "ramos".');
       }
     } catch (e: any) {
-      alert(`Erro de sintaxe no JSON: ${e.message || 'Verifique o formato do texto.'}`);
+      alert(`Erro no JSON: ${e.message}`);
     }
   };
 
-  const toggleImportante = async (ramoId: string) => {
+  // Funções atualizadas para persistir as duas bandeiras na tabela principal
+  const toggleRevisar = async (ramoId: string) => {
     if (!mapaAtual) return;
-
     const ramosAtualizados = mapaAtual.ramos.map((r: any) => {
-      if (r && r.id === ramoId) {
-        return { ...r, importante: !r.importante };
-      }
+      if (r && r.id === ramoId) return { ...r, revisar: !r.revisar };
       return r;
     });
+    await salvarNoSupabaseComBackup(selectedDisciplina, { ...mapaAtual, ramos: ramosAtualizados });
+  };
 
-    const payloadAtualizado = {
-      ...mapaAtual,
-      ramos: ramosAtualizados
-    };
-
-    await salvarNoSupabaseComBackup(selectedDisciplina, payloadAtualizado);
+  const toggleRevisarParaProva = async (ramoId: string) => {
+    if (!mapaAtual) return;
+    const ramosAtualizados = mapaAtual.ramos.map((r: any) => {
+      if (r && r.id === ramoId) return { ...r, revisarParaProva: !r.revisarParaProva };
+      return r;
+    });
+    await salvarNoSupabaseComBackup(selectedDisciplina, { ...mapaAtual, ramos: ramosAtualizados });
   };
 
   const salvarAssuntoEditado = async (ramoId: string) => {
     if (!mapaAtual) return;
-
     const ramosAtualizados = mapaAtual.ramos.map((r: any) => {
-      if (r && r.id === ramoId) {
-        return { ...r, assunto: novoAssuntoInput };
-      }
+      if (r && r.id === ramoId) return { ...r, assunto: novoAssuntoInput };
       return r;
     });
-
-    const payloadAtualizado = {
-      ...mapaAtual,
-      ramos: ramosAtualizados
-    };
-
-    await salvarNoSupabaseComBackup(selectedDisciplina, payloadAtualizado);
+    await salvarNoSupabaseComBackup(selectedDisciplina, { ...mapaAtual, ramos: ramosAtualizados });
     setEditandoRamoId(null);
   };
 
   const excluirRamo = async (ramoId: string) => {
     if (!mapaAtual) return;
-    if (confirm("Deseja apagar este tópico de revisão?")) {
+    if (confirm("Deseja apagar este tópico?")) {
       const novosRamos = mapaAtual.ramos.filter((r: any) => r && r.id !== ramoId);
       if (novosRamos.length === 0) {
         await supabase.from('mapas_mentais').delete().eq('disciplina', selectedDisciplina);
@@ -984,10 +464,8 @@ export default function MapaMentalPage() {
         delete novoEstado[selectedDisciplina];
         setMapasPorDisciplina(novoEstado);
       } else {
-        const novoMapa = { ...mapaAtual, ramos: novosRamos };
-        await salvarNoSupabaseComBackup(selectedDisciplina, novoMapa);
+        await salvarNoSupabaseComBackup(selectedDisciplina, { ...mapaAtual, ramos: novosRamos });
       }
-      setSelectedAssunto('all');
     }
   };
 
@@ -1000,22 +478,14 @@ export default function MapaMentalPage() {
   const mapaAtual = selectedDisciplina !== "Todas as Matérias" ? mapasPorDisciplina[selectedDisciplina] : null;
 
   const assuntosUnicos = mapaAtual?.ramos && Array.isArray(mapaAtual.ramos)
-    ? Array.from(new Set(mapaAtual.ramos.filter(Boolean).map((r: any) => {
-        if (!r) return null;
-        return r.assunto && r.assunto.trim() !== "" 
-          ? r.assunto 
-          : (r.titulo ? r.titulo.replace(/^[📌📍🚩⚡0-9.\-\)]+\s*/, '').trim() : "Geral");
-      }).filter(Boolean)))
+    ? Array.from(new Set(mapaAtual.ramos.filter(Boolean).map((r: any) => r.assunto || "Geral")))
     : [];
 
   const ramosExibir = mapaAtual?.ramos && Array.isArray(mapaAtual.ramos) 
     ? mapaAtual.ramos.filter((r: any) => {
         if (!r) return false;
         if (selectedAssunto === 'all') return true;
-        const assuntoRamo = r.assunto && r.assunto.trim() !== "" 
-          ? r.assunto 
-          : (r.titulo ? r.titulo.replace(/^[📌📍🚩⚡0-9.\-\)]+\s*/, '').trim() : "Geral");
-        return assuntoRamo === selectedAssunto;
+        return (r.assunto || "Geral") === selectedAssunto;
       }) 
     : [];
 
@@ -1031,23 +501,20 @@ export default function MapaMentalPage() {
               <span className="bg-blue-500/20 text-blue-400 text-xs font-bold px-2.5 py-0.5 rounded-full border border-blue-500/30">TJSP - VUNESP</span>
               <span className="bg-emerald-500/20 text-emerald-400 font-bold text-xs px-2.5 py-0.5 rounded-full border border-emerald-500/30">Backup Automático Ativo 🟢</span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-black text-white mt-1 tracking-tight">
+            <h1 className="text-2xl sm:text-3xl font-black text-white mt-1">
               {mapaAtual ? mapaAtual.titulo : "Painel de Revisão Estratégica"}
             </h1>
           </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => {
-                setModalDisciplinaAlvo(selectedDisciplina !== "Todas as Matérias" ? selectedDisciplina : DISCIPLINAS_TJSP[0]);
-                setJsonInputText(JSON.stringify(mapaInicialExemplo, null, 2));
-                setShowJsonModal(true);
-              }}
-              className="text-xs font-bold px-4 py-2.5 rounded-xl border border-amber-400/50 bg-amber-400 hover:bg-amber-500 text-zinc-950 transition-all flex items-center gap-1.5 shadow-md cursor-pointer"
-            >
-              Novo Mapa
-            </button>
-          </div>
+          <button
+            onClick={() => {
+              setModalDisciplinaAlvo(selectedDisciplina !== "Todas as Matérias" ? selectedDisciplina : DISCIPLINAS_TJSP[0]);
+              setShowJsonModal(true);
+            }}
+            className="text-xs font-bold px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-500 text-zinc-950 transition-all shadow-md cursor-pointer"
+          >
+            Novo Mapa
+          </button>
         </div>
 
         <div className="bg-zinc-950 border border-zinc-800 p-4 rounded-2xl shadow-lg flex flex-col md:flex-row items-center gap-4">
@@ -1055,16 +522,13 @@ export default function MapaMentalPage() {
             <span className="text-xs font-bold text-zinc-400 whitespace-nowrap">Matéria:</span>
             <select 
               value={selectedDisciplina}
-              onChange={(e) => {
-                setSelectedDisciplina(e.target.value);
-                setSelectedAssunto('all');
-              }}
+              onChange={(e) => { setSelectedDisciplina(e.target.value); setSelectedAssunto('all'); }}
               className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 text-xs rounded-xl px-3 py-2.5 outline-none focus:border-amber-400 font-semibold cursor-pointer"
             >
               <option value="Todas as Matérias">Todas as Matérias</option>
               {DISCIPLINAS_TJSP.map((disc) => (
                 <option key={disc} value={disc}>
-                  {disc} {mapasPorDisciplina && mapasPorDisciplina[disc] ? "🟢" : "⚪"}
+                  {disc} {mapasPorDisciplina[disc] ? "🟢" : "⚪"}
                 </option>
               ))}
             </select>
@@ -1080,134 +544,79 @@ export default function MapaMentalPage() {
             >
               <option value="all">Todos os Assuntos</option>
               {assuntosUnicos.map((assunto: any, idx: number) => (
-                <option key={idx} value={assunto}>
-                  {assunto}
-                </option>
+                <option key={idx} value={assunto}>{assunto}</option>
               ))}
             </select>
           </div>
         </div>
 
         <div className="bg-zinc-950 rounded-3xl border border-zinc-800 shadow-2xl relative overflow-hidden p-6 sm:p-10 min-h-[70vh]">
-          
           {carregando ? (
-            <div className="flex items-center justify-center p-20 text-zinc-400 text-sm">
-              Carregando dados da nuvem...
-            </div>
+            <div className="flex items-center justify-center p-20 text-zinc-400 text-sm">Carregando dados...</div>
           ) : selectedDisciplina === "Todas as Matérias" ? (
-            <div className="flex flex-col items-center justify-center text-center p-20 space-y-3">
-              <p className="text-base text-zinc-400 font-medium">Selecione uma disciplina para visualizar o conteúdo detalhado em tela cheia.</p>
-            </div>
+            <div className="flex items-center justify-center text-center p-20 text-zinc-400">Selecione uma disciplina para visualizar os conteúdos.</div>
           ) : !mapaAtual ? (
             <div className="flex flex-col items-center justify-center text-center p-20 space-y-3">
-              <p className="text-base text-zinc-300 font-medium">Nenhum registro encontrado para <b>{selectedDisciplina}</b>.</p>
-              <button 
-                onClick={() => { setModalDisciplinaAlvo(selectedDisciplina); setShowJsonModal(true); }}
-                className="px-5 py-3 bg-amber-400 text-zinc-950 font-extrabold rounded-xl text-xs shadow-md hover:bg-amber-500 transition-all cursor-pointer"
-              >
-                Cadastrar via JSON
-              </button>
+              <p className="text-zinc-300">Nenhum registro para <b>{selectedDisciplina}</b>.</p>
+              <button onClick={() => { setModalDisciplinaAlvo(selectedDisciplina); setShowJsonModal(true); }} className="px-5 py-3 bg-amber-400 text-zinc-950 font-extrabold rounded-xl text-xs cursor-pointer">Cadastrar via JSON</button>
             </div>
           ) : ramosExibir.length === 0 ? (
-            <div className="flex items-center justify-center p-20 text-zinc-500 text-sm">
-              Nenhum tópico correspondente.
-            </div>
+            <div className="flex items-center justify-center p-20 text-zinc-500 text-sm">Nenhum tópico correspondente.</div>
           ) : (
             <div className="space-y-12">
               {ramosExibir.map((ramo: any) => {
                 if (!ramo) return null;
                 const estaEditando = editandoRamoId === ramo.id;
-                const assuntoExibicao = ramo.assunto || "Sem Assunto";
-                const ehImportante = ramo.importante === true;
+                const ehRevisarParaProva = ramo.revisarParaProva === true;
+                const ehRevisarGeral = ramo.revisar === true;
 
                 return (
                   <TextoGrifavel key={ramo.id} idUnico={ramo.id}>
-                    <div 
-                      className={`rounded-2xl p-6 sm:p-8 shadow-xl space-y-6 relative transition-all border ${
-                        ehImportante 
-                          ? 'bg-amber-950/20 border-amber-400/60 shadow-amber-500/10' 
-                          : 'bg-zinc-900/60 border-zinc-800/80'
-                      }`}
-                    >
-                      <div className={`flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b gap-3 ${ehImportante ? 'border-amber-400/40' : 'border-zinc-800'}`}>
+                    <div className={`rounded-2xl p-6 sm:p-8 shadow-xl space-y-6 relative border transition-all ${
+                      ehRevisarParaProva ? 'bg-rose-950/20 border-rose-500/60' : ehRevisarGeral ? 'bg-amber-950/20 border-amber-500/60' : 'bg-zinc-900/60 border-zinc-800/80'
+                    }`}>
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-zinc-800 gap-3">
                         <div className="space-y-1 w-full">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className={`text-xs font-bold uppercase tracking-wider px-2.5 py-1 rounded-md border ${
-                              ehImportante 
-                                ? 'text-amber-300 bg-amber-400/20 border-amber-400/40' 
-                                : 'text-amber-400 bg-amber-400/10 border-amber-400/20'
-                            }`}>
+                            <span className="text-xs font-bold uppercase tracking-wider px-2.5 py-1 rounded-md border text-amber-400 bg-amber-400/10 border-amber-400/20">
                               {selectedDisciplina}
                             </span>
-
                             {!estaEditando ? (
                               <div className="flex items-center gap-2">
-                                <span className="text-xs font-semibold text-zinc-300">
-                                  • {assuntoExibicao}
-                                </span>
-                                <button
-                                  onClick={() => {
-                                    setEditandoRamoId(ramo.id);
-                                    setNovoAssuntoInput(ramo.assunto || '');
-                                  }}
-                                  className="text-[10px] text-amber-400 hover:underline bg-zinc-900 px-2 py-0.5 rounded border border-amber-400/20 cursor-pointer"
-                                >
-                                  ✏️ Editar Assunto
-                                </button>
+                                <span className="text-xs font-semibold text-zinc-300">• {ramo.assunto || "Geral"}</span>
+                                <button onClick={() => { setEditandoRamoId(ramo.id); setNovoAssuntoInput(ramo.assunto || ''); }} className="text-[10px] text-amber-400 hover:underline bg-zinc-900 px-2 py-0.5 rounded border border-amber-400/20 cursor-pointer">✏️ Editar</button>
                               </div>
                             ) : (
                               <div className="flex items-center gap-2 mt-1">
-                                <input
-                                  type="text"
-                                  value={novoAssuntoInput}
-                                  onChange={(e) => setNovoAssuntoInput(e.target.value)}
-                                  className="bg-zinc-900 border border-amber-400 text-zinc-100 text-xs px-2.5 py-1 rounded-lg outline-none"
-                                  placeholder="Novo assunto..."
-                                />
-                                <button
-                                  onClick={() => salvarAssuntoEditado(ramo.id)}
-                                  className="px-3 py-1 bg-amber-400 text-zinc-950 text-xs font-bold rounded-lg cursor-pointer"
-                                >
-                                  Salvar
-                                </button>
-                                <button
-                                  onClick={() => setEditandoRamoId(null)}
-                                  className="px-2 py-1 bg-zinc-800 text-zinc-400 text-xs rounded-lg cursor-pointer"
-                                >
-                                  Cancelar
-                                </button>
+                                <input type="text" value={novoAssuntoInput} onChange={(e) => setNovoAssuntoInput(e.target.value)} className="bg-zinc-900 border border-amber-400 text-zinc-100 text-xs px-2.5 py-1 rounded-lg outline-none" />
+                                <button onClick={() => salvarAssuntoEditado(ramo.id)} className="px-3 py-1 bg-amber-400 text-zinc-950 text-xs font-bold rounded-lg cursor-pointer">Salvar</button>
                               </div>
                             )}
                           </div>
-
-                          <h2 className="text-lg sm:text-xl font-extrabold text-white tracking-tight pt-2">
-                            {ramo.titulo ? ramo.titulo.replace(/^[📌📍🚩⚡]\s*/, '') : "Tópico de Revisão"}
-                          </h2>
+                          <h2 className="text-lg sm:text-xl font-extrabold text-white tracking-tight pt-2">{ramo.titulo}</h2>
                         </div>
 
-                        <div className="flex items-center gap-2 self-start sm:self-center shrink-0">
+                        {/* BOTÕES DE FLAG INTERATIVOS E SINCRONIZADOS */}
+                        <div className="flex items-center gap-2 self-start sm:self-center shrink-0 flex-wrap">
                           <button
-                            onClick={() => toggleImportante(ramo.id)}
-                            className={`text-xs font-extrabold px-3 py-1 rounded-lg border transition-all cursor-pointer shadow-md ${
-                              ehImportante
-                                ? 'bg-amber-400 text-zinc-950 border-amber-300 ring-2 ring-amber-400/50'
-                                : 'bg-zinc-950 text-amber-400/70 border-amber-500/30 hover:text-amber-400 hover:border-amber-400/50'
+                            onClick={() => toggleRevisarParaProva(ramo.id)}
+                            className={`text-xs font-extrabold px-3 py-1.5 rounded-lg border transition-all cursor-pointer shadow-md ${
+                              ramo.revisarParaProva ? 'bg-rose-600 text-white border-rose-400 ring-2 ring-rose-500/50' : 'bg-zinc-950 text-rose-400/70 border-rose-500/30 hover:text-rose-400'
                             }`}
                           >
-                            ⭐ Importante
+                            🔥 Revisar p/ Prova
                           </button>
-
-                          <span className="text-xs font-bold px-3 py-1 rounded-lg bg-zinc-950 text-amber-400 border border-amber-400/30 whitespace-nowrap">
-                            {ramo.tag}
-                          </span>
 
                           <button
-                            onClick={() => excluirRamo(ramo.id)}
-                            className="text-zinc-500 hover:text-rose-400 bg-zinc-950 p-2 rounded-lg border border-zinc-800 hover:border-rose-500/40 transition-all text-xs cursor-pointer"
-                            title="Apagar este tópico"
+                            onClick={() => toggleRevisar(ramo.id)}
+                            className={`text-xs font-extrabold px-3 py-1.5 rounded-lg border transition-all cursor-pointer shadow-md ${
+                              ramo.revisar ? 'bg-amber-400 text-zinc-950 border-amber-300 ring-2 ring-amber-400/50' : 'bg-zinc-950 text-amber-400/70 border-amber-500/30 hover:text-amber-400'
+                            }`}
                           >
-                            ✕
+                            📌 Revisar Geral
                           </button>
+
+                          <button onClick={() => excluirRamo(ramo.id)} className="text-zinc-500 hover:text-rose-400 bg-zinc-950 p-2 rounded-lg border border-zinc-800 transition-all text-xs cursor-pointer" title="Apagar">✕</button>
                         </div>
                       </div>
 
@@ -1215,45 +624,18 @@ export default function MapaMentalPage() {
 
                       <div className="space-y-6">
                         {ramo.subnos && ramo.subnos.map((sub: any, idx: number) => (
-                          <div 
-                            key={idx} 
-                            className={`p-5 sm:p-6 rounded-xl border-l-4 border-amber-400 shadow-md space-y-3 transition-all ${
-                              ehImportante 
-                                ? 'bg-zinc-900/90 border-t border-r border-b border-amber-400/40' 
-                                : 'bg-zinc-950 border-t border-r border-b border-zinc-800/80'
-                            } ${ramo.tipo === 'exatas' ? 'font-mono' : ''}`}
-                          >
-                            {sub.titulo && (
-                              <h3 className="text-sm sm:text-base font-bold text-amber-300 leading-snug">
-                                {sub.titulo}
-                              </h3>
-                            )}
-                            {sub.descricao && (
-                              <p className="text-zinc-300 text-xs sm:text-sm leading-relaxed font-medium">
-                                {sub.descricao}
-                              </p>
-                            )}
-                            {sub.itens && sub.itens.length > 0 && (
-                              <ul className="text-xs sm:text-sm text-zinc-200 space-y-2.5 pt-2 border-t border-zinc-900 font-medium">
-                                {sub.itens.map((item: string, iIdx: number) => (
-                                  <li key={iIdx} className="leading-relaxed flex items-start gap-2.5">
-                                    <span className="text-amber-400 font-bold select-none mt-0.5">•</span>
-                                    <span className="flex-1">{item}</span>
-                                  </li>
+                          <div key={idx} className="p-5 sm:p-6 rounded-xl border-l-4 border-amber-400 shadow-md space-y-3 bg-zinc-950 border-t border-r border-b border-zinc-800/80">
+                            {sub.titulo && <h3 className="text-sm font-bold text-amber-300">{sub.titulo}</h3>}
+                            {sub.descricao && <p className="text-zinc-300 text-xs sm:text-sm">{sub.descricao}</p>}
+                            {sub.itens && (
+                              <ul className="text-xs sm:text-sm text-zinc-200 space-y-2 pt-2 border-t border-zinc-900">
+                                {sub.itens.map((item: string, i: number) => (
+                                  <li key={i} className="flex items-start gap-2"><span className="text-amber-400">•</span><span>{item}</span></li>
                                 ))}
                               </ul>
                             )}
                           </div>
                         ))}
-                      </div>
-
-                      <div className="pt-2">
-                        <button 
-                          onClick={() => setActiveModal(ramo.id)} 
-                          className="w-full py-3.5 bg-amber-400 hover:bg-amber-300 text-zinc-950 text-xs sm:text-sm font-black rounded-xl border border-amber-500 transition-all flex items-center justify-center gap-2 shadow-lg cursor-pointer"
-                        >
-                          💡 Ver Exemplo Prático e Pegadinha VUNESP
-                        </button>
                       </div>
                     </div>
                   </TextoGrifavel>
@@ -1263,156 +645,22 @@ export default function MapaMentalPage() {
           )}
         </div>
 
-        <div className="bg-zinc-950 p-6 rounded-2xl border border-zinc-800 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <span className="bg-amber-400 text-zinc-950 font-bold text-xs px-2.5 py-0.5 rounded-full">Mentor VUNESP</span>
-              <h2 className="text-sm font-bold text-white">Prompt Mestre com Marca-Texto e Suporte Grafico</h2>
-            </div>
-            <p className="text-xs text-zinc-400">
-              Gera conteúdos estruturados com IDs seguros, grifos de texto e diagramas visuais.
-            </p>
-          </div>
-
-          <button
-            onClick={copiarPromptMestre}
-            className={`px-4 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center gap-2 whitespace-nowrap shadow-md cursor-pointer ${
-              copiadoPrompt 
-                ? 'bg-emerald-600 text-white border border-emerald-500' 
-                : 'bg-amber-400 hover:bg-amber-500 text-zinc-950 border border-amber-500'
-            }`}
-          >
-            {copiadoPrompt ? 'Prompt Copiado!' : 'Copiar Prompt Mestre'}
-          </button>
-        </div>
-
       </main>
 
-      {activeModal && mapaAtual && (
-        (() => {
-          const ramoModal = mapaAtual.ramos.find((r: any) => r && r.id === activeModal);
-          if (!ramoModal || !ramoModal.modalInfo) return null;
-          const info = ramoModal.modalInfo;
-          return (
-            <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
-              <div className="bg-zinc-950 border border-zinc-800 rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl relative space-y-4">
-                
-                <button 
-                  onClick={() => setActiveModal(null)} 
-                  className="absolute top-4 right-4 text-zinc-400 hover:text-white bg-zinc-900 p-2.5 rounded-full border border-zinc-800 transition-all cursor-pointer"
-                >
-                  ✕
-                </button>
-
-                <div className="flex items-center gap-3">
-                  <div>
-                    <span className="text-xs font-bold px-2.5 py-0.5 rounded-full border bg-amber-400 text-zinc-950 border-amber-500">
-                      {info.tag}
-                    </span>
-                    <h2 className="text-lg font-bold text-white mt-1">{info.title}</h2>
-                  </div>
-                </div>
-
-                <div className="space-y-4 text-xs text-zinc-300 max-h-[65vh] overflow-y-auto pr-1">
-                  {info.casosPraticos && info.casosPraticos.map((caso: any, idx: number) => (
-                    <div key={idx} className="p-4 bg-zinc-900 rounded-2xl border border-zinc-800 space-y-2 shadow-inner">
-                      <p className="font-bold text-amber-400 uppercase tracking-wide">
-                        {caso.titulo}
-                      </p>
-                      <p className="text-zinc-200 text-xs sm:text-sm leading-relaxed">{caso.texto}</p>
-                      
-                      {info.conclusoes && info.conclusoes[idx] && (
-                        <p className="text-amber-300 text-xs sm:text-sm leading-relaxed font-semibold pt-2 border-t border-zinc-800">
-                          {info.conclusoes[idx]}
-                        </p>
-                      )}
-                    </div>
-                  ))}
-
-                  {info.pegadinha && (
-                    <div className="p-4 bg-zinc-900 rounded-2xl border border-amber-400/40 text-amber-200 space-y-1.5 shadow-lg">
-                      <p className="font-bold uppercase tracking-wider text-amber-400">
-                        PEGADINHA VUNESP:
-                      </p>
-                      <p className="leading-relaxed text-zinc-300 text-xs sm:text-sm">{info.pegadinha}</p>
-                    </div>
-                  )}
-                </div>
-
-                <div className="pt-2 border-t border-zinc-800 flex justify-end">
-                  <button 
-                    onClick={() => setActiveModal(null)} 
-                    className="w-full sm:w-auto px-6 py-3 bg-amber-400 hover:bg-amber-300 text-zinc-950 font-black rounded-xl text-xs sm:text-sm transition-all shadow-lg cursor-pointer"
-                  >
-                    Entendi! Voltar ao Painel
-                  </button>
-                </div>
-
-              </div>
-            </div>
-          );
-        })()
-      )}
-
+      {/* Modal de JSON */}
       {showJsonModal && (
         <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="bg-zinc-950 border border-zinc-800 rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl relative space-y-4">
-            
-            <button 
-              onClick={() => setShowJsonModal(false)} 
-              className="absolute top-4 right-4 text-red-400 hover:text-white bg-zinc-900 w-9 h-9 flex items-center justify-center rounded-full border border-red-500/40 transition-all shadow-md cursor-pointer"
-            >
-              ✕
-            </button>
-
-            <div className="flex items-center gap-3 pr-10">
-              <div className="w-12 h-12 rounded-2xl flex items-center justify-center bg-amber-400 text-zinc-950 font-bold shadow-inner flex-shrink-0">
-               🥷
-              </div>
-              <div>
-                <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full border bg-amber-400 text-zinc-950 border-amber-500">
-                  Gerenciador com Backup em Nuvem
-                </span>
-                <h2 className="text-lg font-bold text-white mt-1">Adicionar novo mapa / tópico com Segurança</h2>
-              </div>
-            </div>
-
-            <div className="space-y-1.5 pt-2">
-              <label className="text-xs font-bold text-zinc-300">Disciplina Alvo:</label>
-              <select 
-                value={modalDisciplinaAlvo}
-                onChange={(e) => setModalDisciplinaAlvo(e.target.value)}
-                className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 text-xs rounded-xl px-3 py-2.5 outline-none focus:border-amber-400 font-semibold cursor-pointer"
-              >
-                {DISCIPLINAS_TJSP.map((disc) => (
-                  <option key={disc} value={disc}>{disc}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-zinc-300">Cole o JSON gerado pelo Prompt Mestre:</label>
-              <textarea
-                value={jsonInputText}
-                onChange={(e) => setJsonInputText(e.target.value)}
-                className="w-full h-44 bg-zinc-900 text-amber-300 p-3.5 rounded-2xl border border-zinc-800 font-mono text-xs outline-none focus:border-amber-400 resize-none shadow-inner"
-                placeholder="Cole o JSON aqui..."
-              />
-            </div>
-
-            <div className="pt-2 border-t border-zinc-800 flex items-center justify-between">
-              <span className="text-[11px] text-zinc-500">Cria cópia em temp_mapas_mentais antes de salvar.</span>
-              <button 
-                onClick={handleCarregarJson} 
-                className="px-5 py-2.5 bg-amber-400 hover:bg-amber-500 text-zinc-950 font-extrabold rounded-xl text-xs transition-all flex items-center gap-1.5 shadow-md cursor-pointer"
-              >
-                Salvar com Backup Automático
-              </button>
-            </div>
+            <button onClick={() => setShowJsonModal(false)} className="absolute top-4 right-4 text-red-400 bg-zinc-900 w-9 h-9 flex items-center justify-center rounded-full cursor-pointer">✕</button>
+            <h2 className="text-lg font-bold text-white">Adicionar novo mapa / tópico</h2>
+            <select value={modalDisciplinaAlvo} onChange={(e) => setModalDisciplinaAlvo(e.target.value)} className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 text-xs rounded-xl px-3 py-2.5">
+              {DISCIPLINAS_TJSP.map((disc) => <option key={disc} value={disc}>{disc}</option>)}
+            </select>
+            <textarea value={jsonInputText} onChange={(e) => setJsonInputText(e.target.value)} className="w-full h-44 bg-zinc-900 text-amber-300 p-3.5 rounded-2xl border border-zinc-800 font-mono text-xs outline-none" placeholder="Cole o JSON aqui..." />
+            <button onClick={handleCarregarJson} className="w-full py-2.5 bg-amber-400 hover:bg-amber-500 text-zinc-950 font-extrabold rounded-xl text-xs cursor-pointer">Salvar com Backup Automático</button>
           </div>
         </div>
       )}
-
     </div>
   );
 }

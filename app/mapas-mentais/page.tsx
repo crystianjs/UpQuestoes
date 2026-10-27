@@ -208,7 +208,6 @@ function TextoGrifavel({ children, idUnico }: { children: React.ReactNode; idUni
 function LogicalDiagram({ grafico }: { grafico: any }) {
   if (!grafico) return null;
 
-  const tipo = (grafico.tipo || 'universal').toLowerCase();
   const listaItens = Array.isArray(grafico.elementos) ? grafico.elementos
                    : Array.isArray(grafico.conjuntos) ? grafico.conjuntos
                    : Array.isArray(grafico.grupos) ? grafico.grupos
@@ -297,7 +296,119 @@ const mapaInicialExemplo = {
   ]
 };
 
-const PROMPT_MESTRE_TEXTO = `Atue como Especialista e Mentor para o concurso do TJSP (Banca VUNESP). Gere um JSON estruturado estrito contendo obrigatoriamente a chave "ramos".`;
+const PROMPT_MESTRE_TEXTO = `Atue como Especialista e Mentor para o concurso do TJSP (Banca VUNESP).
+Gere um JSON estruturado estrito contendo obrigatoriamente a chave "ramos".
+
+REGRAS CRÍTICAS DE FORMATAÇÃO DO JSON (OBRIGATÓRIO):
+1. NUNCA insira quebras de linha literais dentro dos valores de texto/string (ex: NUNCA faça "titulo": "Linha 1 
+\\n Linha 2"). Mantenha todo o texto de cada campo em UMA ÚNICA LINHA sem dar Enter dentro de aspas.
+2. NUNCA utilize entidades HTML (como &#x20;, &nbsp;, &quot;).
+3. Mantenha todas as chaves de fechamento (}, ]) devidamente pareadas.
+4. Garanta que cada objeto dentro do array "ramos" possua um campo "id" único e descritivo.
+
+DIRETRIZES DE CRIAÇÃO LIBERADA DE GRÁFICOS E FLUXOGRAMAS:
+Seja extremamente criativo, didático e visual na elaboração do campo "grafico". Escolha o formato visual perfeito de acordo com a disciplina:
+
+1. PARA MATEMÁTICA / RACIOCÍNIO LÓGICO (Conjuntos, Silogismos, Venn):
+   Use "tipo": "conjuntos_misto" ou "conjuntos_aninhados" com elipses e posições X/Y.
+
+2. PARA DIREITO CONSTITUCIONAL / ADMINISTRATIVO / PENAL / PORTUGUÊS (Cards Comparativos, Quadrados, Retângulos, Tabelas Visuais):
+   Use "tipo": "cards_flexiveis" com a estrutura:
+   "grafico": {
+     "tipo": "cards_flexiveis",
+     "titulo": "Nacionalidade Brasileira (Art. 12, CF)",
+     "cards": [
+       {
+         "titulo": "Brasileiro Nato",
+         "icone": "👤",
+         "badge": "Art. 12, I",
+         "corFundo": "rgba(30, 58, 138, 0.4)",
+         "corBorda": "#3B82F6",
+         "corTitulo": "#60A5FA",
+         "subtitulo": "Critério de Origem",
+         "topicos": [
+           "Nascimento no Brasil (jus soli), salvo pais a serviço do seu país.",
+           "Nascimento no exterior de pai ou mãe brasileira a serviço do Brasil."
+         ]
+       },
+       {
+         "titulo": "Naturalizado",
+         "icone": "📜",
+         "badge": "Art. 12, II",
+         "corFundo": "rgba(120, 53, 15, 0.4)",
+         "corBorda": "#F59E0B",
+         "corTitulo": "#FBBF24",
+         "subtitulo": "Critério de Vontade / Requisitos",
+         "topicos": [
+           "Ordinária: 1 ano ininterrupto + idoneidade moral (países de língua portuguesa).",
+           "Extraordinária: mais de 15 anos + ausência de condenação penal."
+         ]
+       }
+     ],
+     "conclusao": "Brasileiro nato jamais será extraditado; naturalizado pode apenas em crime comum antes da naturalização ou tráfico ilícito.",
+     "descricao": "Resumo comparativo direto para questões de prova VUNESP."
+   }
+
+3. PARA FLUXOGRAMAS / PROCEDIMENTOS / PRAZOS PROCESSUAIS (Com Setas Conectoras):
+   Use "tipo": "fluxograma" com a estrutura:
+   "grafico": {
+     "tipo": "fluxograma",
+     "titulo": "Fluxograma de Naturalização Extraordinária",
+     "etapas": [
+       {
+         "titulo": "Ponto de Partida",
+         "destaque": "Qualquer Nacionalidade",
+         "corFundo": "rgba(24, 24, 27, 0.95)",
+         "corBorda": "#3F3F46",
+         "rotuloSeta": "Requisitos Temporais"
+       },
+       {
+         "titulo": "Exigência Principal",
+         "destaque": "Mais de 15 Anos Ininterruptos",
+         "descricao": "Residência contínua no Brasil sem infrações penais gravemente apenadas.",
+         "corFundo": "rgba(6, 78, 59, 0.4)",
+         "corBorda": "#10B981",
+         "corTexto": "#34D399"
+       }
+     ],
+     "conclusao": "A concessão extraordinária não exige idoneidade prévia em rol taxativo além da ausência de condenação."
+   }
+
+ESTRUTURA COMPLETA DO JSON EXIGIDA:
+{
+  "ramos": [
+    {
+      "id": "identificador-unico-12345",
+      "titulo": "Título do Tópico em linha única",
+      "artigos": "CF/88 Art. 12",
+      "tag": "Constitucional",
+      "assunto": "Nacionalidade",
+      "tipo": "conceito",
+      "grafico": { ... },
+      "subnos": [
+        {
+          "titulo": "Destaque da Legislação",
+          "itens": ["Ponto 1", "Ponto 2"]
+        }
+      ],
+      "modalInfo": {
+        "title": "Dica de Ouro VUNESP",
+        "tag": "Estratégia",
+        "casosPraticos": [
+          {
+            "titulo": "PADRÃO DA BANCA:",
+            "texto": "Explicação da pegadinha."
+          }
+        ],
+        "conclusoes": ["Conclusão para prova."],
+        "pegadinha": "Pegadinha clássica da VUNESP."
+      },
+      "importante": true
+    }
+  ]
+}
+
+Retorne EXCLUSIVAMENTE o JSON válido, sem markdown ou textos antes/depois. Explore ao máximo sua criatividade, didática e visualidade. Evite respostas vagas ou superficiais. Use exemplos práticos, diagramas, fluxogramas e cards comparativos para facilitar a compreensão do conteúdo.`;
 
 export default function MapaMentalPage() {
   const [mapasPorDisciplina, setMapasPorDisciplina] = useState<Record<string, any>>({});
@@ -425,7 +536,6 @@ export default function MapaMentalPage() {
     }
   };
 
-  // Funções atualizadas para persistir as duas bandeiras na tabela principal
   const toggleRevisar = async (ramoId: string) => {
     if (!mapaAtual) return;
     const ramosAtualizados = mapaAtual.ramos.map((r: any) => {
@@ -643,6 +753,30 @@ export default function MapaMentalPage() {
               })}
             </div>
           )}
+        </div>
+
+        {/* SEÇÃO DO PROMPT MESTRE */}
+        <div className="bg-zinc-950 p-6 rounded-2xl border border-zinc-800 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="bg-amber-400 text-zinc-950 font-bold text-xs px-2.5 py-0.5 rounded-full">Mentor VUNESP</span>
+              <h2 className="text-sm font-bold text-white">Prompt Mestre com Marca-Texto e Suporte Gráfico</h2>
+            </div>
+            <p className="text-xs text-zinc-400">
+              Gera conteúdos estruturados com IDs seguros, grifos de texto e diagramas visuais.
+            </p>
+          </div>
+
+          <button
+            onClick={copiarPromptMestre}
+            className={`px-4 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center gap-2 whitespace-nowrap shadow-md cursor-pointer ${
+              copiadoPrompt 
+                ? 'bg-emerald-600 text-white border border-emerald-500' 
+                : 'bg-amber-400 hover:bg-amber-500 text-zinc-950 border border-amber-500'
+            }`}
+          >
+            {copiadoPrompt ? 'Prompt Copiado!' : 'Copiar Prompt Mestre'}
+          </button>
         </div>
 
       </main>

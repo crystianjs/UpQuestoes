@@ -120,8 +120,8 @@ function LogicalDiagram({ grafico }: { grafico: any }) {
       {grafico.titulo && <p className="text-xs font-bold text-amber-400 uppercase">📌 {grafico.titulo}</p>}
       <div className="grid gap-4 sm:grid-cols-2">
         {listaItens.map((card: any, idx: number) => (
-          <div key={idx} className="rounded-xl p-4 border space-y-2 bg-amber-500/10 border-amber-600/40 text-amber-950">
-            <p className="text-xs font-black uppercase text-zinc-950">{card.titulo || card.nome || `Item ${idx + 1}`}</p>
+          <div key={idx} className="rounded-xl p-4 border space-y-2 bg-zinc-900 border-zinc-800 text-zinc-200">
+            <p className="text-xs font-black uppercase text-amber-400">{card.titulo || card.nome || `Item ${idx + 1}`}</p>
             {card.descricao && <p className="text-xs text-zinc-300">{card.descricao}</p>}
           </div>
         ))}
@@ -176,14 +176,12 @@ export default function ValeAPenaPage() {
       ramos: ramosAtualizados
     };
 
-    // Atualiza estado local imediatamente para feedback fluido
     setMapasPorDisciplina(prev => ({
       ...prev,
       [disciplinaAlvo]: payloadAtualizado
     }));
 
     try {
-      // Sincroniza diretamente na tabela principal de mapas mentais do Supabase
       const { error } = await supabase.from('mapas_mentais').upsert({
         disciplina: disciplinaAlvo,
         titulo: mapaAtual.titulo,
@@ -283,10 +281,6 @@ export default function ValeAPenaPage() {
           ) : (
             <div className="space-y-12">
               {itensFiltrados.map(({ disciplina, ramo }) => {
-                const estiloSubno = abaSelecionada === 'revisarParaProva'
-                  ? 'bg-rose-600 border-rose-400 text-zinc-950 shadow-lg'
-                  : 'bg-amber-400 border-amber-300 text-zinc-950 shadow-lg';
-
                 const estiloTagBadge = abaSelecionada === 'revisarParaProva'
                   ? 'text-rose-300 bg-rose-500/20 border-rose-500/40'
                   : 'text-amber-300 bg-amber-500/20 border-amber-500/40';
@@ -308,7 +302,7 @@ export default function ValeAPenaPage() {
                           </h2>
                         </div>
 
-                        {/* Botões interativos sincronizados com a tabela principal */}
+                        {/* Botões interativos */}
                         <div className="flex items-center gap-2 self-start sm:self-center shrink-0 flex-wrap">
                           <button
                             onClick={() => atualizarRamoNoSupabase(disciplina, ramo.id, 'revisarParaProva', !ramo.revisarParaProva)}
@@ -338,14 +332,14 @@ export default function ValeAPenaPage() {
 
                       <div className="space-y-6">
                         {ramo.subnos && ramo.subnos.map((sub: any, idx: number) => (
-                          <div key={idx} className={`p-5 sm:p-6 rounded-2xl border-l-4 border-zinc-950 shadow-md space-y-3 ${estiloSubno}`}>
-                            {sub.titulo && <h3 className="text-sm sm:text-base font-black text-zinc-950">{sub.titulo}</h3>}
-                            {sub.descricao && <p className="text-zinc-950 text-xs sm:text-sm font-medium leading-relaxed">{sub.descricao}</p>}
+                          <div key={idx} className="p-5 sm:p-6 rounded-2xl border-l-4 border-amber-400 shadow-md space-y-3 bg-zinc-950 border-t border-r border-b border-zinc-800/80">
+                            {sub.titulo && <h3 className="text-sm sm:text-base font-black text-amber-300">{sub.titulo}</h3>}
+                            {sub.descricao && <p className="text-zinc-300 text-xs sm:text-sm font-medium leading-relaxed">{sub.descricao}</p>}
                             {sub.itens && sub.itens.length > 0 && (
-                              <ul className="text-xs sm:text-sm text-zinc-950 space-y-2.5 pt-2 border-t border-zinc-950/20 font-medium">
+                              <ul className="text-xs sm:text-sm text-zinc-200 space-y-2.5 pt-2 border-t border-zinc-900 font-medium">
                                 {sub.itens.map((item: string, iIdx: number) => (
                                   <li key={iIdx} className="leading-relaxed flex items-start gap-2.5">
-                                    <span className="font-black text-zinc-950">•</span>
+                                    <span className="font-bold text-amber-400">•</span>
                                     <span className="flex-1">{item}</span>
                                   </li>
                                 ))}

@@ -449,7 +449,14 @@ export default function MapaMentalPage() {
             const assuntoDefinitivo = r.assunto && r.assunto.trim() !== ""
               ? r.assunto
               : (r.titulo ? r.titulo.replace(/^[📌📍🚩⚡0-9.\-\)]+\s*/, '').trim() : "Geral");
-            return { ...r, assunto: assuntoDefinitivo };
+            
+            return { 
+              ...r, 
+              assunto: assuntoDefinitivo,
+              // COMPATIBILIDADE AUTOMÁTICA: se tiver 'importante: true', herda automaticamente para as novas flags
+              revisar: r.revisar !== undefined ? r.revisar : (r.importante === true),
+              revisarParaProva: r.revisarParaProva !== undefined ? r.revisarParaProva : (r.importante === true)
+            };
           }) : [];
 
           mapaFormatado[item.disciplina] = {
@@ -706,7 +713,7 @@ export default function MapaMentalPage() {
                           <h2 className="text-lg sm:text-xl font-extrabold text-white tracking-tight pt-2">{ramo.titulo}</h2>
                         </div>
 
-                        {/* BOTÕES DE FLAG INTERATIVOS E SINCRONIZADOS */}
+                        {/* BOTÕES DE FLAG INTERATIVOS E SINCRONIZADOS (Substituiu o botão antigo) */}
                         <div className="flex items-center gap-2 self-start sm:self-center shrink-0 flex-wrap">
                           <button
                             onClick={() => toggleRevisarParaProva(ramo.id)}

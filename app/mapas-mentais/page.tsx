@@ -272,30 +272,6 @@ function LogicalDiagram({ grafico }: { grafico: any }) {
   );
 }
 
-const mapaInicialExemplo = {
-  disciplina: "Raciocínio Lógico",
-  titulo: "Silogismo Categórico e Diagramas de Conjuntos",
-  banca: "VUNESP",
-  ramos: [
-    {
-      id: "card-1-todo-nenhum-1728000000",
-      titulo: "Card 1 - Todo e Nenhum",
-      artigos: "LÓGICA DE ARGUMENTAÇÃO",
-      tag: "Silogismo",
-      assunto: "Proposições Categóricas - Conjuntos (Todo-Nenhum)",
-      tipo: "exatas",
-      subnos: [
-        {
-          titulo: "Validação Lógica VUNESP:",
-          itens: ["Premissa 1", "Premissa 2"]
-        }
-      ],
-      revisar: false,
-      revisarParaProva: true
-    }
-  ]
-};
-
 const PROMPT_MESTRE_TEXTO = `Atue como Especialista e Mentor para o concurso do TJSP (Banca VUNESP).
 Gere um JSON estruturado estrito contendo obrigatoriamente a chave "ramos".
 
@@ -402,8 +378,7 @@ ESTRUTURA COMPLETA DO JSON EXIGIDA:
         ],
         "conclusoes": ["Conclusão para prova."],
         "pegadinha": "Pegadinha clássica da VUNESP."
-      },
-      "importante": true
+      }
     }
   ]
 }
@@ -415,7 +390,6 @@ export default function MapaMentalPage() {
   const [selectedDisciplina, setSelectedDisciplina] = useState<string>("Todas as Matérias");
   const [selectedAssunto, setSelectedAssunto] = useState<string>("all");
 
-  const [activeModal, setActiveModal] = useState<string | null>(null);
   const [showJsonModal, setShowJsonModal] = useState<boolean>(false);
   const [modalDisciplinaAlvo, setModalDisciplinaAlvo] = useState<string>("Raciocínio Lógico");
   const [jsonInputText, setJsonInputText] = useState<string>('');
@@ -450,12 +424,15 @@ export default function MapaMentalPage() {
               ? r.assunto
               : (r.titulo ? r.titulo.replace(/^[📌📍🚩⚡0-9.\-\)]+\s*/, '').trim() : "Geral");
             
+            // FORÇA A CONVERSÃO: Se o card antigo tiver 'importante: true', herda as novas flags automaticamente
+            const eraImportante = r.importante === true || r.revisar === true || r.revisarParaProva === true;
+
             return { 
               ...r, 
               assunto: assuntoDefinitivo,
-              // COMPATIBILIDADE AUTOMÁTICA: se tiver 'importante: true', herda automaticamente para as novas flags
-              revisar: r.revisar !== undefined ? r.revisar : (r.importante === true),
-              revisarParaProva: r.revisarParaProva !== undefined ? r.revisarParaProva : (r.importante === true)
+              revisar: r.revisar !== undefined ? r.revisar : eraImportante,
+              revisarParaProva: r.revisarParaProva !== undefined ? r.revisarParaProva : eraImportante,
+              importante: undefined // Remove a propriedade antiga de vez
             };
           }) : [];
 
@@ -713,7 +690,7 @@ export default function MapaMentalPage() {
                           <h2 className="text-lg sm:text-xl font-extrabold text-white tracking-tight pt-2">{ramo.titulo}</h2>
                         </div>
 
-                        {/* BOTÕES DE FLAG INTERATIVOS E SINCRONIZADOS (Substituiu o botão antigo) */}
+                        {/* BOTÕES DE FLAG INTERATIVOS E SINCRONIZADOS */}
                         <div className="flex items-center gap-2 self-start sm:self-center shrink-0 flex-wrap">
                           <button
                             onClick={() => toggleRevisarParaProva(ramo.id)}

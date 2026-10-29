@@ -424,7 +424,6 @@ export default function MapaMentalPage() {
               ? r.assunto
               : (r.titulo ? r.titulo.replace(/^[📌📍🚩⚡0-9.\-\)]+\s*/, '').trim() : "Geral");
             
-            // FORÇA A CONVERSÃO: Se o card antigo tiver 'importante: true', herda as novas flags automaticamente
             const eraImportante = r.importante === true || r.revisar === true || r.revisarParaProva === true;
 
             return { 
@@ -432,7 +431,7 @@ export default function MapaMentalPage() {
               assunto: assuntoDefinitivo,
               revisar: r.revisar !== undefined ? r.revisar : eraImportante,
               revisarParaProva: r.revisarParaProva !== undefined ? r.revisarParaProva : eraImportante,
-              importante: undefined // Remove a propriedade antiga de vez
+              importante: undefined 
             };
           }) : [];
 
@@ -480,6 +479,7 @@ export default function MapaMentalPage() {
     }
   };
 
+  // FUNÇÃO ATUALIZADA: FAZ MERGE INTELIGENTE DOS RAMOS EXISTENTES COM OS NOVOS DO JSON
   const handleCarregarJson = async () => {
     try {
       let textoLimpo = jsonInputText.trim();
@@ -490,28 +490,58 @@ export default function MapaMentalPage() {
       let parsed = JSON.parse(textoLimpo);
 
       if (parsed && parsed.ramos && Array.isArray(parsed.ramos)) {
-        const mapaExistente = mapasPorDisciplina[modalDisciplinaAlvo];
-        let novosRamosValidos = parsed.ramos.filter(Boolean);
+        // 1. Busca os registros já salvos no banco para esta disciplina
+        const { data: registroAtual } = await supabase
+          .from('mapas_mentais')
+          .select('*')
+          .eq('disciplina', modalDisciplinaAlvo)
+          .maybeSingle();
 
-        if (mapaExistente && mapaExistente.ramos) {
-          const ramosAtualizadosMap = new Map();
-          mapaExistente.ramos.forEach((r: any) => { if (r && r.id) ramosAtualizadosMap.set(r.id, r); });
-          novosRamosValidos.forEach((r: any) => { if (r && r.id) ramosAtualizadosMap.set(r.id, r); });
-          novosRamosValidos = Array.from(ramosAtualizadosMap.values());
+        let ramosExistentes = [];
+        if (registroAtual && registroAtual.ramos) {
+          ramosExistentes = typeof registroAtual.ramos === 'string' 
+            ? JSON.parse(registroAtual.ramos) 
+            : registroAtual.ramos;
         }
+
+        // 2. Unifica os ramos antigos com os novos por ID (preservando flags de revisão)
+        const mapaRamosUnificados = new Map();
+        
+        if (Array.isArray(ramosExistentes)) {
+          ramosExistentes.forEach((r: any) => {
+            if (r && r.id) mapaRamosUnificados.set(r.id, r);
+          });
+        }
+
+        parsed.ramos.forEach((r: any) => {
+          if (r && r.id) {
+            const existente = mapaRamosUnificados.get(r.id);
+            if (existente) {
+              mapaRamosUnificados.set(r.id, {
+                ...r,
+                revisar: existente.revisar || r.revisar,
+                revisarParaProva: existente.revisarParaProva || r.revisarParaProva
+              });
+            } else {
+              mapaRamosUnificados.set(r.id, r);
+            }
+          }
+        });
+
+        const ramosFinais = Array.from(mapaRamosUnificados.values());
 
         const payloadFinal = {
           disciplina: modalDisciplinaAlvo,
-          titulo: parsed.titulo || mapaExistente?.titulo || `Revisão: ${modalDisciplinaAlvo}`,
+          titulo: parsed.titulo || registroAtual?.titulo || `Revisão: ${modalDisciplinaAlvo}`,
           banca: parsed.banca || 'VUNESP',
-          ramos: novosRamosValidos
+          ramos: ramosFinais
         };
 
         await salvarNoSupabaseComBackup(modalDisciplinaAlvo, payloadFinal);
         setShowJsonModal(false);
         setJsonInputText('');
         setSelectedDisciplina(modalDisciplinaAlvo);
-        alert(`Conteúdo incorporado com segurança para ${modalDisciplinaAlvo}!`);
+        alert(`Conteúdo incorporado com sucesso para ${modalDisciplinaAlvo}! Agora todos os assuntos coexistem na matéria.`);
       } else {
         alert('O JSON precisa conter a chave "ramos".');
       }

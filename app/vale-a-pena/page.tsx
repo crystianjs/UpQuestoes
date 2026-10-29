@@ -197,17 +197,18 @@ export default function ValeAPenaPage() {
     }
   };
 
-  const itensFiltrados: { disciplina: string; ramo: any }[] = [];
+  // Coleta todos os itens marcados de todas as disciplinas carregadas, sem restrição arbitrária
+  const itensFiltrados: { disciplina: string; ramo: any; indexOriginal: number }[] = [];
   Object.keys(mapasPorDisciplina).forEach(disc => {
     if (selectedDisciplina === "Todas as Matérias" || selectedDisciplina === disc) {
       const mapa = mapasPorDisciplina[disc];
       if (mapa && Array.isArray(mapa.ramos)) {
-        mapa.ramos.forEach((r: any) => {
+        mapa.ramos.forEach((r: any, idx: number) => {
           if (!r) return;
           if (abaSelecionada === 'revisar' && r.revisar === true) {
-            itensFiltrados.push({ disciplina: disc, ramo: r });
+            itensFiltrados.push({ disciplina: disc, ramo: r, indexOriginal: idx });
           } else if (abaSelecionada === 'revisarParaProva' && r.revisarParaProva === true) {
-            itensFiltrados.push({ disciplina: disc, ramo: r });
+            itensFiltrados.push({ disciplina: disc, ramo: r, indexOriginal: idx });
           }
         });
       }
@@ -280,13 +281,16 @@ export default function ValeAPenaPage() {
             </div>
           ) : (
             <div className="space-y-12">
-              {itensFiltrados.map(({ disciplina, ramo }) => {
+              {itensFiltrados.map(({ disciplina, ramo, indexOriginal }, globalIdx) => {
                 const estiloTagBadge = abaSelecionada === 'revisarParaProva'
                   ? 'text-rose-300 bg-rose-500/20 border-rose-500/40'
                   : 'text-amber-300 bg-amber-500/20 border-amber-500/40';
 
+                // Chave única blindada combinando disciplina, ID e índice para evitar qualquer colisão
+                const chaveUnicaCard = `${disciplina}-${ramo.id || 'sem-id'}-${indexOriginal}-${globalIdx}`;
+
                 return (
-                  <TextoGrifavel key={ramo.id} idUnico={ramo.id}>
+                  <TextoGrifavel key={chaveUnicaCard} idUnico={chaveUnicaCard}>
                     <div className="rounded-2xl p-6 sm:p-8 shadow-xl space-y-6 relative border bg-zinc-900/60 border-zinc-800">
                       
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-zinc-800 gap-3">

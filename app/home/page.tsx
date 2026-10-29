@@ -2,7 +2,6 @@
 
 import React from 'react';
 import Navbar from '../components/Navbar';
-import FraseMotivadora from '../components/FraseMotivadora';
 import Link from 'next/link';
 import Image from 'next/image';
 
@@ -11,12 +10,9 @@ export default function HomePage() {
     <div className="min-h-screen bg-black text-zinc-100 font-sans selection:bg-amber-400 selection:text-zinc-950">
       <Navbar />
 
-      {/* Pop-up Motivacional Automático ao acessar a Home */}
-      <FraseMotivadora />
-
       <main className="w-full px-4 sm:px-8 py-8 space-y-8 max-w-5xl mx-auto">
         
-        {/* Nova Seção de Destaque Superior (Fundo Amarelo, Texto Preto) */}
+        {/* Seção de Destaque Superior */}
         <div className="bg-amber-400 border border-amber-500 rounded-3xl p-6 sm:p-8 shadow-2xl text-zinc-950 text-center space-y-2 relative overflow-hidden">
           <div className="absolute -right-6 -bottom-6 text-zinc-950/10 text-9xl font-black select-none pointer-events-none">
             🚀
@@ -29,7 +25,89 @@ export default function HomePage() {
           </h2>
         </div>
 
-        {/* NOVA SEÇÃO: O PORQUÊ DE ESTARMOS A ESTUDAR */}
+        {/* SEÇÃO DE VÍDEOS DE REFLEXÃO E MENTALIDADE */}
+        <div className="bg-zinc-950 border border-zinc-800 rounded-3xl p-6 sm:p-10 shadow-2xl space-y-6 relative overflow-hidden">
+          
+          {/* Cabeçalho com Orientação e Fone de Ouvido */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-zinc-800">
+            <div className="space-y-1">
+              <span className="bg-amber-400 text-zinc-950 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full">
+                Mentalidade de Alta Performance
+              </span>
+              <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight pt-1">
+                Reflexão Diária & Foco
+              </h2>
+            </div>
+
+            <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 px-4 py-2.5 rounded-2xl shadow-inner">
+              <span className="text-xl">🎧</span>
+              <span className="text-xs font-bold text-amber-400 tracking-wide">
+                Coloque um fone de ouvido e reflita alguns minutos.
+              </span>
+            </div>
+          </div>
+
+          {/* Disposição em dois blocos: Topo (2x 9:16) e Base (1x 16:9) */}
+          <div className="space-y-6 pt-2">
+            
+            {/* PARTE SUPERIOR: 2 Vídeos 9:16 Lado a Lado */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-3xl mx-auto">
+              
+              {/* Vídeo 1 (9:16 - Vertical) */}
+              <div className="flex flex-col space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-zinc-400">Vídeo de Impacto 01</span>
+                  <span className="text-[10px] bg-zinc-900 text-amber-400 px-2 py-0.5 rounded border border-zinc-800 font-mono">9:16</span>
+                </div>
+                <div className="relative w-full aspect-[9/16] bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden shadow-xl">
+                  <video 
+                    src="/video1.mp4" 
+                    controls 
+                    playsInline
+                    className="absolute inset-0 w-full h-full object-cover" 
+                  />
+                </div>
+              </div>
+
+              {/* Vídeo 2 (9:16 - Vertical) */}
+              <div className="flex flex-col space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-zinc-400">Vídeo de Impacto 02</span>
+                  <span className="text-[10px] bg-zinc-900 text-amber-400 px-2 py-0.5 rounded border border-zinc-800 font-mono">9:16</span>
+                </div>
+                <div className="relative w-full aspect-[9/16] bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden shadow-xl">
+                  <video 
+                    src="/video2.mp4" 
+                    controls 
+                    playsInline
+                    className="absolute inset-0 w-full h-full object-cover" 
+                  />
+                </div>
+              </div>
+
+            </div>
+
+            {/* PARTE INFERIOR: 1 Vídeo 16:9 Embaixo */}
+            <div className="flex flex-col space-y-3 max-w-3xl mx-auto pt-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-zinc-400">Vídeo Principal</span>
+                <span className="text-[10px] bg-zinc-900 text-amber-400 px-2 py-0.5 rounded border border-zinc-800 font-mono">16:9</span>
+              </div>
+              <div className="relative w-full aspect-video bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden shadow-xl">
+                <video 
+                  src="/video3.mp4" 
+                  controls 
+                  playsInline
+                  className="absolute inset-0 w-full h-full object-cover" 
+                />
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+        {/* MOTIVOS PARA ESTUDAR E CONQUISTAR A VAGA */}
         <div className="bg-zinc-950 border border-zinc-800 rounded-3xl p-6 sm:p-10 shadow-2xl space-y-8 relative overflow-hidden">
           <div className="flex items-center gap-3 pb-4 border-b border-zinc-800">
             <span className="p-2.5 rounded-2xl bg-amber-400/10 border border-amber-400/30 text-amber-400 text-lg">
@@ -45,11 +123,11 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Os 4 Motivos */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="p-5 rounded-2xl bg-amber-400 border border-zinc-800 hover:border-amber-400/50 transition-all space-y-2">
               <span className="inline-block bg-zinc-950 text-amber-400 text-[11px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md">
-                Motivo 01</span>
+                Motivo 01
+              </span>
               <p className="text-sm font-bold text-zinc-950 leading-snug">
                 Hoje, se você perder o emprego, tem segurança financeira garantida?
               </p>
@@ -57,7 +135,8 @@ export default function HomePage() {
 
             <div className="p-5 rounded-2xl bg-amber-400 border border-zinc-800 hover:border-amber-400/50 transition-all space-y-2">
               <span className="inline-block bg-zinc-950 text-amber-400 text-[11px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md">
-                Motivo 02</span>
+                Motivo 02
+              </span>
               <p className="text-sm font-bold text-zinc-950 leading-snug">
                 Você se sujeita a qualquer tratamento indesejado apenas por conta da necessidade do salário?
               </p>
@@ -65,7 +144,8 @@ export default function HomePage() {
 
             <div className="p-5 rounded-2xl bg-amber-400 border border-zinc-800 hover:border-amber-400/50 transition-all space-y-2">
               <span className="inline-block bg-zinc-950 text-amber-400 text-[11px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md">
-                Motivo 03</span>
+                Motivo 03
+              </span>
               <p className="text-sm font-bold text-zinc-950 leading-snug">
                 Você vive segundo o que os outros determinam sobre a sua vida e o seu tempo?
               </p>
@@ -73,14 +153,15 @@ export default function HomePage() {
 
             <div className="p-5 rounded-2xl bg-amber-400 border border-zinc-800 hover:border-amber-400/50 transition-all space-y-2">
               <span className="inline-block bg-zinc-950 text-amber-400 text-[11px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md">
-                Motivo 04</span>
+                Motivo 04
+              </span>
               <p className="text-sm font-bold text-zinc-950 leading-snug">
                 Querer fazer um rolê, aproveitar a vida e simplesmente não ter dinheiro para isso.
               </p>
             </div>
           </div>
 
-          {/* Galeria de Fotos / Metas (Família, Carro, Estabilidade) */}
+          {/* Galeria de Fotos / Metas */}
           <div className="pt-2">
             <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-400 mb-4">
               Nossas Metas e Pilares • Para quem e pelo que lutamos
@@ -88,7 +169,6 @@ export default function HomePage() {
             
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               
-              {/* Família */}
               <div className="group relative h-48 rounded-2xl overflow-hidden border border-zinc-800 bg-zinc-900 flex items-end p-4">
                 <Image 
                   src="/familia.jpeg" 
@@ -105,7 +185,6 @@ export default function HomePage() {
                 </div>
               </div>
 
-              {/* Carro do Sonho */}
               <div className="group relative h-48 rounded-2xl overflow-hidden border border-zinc-800 bg-zinc-900 flex items-end p-4">
                 <Image 
                   src="/polo_vw2025.jpg" 
@@ -122,7 +201,6 @@ export default function HomePage() {
                 </div>
               </div>
 
-              {/* Estabilidade */}
               <div className="group relative h-48 rounded-2xl overflow-hidden border border-zinc-800 bg-zinc-900 flex items-end p-4">
                 <Image 
                   src="/cracha.jpg" 
@@ -139,7 +217,6 @@ export default function HomePage() {
                 </div>
               </div>
 
-              {/* Viagem */}
               <div className="group relative h-48 rounded-2xl overflow-hidden border border-zinc-800 bg-zinc-900 flex items-end p-4">
                 <Image 
                   src="/eua.jpg" 
@@ -164,7 +241,6 @@ export default function HomePage() {
         {/* Card Principal Estilo Radar de Concursos */}
         <div className="bg-zinc-950 border border-zinc-800 rounded-3xl p-6 sm:p-10 shadow-2xl relative overflow-hidden space-y-8">
           
-          {/* Topo do Radar (Limpo, apenas TJSP e Tribunal de Justiça) */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-zinc-800">
             <div>
               <div className="flex items-center gap-3">
@@ -174,7 +250,7 @@ export default function HomePage() {
                 <span className="inline-block w-3 h-3 rounded-full bg-amber-400 animate-pulse"></span>
               </div>
               <p className="text-sm font-semibold text-zinc-400 mt-1">
-                Tribunal de Justiça de São Paulo: 
+                Tribunal de Justiça de São Paulo
               </p>
             </div>
 
@@ -183,57 +259,49 @@ export default function HomePage() {
                 Em Estudo 🚀
               </span>
               <span className="text-xs font-bold text-zinc-400 bg-zinc-900 px-3 py-1 rounded-lg border border-zinc-800">
-                Escrevente Técnico Judiciário: 
+                Escrevente Técnico Judiciário
               </span>
             </div>
           </div>
 
-          {/* Grid de Informações Chave */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            
-            {/* Remuneração */}
             <div className="md:col-span-2 bg-zinc-900/80 border border-zinc-800 p-6 rounded-2xl shadow-inner space-y-2 flex flex-col justify-center">
               <span className="text-xs font-bold uppercase tracking-wider text-zinc-400">
-                Remuneração Inicial (com alimentação e transporte): 
+                Remuneração Inicial (com alimentação e transporte)
               </span>
               <div className="text-3xl sm:text-4xl font-black text-amber-400 tracking-tight">
-                R$ 8.519,54: 
+                R$ 8.519,54
               </div>
               <p className="text-xs text-zinc-400 font-medium pt-1">
-                R$ 6.345,94 + R$ 1.760 alimentação + R$ 413,60 transporte (22 dias): 
+                R$ 6.345,94 + R$ 1.760 alimentação + R$ 413,60 transporte (22 dias)
               </p>
             </div>
 
-            {/* Escolaridade */}
             <div className="bg-zinc-900/80 border border-zinc-800 p-6 rounded-2xl shadow-inner space-y-2 flex flex-col justify-center">
               <span className="text-xs font-bold uppercase tracking-wider text-zinc-400">
-                Escolaridade Exigida: 
+                Escolaridade Exigida
               </span>
               <div className="text-lg sm:text-xl font-extrabold text-white">
-                Ensino Médio: 
+                Ensino Médio
               </div>
               <span className="text-xs font-semibold text-amber-400">
-                Requisito padrão Escrevente: 
+                Requisito padrão Escrevente
               </span>
             </div>
-
           </div>
 
-          {/* Segunda Grid: Vagas e Banca */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            
             <div className="bg-zinc-900/80 border border-zinc-800 p-6 rounded-2xl shadow-inner space-y-1">
-              <span className="text-xs font-bold uppercase tracking-wider text-zinc-400">Vagas Previstas: </span>
-              <div className="text-3xl font-black text-white">720: </div>
-              <p className="text-xs text-zinc-500">Cargos criados pela LC nº 1.429: </p>
+              <span className="text-xs font-bold uppercase tracking-wider text-zinc-400">Vagas Previstas</span>
+              <div className="text-3xl font-black text-white">720</div>
+              <p className="text-xs text-zinc-500">Cargos criados pela LC nº 1.429</p>
             </div>
 
             <div className="bg-zinc-900/80 border border-zinc-800 p-6 rounded-2xl shadow-inner space-y-1">
-              <span className="text-xs font-bold uppercase tracking-wider text-zinc-400">Banca Organizadora: </span>
-              <div className="text-2xl font-black text-white">Vunesp: </div>
-              <p className="text-xs text-zinc-500">Contrato com o TJSP vigente até jun/2027: </p>
+              <span className="text-xs font-bold uppercase tracking-wider text-zinc-400">Banca Organizadora</span>
+              <div className="text-2xl font-black text-white">Vunesp</div>
+              <p className="text-xs text-zinc-500">Contrato com o TJSP vigente até jun/2027</p>
             </div>
-
           </div>
 
         </div>

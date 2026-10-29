@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Navbar from '../components/Navbar';
 import { supabase } from '@/lib/supabase';
-import { BarChart3, Award, CheckCircle2, XCircle, Clock, Calendar, Filter, Brain, HelpCircle, FileText, Tag } from 'lucide-react';
+import { BarChart3, Award, CheckCircle2, XCircle, Clock, Calendar, Filter, FileText, Tag } from 'lucide-react';
 
 interface QuestaoRegistro {
   id: string;
@@ -39,9 +39,6 @@ export default function DesempenhoPage() {
   const [redacoes, setRedacoes] = useState<RedacaoRegistro[]>([]);
   const [simulados, setSimulados] = useState<SimuladoRegistro[]>([]);
   
-  const [flashcardsListados, setFlashcardsListados] = useState<Array<{ id: string; assunto: string; disciplina: string; status: string; pergunta: string }>>([]);
-  const [flashcardsStats, setFlashcardsStats] = useState({ bom: 0, medio: 0, ruim: 0, pendente: 0, total: 0 });
-
   const [loading, setLoading] = useState(true);
   const [filtroPeriodo, setFiltroPeriodo] = useState<'todas' | 'semana' | 'mes'>('todas');
 
@@ -55,61 +52,15 @@ export default function DesempenhoPage() {
 
       const userId = session.user.id;
 
-      // Execução em paralelo consultando o caderno_revisao oficial
-      const [qRes, rRes, sRes, revRes] = await Promise.all([
+      const [qRes, rRes, sRes] = await Promise.all([
         supabase.from('user_questions').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
         supabase.from('redaccoes').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
-        supabase.from('simulados').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
-        supabase.from('caderno_revisao').select('*')
+        supabase.from('simulados').select('*').eq('user_id', userId).order('created_at', { ascending: false })
       ]);
 
       if (qRes.data) setQuestoes(qRes.data);
       if (rRes.data) setRedacoes(rRes.data);
       if (sRes.data) setSimulados(sRes.data);
-
-      try {
-        let listaCards: Array<{ id: string; assunto: string; disciplina: string; status: string; pergunta: string }> = [];
-
-        if (revRes.data && revRes.data.length > 0) {
-          revRes.data.forEach((item: any) => {
-            let rawCards = item.cards;
-            if (typeof rawCards === 'string') {
-              try { rawCards = JSON.parse(rawCards); } catch (e) { rawCards = []; }
-            }
-
-            if (Array.isArray(rawCards)) {
-              rawCards.forEach((card: any) => {
-                listaCards.push({
-                  id: card.id || Math.random().toString(),
-                  assunto: card.assunto || card.titulo || 'Assunto Geral',
-                  disciplina: item.disciplina || 'Geral',
-                  status: card.statusAvaliacao || 'pendente',
-                  pergunta: card.pergunta || card.conteudo || 'Pergunta'
-                });
-              });
-            }
-          });
-        }
-
-        // Ordenação priorizando os que precisam de revisão (ruim -> medio -> bom -> pendente)
-        listaCards.sort((a, b) => {
-          const peso: Record<string, number> = { ruim: 1, medio: 2, bom: 3, pendente: 4 };
-          return (peso[a.status] || 5) - (peso[b.status] || 5);
-        });
-
-        let b = 0, m = 0, r = 0, p = 0;
-        listaCards.forEach((fc) => {
-          if (fc.status === 'bom') b++;
-          else if (fc.status === 'medio') m++;
-          else if (fc.status === 'ruim') r++;
-          else p++;
-        });
-
-        setFlashcardsListados(listaCards);
-        setFlashcardsStats({ bom: b, medio: m, ruim: r, pendente: p, total: listaCards.length });
-      } catch (e) {
-        console.error("Erro ao processar flashcards para o desempenho:", e);
-      }
 
       setLoading(false);
     }
@@ -225,7 +176,7 @@ export default function DesempenhoPage() {
         ) : (
           <>
             {/* Cards de Métricas Principais */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-5 shadow-xl relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-1.5 h-full bg-amber-500"></div>
                 <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">Questões no Período</p>
@@ -253,79 +204,6 @@ export default function DesempenhoPage() {
                 <h3 className="text-2xl font-black text-white mt-1.5">{mediaSimulados} <span className="text-xs font-normal text-zinc-500">/ 10</span></h3>
                 <span className="text-[11px] text-zinc-500 mt-1 block">{simuladosFiltrados.length} simulados registados</span>
               </div>
-
-              {/* Card de Flashcards */}
-              <div className="bg-gradient-to-br from-amber-950/60 via-zinc-950 to-zinc-950 border border-amber-500/60 rounded-2xl p-5 shadow-xl relative overflow-hidden sm:col-span-2 lg:col-span-1">
-                <div className="absolute top-0 left-0 w-1.5 h-full bg-amber-500"></div>
-                <p className="text-[11px] font-bold uppercase tracking-wider text-amber-400">Flashcards Totais</p>
-                <h3 className="text-2xl font-black text-white mt-1.5">{flashcardsStats.total}</h3>
-                <span className="text-[10px] text-amber-300 mt-1 block">🟢 {flashcardsStats.bom} | 🟡 {flashcardsStats.medio} | 🔴 {flashcardsStats.ruim}</span>
-              </div>
-            </div>
-
-            {/* SEÇÃO DE FLASHCARDS */}
-            <div className="bg-zinc-950 border border-amber-500/30 rounded-2xl p-6 shadow-xl space-y-4">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-3 border-b border-zinc-800">
-                <div className="flex items-center gap-2">
-                  <Brain className="w-6 h-6 text-amber-400" />
-                  <h2 className="text-lg font-bold text-white">Caderno de Revisão: Status Detalhado por Assunto</h2>
-                </div>
-                <div className="flex items-center gap-3 text-xs flex-wrap">
-                  <span className="px-2.5 py-1 rounded-lg bg-emerald-950/50 text-emerald-400 border border-emerald-600/30 font-semibold">🟢 Bom: {flashcardsStats.bom}</span>
-                  <span className="px-2.5 py-1 rounded-lg bg-amber-950/50 text-amber-400 border border-amber-600/30 font-semibold">🟡 Médio: {flashcardsStats.medio}</span>
-                  <span className="px-2.5 py-1 rounded-lg bg-rose-950/50 text-rose-400 border border-rose-600/30 font-semibold">🔴 Ruim: {flashcardsStats.ruim}</span>
-                  {flashcardsStats.pendente > 0 && (
-                    <span className="px-2.5 py-1 rounded-lg bg-zinc-900 text-zinc-400 border border-zinc-700 font-semibold">⚪ Pendente: {flashcardsStats.pendente}</span>
-                  )}
-                </div>
-              </div>
-
-              {flashcardsListados.length === 0 ? (
-                <div className="text-center py-10 space-y-2">
-                  <HelpCircle className="w-10 h-10 text-amber-500/50 mx-auto" />
-                  <p className="text-xs text-zinc-400">Nenhum flashcard cadastrado no caderno ainda.</p>
-                  <button 
-                    onClick={() => router.push('/caderno-revisao')}
-                    className="px-4 py-2 bg-amber-500 text-black font-bold text-xs rounded-xl hover:bg-amber-400 transition-all shadow cursor-pointer"
-                  >
-                    Ir para Caderno de Revisão
-                  </button>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[450px] overflow-y-auto pr-1">
-                  {flashcardsListados.map((fc) => (
-                    <div key={fc.id} className="bg-zinc-900/90 border border-amber-500/30 rounded-2xl p-4 flex flex-col justify-between gap-3 shadow-inner">
-                      <div className="space-y-1.5">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/40 truncate max-w-[140px]">
-                            {fc.disciplina}
-                          </span>
-                          <span className="text-xs font-bold text-amber-200 truncate max-w-[150px]">{fc.assunto}</span>
-                        </div>
-                        <p className="text-xs text-zinc-300 line-clamp-2 leading-relaxed">{fc.pergunta}</p>
-                      </div>
-
-                      <div className="pt-2 border-t border-zinc-800/80 flex items-center justify-between">
-                        <span className="text-[11px] text-zinc-500">Sua avaliação:</span>
-                        <div>
-                          {fc.status === 'bom' && (
-                            <span className="px-3 py-1 bg-emerald-950/80 border border-emerald-600/40 text-emerald-300 text-xs font-bold rounded-xl shadow">🟢 Bom</span>
-                          )}
-                          {fc.status === 'medio' && (
-                            <span className="px-3 py-1 bg-amber-950/80 border border-amber-600/40 text-amber-300 text-xs font-bold rounded-xl shadow">🟡 Médio</span>
-                          )}
-                          {fc.status === 'ruim' && (
-                            <span className="px-3 py-1 bg-rose-950/80 border border-rose-600/40 text-rose-300 text-xs font-bold rounded-xl shadow">🔴 Precisa Revisar</span>
-                          )}
-                          {(fc.status === 'pendente' || !fc.status) && (
-                            <span className="px-2.5 py-1 bg-zinc-950 border border-zinc-800 text-zinc-400 text-[11px] font-medium rounded-xl">⚪ Não Avaliado</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
 
             {/* Listagens Detalhadas */}

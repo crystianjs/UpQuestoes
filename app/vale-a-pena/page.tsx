@@ -141,13 +141,18 @@ export default function ValeAPenaPage() {
   const carregarDados = async () => {
     try {
       setCarregando(true);
+      const { data: dadosEspelho } = await supabase.from('temp_mapas_mentais').select('*');
       const { data, error } = await supabase.from('mapas_mentais').select('*');
       if (error) throw error;
-      if (data) {
+
+      const fonteDados = (dadosEspelho && dadosEspelho.length > 0) ? dadosEspelho : data;
+
+      if (fonteDados) {
         const mapaFormatado: Record<string, any> = {};
-        data.forEach((item: any) => {
+        fonteDados.forEach((item: any) => {
           let rawRamos = item.ramos;
           if (typeof rawRamos === 'string') { try { rawRamos = JSON.parse(rawRamos); } catch (e) { rawRamos = []; } }
+          
           mapaFormatado[item.disciplina] = {
             disciplina: item.disciplina,
             titulo: item.titulo,
@@ -197,7 +202,7 @@ export default function ValeAPenaPage() {
     }
   };
 
-  // Coleta todos os itens marcados de todas as disciplinas carregadas, sem restrição arbitrária
+  // Coleta rigorosamente TODOS os itens marcados em todas as disciplinas carregadas
   const itensFiltrados: { disciplina: string; ramo: any; indexOriginal: number }[] = [];
   Object.keys(mapasPorDisciplina).forEach(disc => {
     if (selectedDisciplina === "Todas as Matérias" || selectedDisciplina === disc) {
@@ -286,8 +291,8 @@ export default function ValeAPenaPage() {
                   ? 'text-rose-300 bg-rose-500/20 border-rose-500/40'
                   : 'text-amber-300 bg-amber-500/20 border-amber-500/40';
 
-                // Chave única blindada combinando disciplina, ID e índice para evitar qualquer colisão
-                const chaveUnicaCard = `${disciplina}-${ramo.id || 'sem-id'}-${indexOriginal}-${globalIdx}`;
+                // Chave única e infalível baseada em índice, disciplina e ID para evitar duplicatas do React
+                const chaveUnicaCard = `${disciplina}-${ramo.id || 'id'}-${indexOriginal}-${globalIdx}`;
 
                 return (
                   <TextoGrifavel key={chaveUnicaCard} idUnico={chaveUnicaCard}>

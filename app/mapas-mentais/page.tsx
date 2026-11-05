@@ -23,7 +23,7 @@ const DISCIPLINAS_TJSP = [
   "Estatuto da Pessoa com Deficiência"
 ];
 
-// --- COMPONENTE DE SELEÇÃO E MARCA-TEXTO (GRIFO REAL NO DOM SEGURO) ---
+// --- COMPONENTE DE SELEÇÃO E MARCA-TEXTO ---
 function TextoGrifavel({ children, idUnico }: { children: React.ReactNode; idUnico: string }) {
   const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -32,21 +32,13 @@ function TextoGrifavel({ children, idUnico }: { children: React.ReactNode; idUni
   useEffect(() => {
     const salvo = localStorage.getItem(`grifos_dom_${idUnico}`);
     if (salvo && containerRef.current) {
-      try {
-        containerRef.current.innerHTML = salvo;
-      } catch (e) {
-        console.error("Erro ao carregar grifos visualmente", e);
-      }
+      try { containerRef.current.innerHTML = salvo; } catch (e) { console.error(e); }
     }
   }, [idUnico]);
 
   const processarSelecao = (clientX: number, clientY: number) => {
     const selecao = window.getSelection();
-    if (!selecao || selecao.isCollapsed) {
-      setMenuPos(null);
-      return;
-    }
-
+    if (!selecao || selecao.isCollapsed) { setMenuPos(null); return; }
     const texto = selecao.toString().trim();
     if (texto.length > 0) {
       const range = selecao.getRangeAt(0);
@@ -57,42 +49,16 @@ function TextoGrifavel({ children, idUnico }: { children: React.ReactNode; idUni
     }
   };
 
-  const handleContextMenu = (e: React.MouseEvent) => {
-    const selecao = window.getSelection();
-    if (selecao && !selecao.isCollapsed) {
-      e.preventDefault();
-      processarSelecao(e.clientX, e.clientY);
-    }
-  };
-
-  const handleMouseUp = (e: React.MouseEvent) => {
-    if (e.button === 2) return;
-    setTimeout(() => {
-      const selecao = window.getSelection();
-      if (selecao && !selecao.isCollapsed) {
-        const range = selecao.getRangeAt(0).getBoundingClientRect();
-        processarSelecao(range.left + range.width / 2, range.top - 10);
-      } else {
-        setMenuPos(null);
-      }
-    }, 50);
-  };
-
   const aplicarGrifo = (estiloBg: string, corTexto: string) => {
     const range = rangeRef.current;
     if (!range || !containerRef.current) return;
-
     try {
       const span = document.createElement('mark');
       span.className = `${estiloBg} ${corTexto} rounded px-1 font-semibold transition-all`;
       span.appendChild(range.extractContents());
       range.insertNode(span);
-
       localStorage.setItem(`grifos_dom_${idUnico}`, containerRef.current.innerHTML);
-    } catch (e) {
-      console.error("Erro ao aplicar grifo no DOM:", e);
-    }
-
+    } catch (e) { console.error(e); }
     setMenuPos(null);
     window.getSelection()?.removeAllRanges();
   };
@@ -100,103 +66,38 @@ function TextoGrifavel({ children, idUnico }: { children: React.ReactNode; idUni
   const removerGrifoTrecho = () => {
     const range = rangeRef.current;
     if (!range || !containerRef.current) return;
-
     try {
       const marks = containerRef.current.querySelectorAll('mark');
-      
       marks.forEach(mark => {
         const markRange = document.createRange();
         markRange.selectNode(mark);
-
-        if (
-          range.compareBoundaryPoints(Range.END_TO_START, markRange) < 0 &&
-          range.compareBoundaryPoints(Range.START_TO_END, markRange) > 0
-        ) {
+        if (range.compareBoundaryPoints(Range.END_TO_START, markRange) < 0 && range.compareBoundaryPoints(Range.START_TO_END, markRange) > 0) {
           const pai = mark.parentNode;
-          while (mark.firstChild) {
-            pai?.insertBefore(mark.firstChild, mark);
-          }
+          while (mark.firstChild) { pai?.insertBefore(mark.firstChild, mark); }
           pai?.removeChild(mark);
         }
       });
-
       localStorage.setItem(`grifos_dom_${idUnico}`, containerRef.current.innerHTML);
-    } catch (e) {
-      console.error("Erro ao remover grifo do trecho:", e);
-    }
-
+    } catch (e) { console.error(e); }
     setMenuPos(null);
     window.getSelection()?.removeAllRanges();
   };
 
   return (
     <div className="relative">
-      <div 
-        ref={containerRef}
-        onContextMenu={handleContextMenu} 
-        onMouseUp={handleMouseUp} 
-        className="select-text"
-      >
+      <div ref={containerRef} onContextMenu={(e) => { const s = window.getSelection(); if (s && !s.isCollapsed) { e.preventDefault(); processarSelecao(e.clientX, e.clientY); } }} onMouseUp={(e) => { if (e.button === 2) return; setTimeout(() => { const s = window.getSelection(); if (s && !s.isCollapsed) { const r = s.getRangeAt(0).getBoundingClientRect(); processarSelecao(r.left + r.width / 2, r.top - 10); } else { setMenuPos(null); } }, 50); }} className="select-text">
         {children}
       </div>
-
       {menuPos && (
         <>
-          <div 
-            className="fixed inset-0 z-40" 
-            onClick={() => setMenuPos(null)} 
-            onContextMenu={(e) => { e.preventDefault(); setMenuPos(null); }}
-          />
-
-          <div 
-            className="fixed z-50 bg-zinc-900 border border-amber-400 shadow-2xl rounded-2xl p-2 flex items-center gap-2 animate-in fade-in zoom-in-95 duration-100 transform -translate-x-1/2 -translate-y-full"
-            style={{ top: `${menuPos.y}px`, left: `${menuPos.x}px` }}
-          >
-            <span className="text-[10px] font-black text-amber-400 px-1 uppercase tracking-wider">
-              Grifar:
-            </span>
-            
-            <button
-              onClick={() => aplicarGrifo('bg-yellow-400/40', 'text-yellow-100')}
-              className="w-6 h-6 rounded-full bg-yellow-400 hover:scale-110 transition shadow cursor-pointer border border-yellow-200 flex items-center justify-center text-[10px] text-zinc-950 font-bold"
-              title="Amarelo"
-            >
-              A
-            </button>
-
-            <button
-              onClick={() => aplicarGrifo('bg-sky-400/40', 'text-sky-100')}
-              className="w-6 h-6 rounded-full bg-sky-400 hover:scale-110 transition shadow cursor-pointer border border-sky-200 flex items-center justify-center text-[10px] text-zinc-950 font-bold"
-              title="Azul"
-            >
-              A
-            </button>
-
-            <button
-              onClick={() => aplicarGrifo('bg-emerald-400/40', 'text-emerald-100')}
-              className="w-6 h-6 rounded-full bg-emerald-400 hover:scale-110 transition shadow cursor-pointer border border-emerald-200 flex items-center justify-center text-[10px] text-zinc-950 font-bold"
-              title="Verde"
-            >
-              A
-            </button>
-
-            <button
-              onClick={() => aplicarGrifo('bg-rose-500/40', 'text-rose-100')}
-              className="w-6 h-6 rounded-full bg-rose-500 hover:scale-110 transition shadow cursor-pointer border border-rose-300 flex items-center justify-center text-[10px] text-zinc-950 font-bold"
-              title="Vermelho"
-            >
-              A
-            </button>
-
+          <div className="fixed inset-0 z-40" onClick={() => setMenuPos(null)} />
+          <div className="fixed z-50 bg-zinc-900 border border-amber-400 shadow-2xl rounded-2xl p-2 flex items-center gap-2 transform -translate-x-1/2 -translate-y-full" style={{ top: `${menuPos.y}px`, left: `${menuPos.x}px` }}>
+            <button onClick={() => aplicarGrifo('bg-yellow-400/40', 'text-yellow-100')} className="w-6 h-6 rounded-full bg-yellow-400 cursor-pointer font-bold text-[10px] text-zinc-950 flex items-center justify-center">A</button>
+            <button onClick={() => aplicarGrifo('bg-sky-400/40', 'text-sky-100')} className="w-6 h-6 rounded-full bg-sky-400 cursor-pointer font-bold text-[10px] text-zinc-950 flex items-center justify-center">A</button>
+            <button onClick={() => aplicarGrifo('bg-emerald-400/40', 'text-emerald-100')} className="w-6 h-6 rounded-full bg-emerald-400 cursor-pointer font-bold text-[10px] text-zinc-950 flex items-center justify-center">A</button>
+            <button onClick={() => aplicarGrifo('bg-rose-500/40', 'text-rose-100')} className="w-6 h-6 rounded-full bg-rose-500 cursor-pointer font-bold text-[10px] text-zinc-950 flex items-center justify-center">A</button>
             <div className="w-[1px] h-4 bg-zinc-700 mx-0.5" />
-
-            <button
-              onClick={removerGrifoTrecho}
-              className="w-6 h-6 rounded-full bg-zinc-800 hover:bg-rose-600 hover:text-white text-zinc-400 border border-zinc-700 hover:border-rose-500 hover:scale-110 transition shadow cursor-pointer flex items-center justify-center text-[10px] font-bold"
-              title="Remover grifo do trecho"
-            >
-              ✕
-            </button>
+            <button onClick={removerGrifoTrecho} className="w-6 h-6 rounded-full bg-zinc-800 text-zinc-400 font-bold text-[10px] flex items-center justify-center">✕</button>
           </div>
         </>
       )}
@@ -204,18 +105,15 @@ function TextoGrifavel({ children, idUnico }: { children: React.ReactNode; idUni
   );
 }
 
-// --- COMPONENTE VISUAL UNIVERSAL DE DIAGRAMAS, CARDS E FLUXOGRAMAS ---
+// --- COMPONENTE VISUAL DE DIAGRAMAS COM SUPORTE A ÍCONES (SEM EMOJIS) ---
 function LogicalDiagram({ grafico }: { grafico: any }) {
   if (!grafico) return null;
-
   const listaItens = Array.isArray(grafico.elementos) ? grafico.elementos
                    : Array.isArray(grafico.conjuntos) ? grafico.conjuntos
                    : Array.isArray(grafico.grupos) ? grafico.grupos
                    : Array.isArray(grafico.cards) ? grafico.cards
                    : Array.isArray(grafico.etapas) ? grafico.etapas
                    : Array.isArray(grafico.itens) ? grafico.itens
-                   : Array.isArray(grafico.nos) ? grafico.nos
-                   : Array.isArray(grafico.passos) ? grafico.passos
                    : [];
 
   return (
@@ -230,7 +128,7 @@ function LogicalDiagram({ grafico }: { grafico: any }) {
 
       <div className={`grid gap-4 ${listaItens.length > 1 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
         {listaItens.map((card: any, idx: number) => {
-          const tituloCard = card.titulo || card.nome || card.rotulo || `Item ${idx + 1}`;
+          const tituloCard = card.titulo || card.nome || `Item ${idx + 1}`;
           const subtituloCard = card.subtitulo || card.destaque || '';
           const conteudoCard = card.conteudo || card.descricao || '';
           const topicosCard = Array.isArray(card.topicos) ? card.topicos : Array.isArray(card.itens) ? card.itens : [];
@@ -246,7 +144,7 @@ function LogicalDiagram({ grafico }: { grafico: any }) {
             >
               <div className="flex items-center justify-between border-b border-white/10 pb-2">
                 <span className="text-xs font-black uppercase tracking-wider flex items-center gap-1.5" style={{ color: card.corTitulo || '#F59E0B' }}>
-                  {card.icone && <span>{card.icone}</span>}
+                  {card.iconeUrl && <img src={card.iconeUrl} alt="" className="w-4 h-4 object-contain inline-block" />}
                   {tituloCard}
                 </span>
               </div>
@@ -276,114 +174,41 @@ const PROMPT_MESTRE_TEXTO = `Atue como Especialista e Mentor para o concurso do 
 Gere um JSON estruturado estrito contendo obrigatoriamente a chave "ramos".
 
 REGRAS CRÍTICAS DE FORMATAÇÃO DO JSON (OBRIGATÓRIO):
-1. NUNCA insira quebras de linha literais dentro dos valores de texto/string (ex: NUNCA faça "titulo": "Linha 1 
-\\n Linha 2"). Mantenha todo o texto de cada campo em UMA ÚNICA LINHA sem dar Enter dentro de aspas.
-2. NUNCA utilize entidades HTML (como &#x20;, &nbsp;, &quot;).
-3. Mantenha todas as chaves de fechamento (}, ]) devidamente pareadas.
-4. Garanta que cada objeto dentro do array "ramos" possua um campo "id" único e descritivo.
-
-DIRETRIZES DE CRIAÇÃO LIBERADA DE GRÁFICOS E FLUXOGRAMAS:
-Seja extremamente criativo, didático e visual na elaboração do campo "grafico". Escolha o formato visual perfeito de acordo com a disciplina:
-
-1. PARA MATEMÁTICA / RACIOCÍNIO LÓGICO (Conjuntos, Silogismos, Venn):
-   Use "tipo": "conjuntos_misto" ou "conjuntos_aninhados" com elipses e posições X/Y.
-
-2. PARA DIREITO CONSTITUCIONAL / ADMINISTRATIVO / PENAL / PORTUGUÊS (Cards Comparativos, Quadrados, Retângulos, Tabelas Visuais):
-   Use "tipo": "cards_flexiveis" com a estrutura:
-   "grafico": {
-     "tipo": "cards_flexiveis",
-     "titulo": "Nacionalidade Brasileira (Art. 12, CF)",
-     "cards": [
-       {
-         "titulo": "Brasileiro Nato",
-         "icone": "👤",
-         "badge": "Art. 12, I",
-         "corFundo": "rgba(30, 58, 138, 0.4)",
-         "corBorda": "#3B82F6",
-         "corTitulo": "#60A5FA",
-         "subtitulo": "Critério de Origem",
-         "topicos": [
-           "Nascimento no Brasil (jus soli), salvo pais a serviço do seu país.",
-           "Nascimento no exterior de pai ou mãe brasileira a serviço do Brasil."
-         ]
-       },
-       {
-         "titulo": "Naturalizado",
-         "icone": "📜",
-         "badge": "Art. 12, II",
-         "corFundo": "rgba(120, 53, 15, 0.4)",
-         "corBorda": "#F59E0B",
-         "corTitulo": "#FBBF24",
-         "subtitulo": "Critério de Vontade / Requisitos",
-         "topicos": [
-           "Ordinária: 1 ano ininterrupto + idoneidade moral (países de língua portuguesa).",
-           "Extraordinária: mais de 15 anos + ausência de condenação penal."
-         ]
-       }
-     ],
-     "conclusao": "Brasileiro nato jamais será extraditado; naturalizado pode apenas em crime comum antes da naturalização ou tráfico ilícito.",
-     "descricao": "Resumo comparativo direto para questões de prova VUNESP."
-   }
-
-3. PARA FLUXOGRAMAS / PROCEDIMENTOS / PRAZOS PROCESSUAIS (Com Setas Conectoras):
-   Use "tipo": "fluxograma" com a estrutura:
-   "grafico": {
-     "tipo": "fluxograma",
-     "titulo": "Fluxograma de Naturalização Extraordinária",
-     "etapas": [
-       {
-         "titulo": "Ponto de Partida",
-         "destaque": "Qualquer Nacionalidade",
-         "corFundo": "rgba(24, 24, 27, 0.95)",
-         "corBorda": "#3F3F46",
-         "rotuloSeta": "Requisitos Temporais"
-       },
-       {
-         "titulo": "Exigência Principal",
-         "destaque": "Mais de 15 Anos Ininterruptos",
-         "descricao": "Residência contínua no Brasil sem infrações penais gravemente apenadas.",
-         "corFundo": "rgba(6, 78, 59, 0.4)",
-         "corBorda": "#10B981",
-         "corTexto": "#34D399"
-       }
-     ],
-     "conclusao": "A concessão extraordinária não exige idoneidade prévia em rol taxativo além da ausência de condenação."
-   }
+1. NUNCA insira quebras de linha literais dentro dos valores de texto/string. Mantenha todo o texto em uma única linha.
+2. NUNCA utilize EMOJIS. Em vez de emojis, utilize URLs públicas de ícones profissionais em PNG/SVG (ex: ícones limpos em miniatura) no campo "iconeUrl", ou deixe o campo ausente.
+3. INSTRUÇÕES DE IMAGEM NO CARD: Cada objeto dentro do array "ramos" pode opcionalmente conter o campo "imagemUrl" (string com link de imagem ilustrativa, diagrama ou print explicativo) que será renderizado automaticamente abaixo do card.
+4. Mantenha todas as chaves de fechamento devidamente pareadas.
 
 ESTRUTURA COMPLETA DO JSON EXIGIDA:
 {
   "ramos": [
     {
       "id": "identificador-unico-12345",
-      "titulo": "Título do Tópico em linha única",
-      "artigos": "CF/88 Art. 12",
-      "tag": "Constitucional",
-      "assunto": "Nacionalidade",
-      "tipo": "conceito",
-      "grafico": { ... },
+      "titulo": "Título do Tópico",
+      "assunto": "Assunto Específico",
+      "imagemUrl": "https://exemplo.com/imagem-explicativa.png",
+      "grafico": {
+        "tipo": "cards_flexiveis",
+        "titulo": "Resumo Visual",
+        "cards": [
+          {
+            "titulo": "Conceito Chave",
+            "iconeUrl": "https://exemplo.com/icone.png",
+            "topicos": ["Ponto 1", "Ponto 2"]
+          }
+        ]
+      },
       "subnos": [
         {
-          "titulo": "Destaque da Legislação",
-          "itens": ["Ponto 1", "Ponto 2"]
+          "titulo": "Legislação Aplicada",
+          "itens": ["Detalhe 1", "Detalhe 2"]
         }
-      ],
-      "modalInfo": {
-        "title": "Dica de Ouro VUNESP",
-        "tag": "Estratégia",
-        "casosPraticos": [
-          {
-            "titulo": "PADRÃO DA BANCA:",
-            "texto": "Explicação da pegadinha."
-          }
-        ],
-        "conclusoes": ["Conclusão para prova."],
-        "pegadinha": "Pegadinha clássica da VUNESP."
-      }
+      ]
     }
   ]
 }
 
-Retorne EXCLUSIVAMENTE o JSON válido, sem markdown ou textos antes/depois. Explore ao máximo sua criatividade, didática e visualidade. Evite respostas vagas ou superficiais. Use exemplos práticos, diagramas, fluxogramas e cards comparativos para facilitar a compreensão do conteúdo.`;
+Retorne EXCLUSIVAMENTE o JSON válido, sem markdown ou textos antes/depois.`;
 
 export default function MapaMentalPage() {
   const [mapasPorDisciplina, setMapasPorDisciplina] = useState<Record<string, any>>({});
@@ -479,7 +304,6 @@ export default function MapaMentalPage() {
     }
   };
 
-  // FUNÇÃO ATUALIZADA: FAZ MERGE INTELIGENTE DOS RAMOS EXISTENTES COM OS NOVOS DO JSON
   const handleCarregarJson = async () => {
     try {
       let textoLimpo = jsonInputText.trim();
@@ -490,7 +314,6 @@ export default function MapaMentalPage() {
       let parsed = JSON.parse(textoLimpo);
 
       if (parsed && parsed.ramos && Array.isArray(parsed.ramos)) {
-        // 1. Busca os registros já salvos no banco para esta disciplina
         const { data: registroAtual } = await supabase
           .from('mapas_mentais')
           .select('*')
@@ -504,13 +327,9 @@ export default function MapaMentalPage() {
             : registroAtual.ramos;
         }
 
-        // 2. Unifica os ramos antigos com os novos por ID (preservando flags de revisão)
         const mapaRamosUnificados = new Map();
-        
         if (Array.isArray(ramosExistentes)) {
-          ramosExistentes.forEach((r: any) => {
-            if (r && r.id) mapaRamosUnificados.set(r.id, r);
-          });
+          ramosExistentes.forEach((r: any) => { if (r && r.id) mapaRamosUnificados.set(r.id, r); });
         }
 
         parsed.ramos.forEach((r: any) => {
@@ -520,7 +339,8 @@ export default function MapaMentalPage() {
               mapaRamosUnificados.set(r.id, {
                 ...r,
                 revisar: existente.revisar || r.revisar,
-                revisarParaProva: existente.revisarParaProva || r.revisarParaProva
+                revisarParaProva: existente.revisarParaProva || r.revisarParaProva,
+                imagemUrl: r.imagemUrl || existente.imagemUrl
               });
             } else {
               mapaRamosUnificados.set(r.id, r);
@@ -529,7 +349,6 @@ export default function MapaMentalPage() {
         });
 
         const ramosFinais = Array.from(mapaRamosUnificados.values());
-
         const payloadFinal = {
           disciplina: modalDisciplinaAlvo,
           titulo: parsed.titulo || registroAtual?.titulo || `Revisão: ${modalDisciplinaAlvo}`,
@@ -541,13 +360,35 @@ export default function MapaMentalPage() {
         setShowJsonModal(false);
         setJsonInputText('');
         setSelectedDisciplina(modalDisciplinaAlvo);
-        alert(`Conteúdo incorporado com sucesso para ${modalDisciplinaAlvo}! Agora todos os assuntos coexistem na matéria.`);
+        alert(`Conteúdo incorporado com sucesso para ${modalDisciplinaAlvo}!`);
       } else {
         alert('O JSON precisa conter a chave "ramos".');
       }
     } catch (e: any) {
       alert(`Erro no JSON: ${e.message}`);
     }
+  };
+
+  // Função para lidar com o upload de imagem local do PC diretamente no card
+  const handleUploadImagemCard = async (ramoId: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const arquivo = e.target.files?.[0];
+    if (!arquivo || !mapaAtual) return;
+
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const base64String = reader.result as string;
+
+      const ramosAtualizados = mapaAtual.ramos.map((r: any) => {
+        if (r && r.id === ramoId) {
+          return { ...r, imagemUrl: base64String };
+        }
+        return r;
+      });
+
+      await salvarNoSupabaseComBackup(selectedDisciplina, { ...mapaAtual, ramos: ramosAtualizados });
+      alert("Imagem anexada e salva com segurança no banco!");
+    };
+    reader.readAsDataURL(arquivo);
   };
 
   const toggleRevisar = async (ramoId: string) => {
@@ -720,8 +561,19 @@ export default function MapaMentalPage() {
                           <h2 className="text-lg sm:text-xl font-extrabold text-white tracking-tight pt-2">{ramo.titulo}</h2>
                         </div>
 
-                        {/* BOTÕES DE FLAG INTERATIVOS E SINCRONIZADOS */}
+                        {/* BOTÕES DE FLAG E UPLOAD DE IMAGEM */}
                         <div className="flex items-center gap-2 self-start sm:self-center shrink-0 flex-wrap">
+                          {/* Botão de Upload Local do PC */}
+                          <label className="text-xs font-bold px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-amber-400 border border-zinc-700 transition-all cursor-pointer shadow-md flex items-center gap-1.5">
+                            Imagem
+                            <input 
+                              type="file" 
+                              accept="image/*" 
+                              className="hidden" 
+                              onChange={(e) => handleUploadImagemCard(ramo.id, e)} 
+                            />
+                          </label>
+
                           <button
                             onClick={() => toggleRevisarParaProva(ramo.id)}
                             className={`text-xs font-extrabold px-3 py-1.5 rounded-lg border transition-all cursor-pointer shadow-md ${
@@ -745,6 +597,35 @@ export default function MapaMentalPage() {
                       </div>
 
                       {ramo.grafico && <LogicalDiagram grafico={ramo.grafico} />}
+
+                      {/* RENDERIZAÇÃO DA IMAGEM ABAIXO DO CARD (SE HOUVER VIA JSON OU UPLOAD LOCAL) */}
+                      {ramo.imagemUrl && (
+                        <div className="mt-4 p-3 bg-zinc-950 border border-zinc-800 rounded-2xl flex flex-col items-center relative group">
+                          <img 
+                            src={ramo.imagemUrl} 
+                            alt="Ilustração do Tópico" 
+                            className="max-h-96 w-auto object-contain rounded-xl border border-zinc-800 shadow-md"
+                          />
+                          <button
+                            onClick={async () => {
+                              if (confirm("Deseja remover esta imagem?")) {
+                                const ramosAtualizados = mapaAtual.ramos.map((r: any) => {
+                                  if (r && r.id === ramo.id) {
+                                    const copia = { ...r };
+                                    delete copia.imagemUrl;
+                                    return copia;
+                                  }
+                                  return r;
+                                });
+                                await salvarNoSupabaseComBackup(selectedDisciplina, { ...mapaAtual, ramos: ramosAtualizados });
+                              }
+                            }}
+                            className="absolute top-5 right-5 bg-rose-600 text-white text-xs px-2.5 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity shadow-lg cursor-pointer"
+                          >
+                            Remover Imagem ✕
+                          </button>
+                        </div>
+                      )}
 
                       <div className="space-y-6">
                         {ramo.subnos && ramo.subnos.map((sub: any, idx: number) => (
@@ -774,10 +655,10 @@ export default function MapaMentalPage() {
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <span className="bg-amber-400 text-zinc-950 font-bold text-xs px-2.5 py-0.5 rounded-full">Mentor VUNESP</span>
-              <h2 className="text-sm font-bold text-white">Prompt Mestre com Marca-Texto e Suporte Gráfico</h2>
+              <h2 className="text-sm font-bold text-white">Prompt Mestre Atualizado (Ícones e Imagens nos Cards)</h2>
             </div>
             <p className="text-xs text-zinc-400">
-              Gera conteúdos estruturados com IDs seguros, grifos de texto e diagramas visuais.
+              Gera conteúdos sem emojis, com ícones profissionais e suporte a imagens explicativas.
             </p>
           </div>
 

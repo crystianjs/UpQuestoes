@@ -105,7 +105,7 @@ function TextoGrifavel({ children, idUnico }: { children: React.ReactNode; idUni
   );
 }
 
-// --- COMPONENTE VISUAL DE DIAGRAMAS COM SUPORTE A ÍCONES (SEM EMOJIS) ---
+// --- COMPONENTE VISUAL DE DIAGRAMAS COM SUPORTE A ÍCONES ---
 function LogicalDiagram({ grafico }: { grafico: any }) {
   if (!grafico) return null;
   const listaItens = Array.isArray(grafico.elementos) ? grafico.elementos
@@ -175,8 +175,8 @@ Gere um JSON estruturado estrito contendo obrigatoriamente a chave "ramos".
 
 REGRAS CRÍTICAS DE FORMATAÇÃO DO JSON (OBRIGATÓRIO):
 1. NUNCA insira quebras de linha literais dentro dos valores de texto/string. Mantenha todo o texto em uma única linha.
-2. NUNCA utilize EMOJIS. Em vez de emojis, utilize URLs públicas de ícones profissionais em PNG/SVG (ex: ícones limpos em miniatura) no campo "iconeUrl", ou deixe o campo ausente.
-3. INSTRUÇÕES DE IMAGEM NO CARD: Cada objeto dentro do array "ramos" pode opcionalmente conter o campo "imagemUrl" (string com link de imagem ilustrativa, diagrama ou print explicativo) que será renderizado automaticamente abaixo do card.
+2. NUNCA utilize EMOJIS. Em vez de emojis, utilize URLs públicas de ícones profissionais em PNG/SVG no campo "iconeUrl", ou deixe o campo ausente.
+3. INSTRUÇÕES DE IMAGEM NO CARD: Cada objeto dentro do array "ramos" pode opcionalmente conter o campo "imagemUrl" (string com link direto de imagem ilustrativa ou diagrama) que será renderizado automaticamente abaixo do card com botão de expandir em tela cheia.
 4. Mantenha todas as chaves de fechamento devidamente pareadas.
 
 ESTRUTURA COMPLETA DO JSON EXIGIDA:
@@ -223,6 +223,9 @@ export default function MapaMentalPage() {
 
   const [editandoRamoId, setEditandoRamoId] = useState<string | null>(null);
   const [novoAssuntoInput, setNovoAssuntoInput] = useState<string>('');
+
+  // Estado para controlar a imagem aberta em tela cheia (Modal Zoom)
+  const [imagemExpandidaUrl, setImagemExpandidaUrl] = useState<string | null>(null);
 
   useEffect(() => { carregarDadosSupabase(); }, []);
 
@@ -369,7 +372,6 @@ export default function MapaMentalPage() {
     }
   };
 
-  // Função para lidar com o upload de imagem local do PC diretamente no card
   const handleUploadImagemCard = async (ramoId: string, e: React.ChangeEvent<HTMLInputElement>) => {
     const arquivo = e.target.files?.[0];
     if (!arquivo || !mapaAtual) return;
@@ -563,7 +565,6 @@ export default function MapaMentalPage() {
 
                         {/* BOTÕES DE FLAG E UPLOAD DE IMAGEM */}
                         <div className="flex items-center gap-2 self-start sm:self-center shrink-0 flex-wrap">
-                          {/* Botão de Upload Local do PC */}
                           <label className="text-xs font-bold px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-amber-400 border border-zinc-700 transition-all cursor-pointer shadow-md flex items-center gap-1.5">
                             Imagem
                             <input 
@@ -598,32 +599,45 @@ export default function MapaMentalPage() {
 
                       {ramo.grafico && <LogicalDiagram grafico={ramo.grafico} />}
 
-                      {/* RENDERIZAÇÃO DA IMAGEM ABAIXO DO CARD (SE HOUVER VIA JSON OU UPLOAD LOCAL) */}
+                      {/* RENDERIZAÇÃO DA IMAGEM E BOTÃO DE EXPANDIR EM TELA CHEIA */}
                       {ramo.imagemUrl && (
-                        <div className="mt-4 p-3 bg-zinc-950 border border-zinc-800 rounded-2xl flex flex-col items-center relative group">
-                          <img 
-                            src={ramo.imagemUrl} 
-                            alt="Ilustração do Tópico" 
-                            className="max-h-96 w-auto object-contain rounded-xl border border-zinc-800 shadow-md"
-                          />
-                          <button
-                            onClick={async () => {
-                              if (confirm("Deseja remover esta imagem?")) {
-                                const ramosAtualizados = mapaAtual.ramos.map((r: any) => {
-                                  if (r && r.id === ramo.id) {
-                                    const copia = { ...r };
-                                    delete copia.imagemUrl;
-                                    return copia;
-                                  }
-                                  return r;
-                                });
-                                await salvarNoSupabaseComBackup(selectedDisciplina, { ...mapaAtual, ramos: ramosAtualizados });
-                              }
-                            }}
-                            className="absolute top-5 right-5 bg-rose-600 text-white text-xs px-2.5 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity shadow-lg cursor-pointer"
-                          >
-                            Remover Imagem ✕
-                          </button>
+                        <div className="mt-4 p-4 bg-zinc-950 border border-zinc-800 rounded-2xl flex flex-col items-center relative group">
+                          <div className="relative w-full flex justify-center cursor-pointer overflow-hidden rounded-xl" onClick={() => setImagemExpandidaUrl(ramo.imagemUrl)}>
+                            <img 
+                              src={ramo.imagemUrl} 
+                              alt="Ilustração do Tópico" 
+                              className="max-h-80 w-auto object-contain rounded-xl border border-zinc-800 shadow-md transition-transform duration-300 group-hover:scale-[1.02]"
+                            />
+                            {/* Botão flutuante sobre a imagem para tela cheia */}
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setImagemExpandidaUrl(ramo.imagemUrl); }}
+                              className="absolute bottom-3 right-3 bg-zinc-900/90 hover:bg-amber-400 hover:text-zinc-950 text-amber-400 border border-amber-400/40 text-xs font-bold px-3 py-1.5 rounded-xl shadow-lg transition-all flex items-center gap-1.5 cursor-pointer"
+                            >
+                              Expandir Tela Cheia
+                            </button>
+                          </div>
+
+                          <div className="flex items-center justify-between w-full pt-3 mt-2 border-t border-zinc-900">
+                            <span className="text-[11px] text-zinc-500 font-medium">Ilustração / Esquema anexado</span>
+                            <button
+                              onClick={async () => {
+                                if (confirm("Deseja remover esta imagem?")) {
+                                  const ramosAtualizados = mapaAtual.ramos.map((r: any) => {
+                                    if (r && r.id === ramo.id) {
+                                      const copia = { ...r };
+                                      delete copia.imagemUrl;
+                                      return copia;
+                                    }
+                                    return r;
+                                  });
+                                  await salvarNoSupabaseComBackup(selectedDisciplina, { ...mapaAtual, ramos: ramosAtualizados });
+                                }
+                              }}
+                              className="text-xs text-rose-400 hover:underline cursor-pointer"
+                            >
+                              Remover Imagem ✕
+                            </button>
+                          </div>
                         </div>
                       )}
 
@@ -675,6 +689,28 @@ export default function MapaMentalPage() {
         </div>
 
       </main>
+
+      {/* MODAL DE TELA CHEIA PARA A IMAGEM (MOBILE & DESKTOP) */}
+      {imagemExpandidaUrl && (
+        <div 
+          className="fixed inset-0 bg-black/95 backdrop-blur-md z-50 flex items-center justify-center p-4 sm:p-8 animate-in fade-in duration-200"
+          onClick={() => setImagemExpandidaUrl(null)}
+        >
+          <div className="relative max-w-7xl max-h-[90vh] w-full flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+            <button 
+              onClick={() => setImagemExpandidaUrl(null)}
+              className="absolute -top-12 right-0 bg-zinc-800 hover:bg-rose-600 text-white w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shadow-2xl transition-all cursor-pointer border border-zinc-700"
+            >
+              ✕
+            </button>
+            <img 
+              src={imagemExpandidaUrl} 
+              alt="Visualização em Tela Cheia" 
+              className="max-w-full max-h-[85vh] object-contain rounded-2xl border border-zinc-800 shadow-2xl"
+            />
+          </div>
+        </div>
+      )}
 
       {/* Modal de JSON */}
       {showJsonModal && (

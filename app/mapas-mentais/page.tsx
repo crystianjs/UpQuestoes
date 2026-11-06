@@ -105,7 +105,7 @@ function TextoGrifavel({ children, idUnico }: { children: React.ReactNode; idUni
   );
 }
 
-// --- COMPONENTE DE DIAGRAMAS COM SUPORTE A ÍCONES (SEM EMOJIS) ---
+// --- COMPONENTE DE DIAGRAMAS COM SUPORTE A ÍCONES E CORES PERSONALIZADAS ---
 function LogicalDiagram({ grafico }: { grafico: any }) {
   if (!grafico) return null;
   const listaItens = Array.isArray(grafico.elementos) ? grafico.elementos
@@ -174,47 +174,70 @@ function LogicalDiagram({ grafico }: { grafico: any }) {
 const PROMPT_MESTRE_TEXTO = `Atue como Especialista e Mentor para o concurso do TJSP (Banca VUNESP).
 Gere um JSON estruturado estrito contendo obrigatoriamente a chave "ramos".
 
-REGRAS CRÍTICAS DE FORMATAÇÃO DO JSON E ESTRUTURAÇÃO (OBRIGATÓRIO):
-1. NUNCA envie textos corridos ou blocos monolíticos de texto. Todo o conteúdo deve ser rigorosamente seccionado em blocos visuais, cards independentes, tópicos com marcadores, listas estruturadas e gráficos dedicados.
-2. PROIBIDO O USO DE EMOJIS. Em vez de emojis, utilize estritamente URLs públicas de ícones profissionais em PNG/SVG (ex: ícones limpos em miniatura de repositórios como Lucide/FontAwesome via CDN) no campo "iconeUrl" (tanto nos cards quanto nos títulos).
-3. SUPORTE A MÚLTIPLAS IMAGENS: Cada objeto dentro do array "ramos" pode conter opcionalmente a propriedade "imagens" (um array de strings contendo URLs diretas de imagens ilustrativas, diagramas ou esquemas).
-4. SINTAXE LIMPA: Mantenha todo o texto limpo, sem quebras de linha literais dentro das strings, garantindo JSON 100% válido.
+REGRAS CRÍTICAS DE FORMATAÇÃO E ESTILIZAÇÃO VISUAL (OBRIGATÓRIO):
+1. NUNCA envie textos corridos, blocos monolíticos ou listas simples de texto plano. Você DEVE estruturar todo o conteúdo principal dentro do objeto "grafico" utilizando obrigatoriamente o tipo "cards_flexiveis".
+2. USO OBRIGATÓRIO DE CORES E ÊFASE: Cada card dentro do array "cards" do gráfico DEVE conter obrigatoriamente as propriedades de estilo personalizadas para destacar visualmente a matéria:
+   - "corFundo": string em RGBA ou HEX suave para destacar a caixa (ex: "rgba(120, 53, 15, 0.4)" para tons âmbar/alerta, "rgba(30, 58, 138, 0.4)" para azul/destaque, "rgba(6, 78, 59, 0.4)" para verde/sucesso).
+   - "corBorda": string em HEX para a borda da caixa (ex: "#F59E0B", "#3B82F6", "#10B981").
+   - "corTitulo": string em HEX para colorir o título do card (#FBBF24, #60A5FA, #34D399).
+3. PROIBIDO O USO DE EMOJIS. Utilize estritamente URLs públicas de ícones profissionais em PNG/SVG no campo "iconeUrl" (tanto no nível do ramo quanto nos cards e títulos).
+4. SUPORTE A MÚLTIPLAS IMAGENS: Cada objeto dentro do array "ramos" pode conter opcionalmente a propriedade "imagens" (array de strings com URLs diretas de imagens ilustrativas ou esquemas).
 
-ESTRUTURA COMPLETA DO JSON EXIGIDA:
+EXEMPLO EXATO DA ESTRUTURA VISUAL COLORIDA QUE VOCÊ DEVE OBRIGATORIAMENTE GERAR:
 {
   "ramos": [
     {
-      "id": "identificador-unico-12345",
-      "titulo": "Título Destacado do Tópico",
-      "assunto": "Assunto Específico",
-      "iconeUrl": "https://cdn.jsdelivr.net/npm/lucide-static@0.321.0/icons/book-open.svg",
-      "imagens": [
-        "https://exemplo.com/fluxograma-1.png",
-        "https://exemplo.com/esquema-2.png"
-      ],
+      "id": "tjsp-processual-civil-01",
+      "titulo": "Procedimento Comum - Condutas do Réu",
+      "assunto": "Condutas do Réu",
+      "iconeUrl": "https://cdn.jsdelivr.net/npm/lucide-static@0.321.0/icons/scales.svg",
+      "imagens": [],
       "grafico": {
         "tipo": "cards_flexiveis",
-        "titulo": "Resumo Visual Comparativo",
-        "iconeUrl": "https://cdn.jsdelivr.net/npm/lucide-static@0.321.0/icons/bar-chart.svg",
+        "titulo": "As Respostas do Réu (Destaques e Comparações)",
+        "iconeUrl": "https://cdn.jsdelivr.net/npm/lucide-static@0.321.0/icons/layout-grid.svg",
         "cards": [
           {
-            "titulo": "Conceito A",
+            "titulo": "Revelia",
+            "iconeUrl": "https://cdn.jsdelivr.net/npm/lucide-static@0.321.0/icons/alert-circle.svg",
+            "corFundo": "rgba(120, 53, 15, 0.4)",
+            "corBorda": "#F59E0B",
+            "corTitulo": "#FBBF24",
+            "subtitulo": "Ausência de Contestação",
+            "topicos": [
+              "O réu não apresenta contestação no prazo legal.",
+              "Efeito principal: presunção de veracidade dos fatos alegados."
+            ]
+          },
+          {
+            "titulo": "Contestação",
             "iconeUrl": "https://cdn.jsdelivr.net/npm/lucide-static@0.321.0/icons/check-circle.svg",
-            "topicos": ["Ponto 1", "Ponto 2"]
+            "corFundo": "rgba(30, 58, 138, 0.4)",
+            "corBorda": "#3B82F6",
+            "corTitulo": "#60A5FA",
+            "subtitulo": "Defesa de Mérito e Preliminares",
+            "topicos": [
+              "Concentração da defesa na resposta.",
+              "Alegação de preliminares e impugnação específica do mérito."
+            ]
           }
         ]
       },
       "subnos": [
         {
-          "titulo": "Detalhamento e Legislação",
-          "itens": ["Item estruturado 1", "Item estruturado 2"]
+          "titulo": "Prazos Processuais Relevantes",
+          "iconeUrl": "https://cdn.jsdelivr.net/npm/lucide-static@0.321.0/icons/clock.svg",
+          "itens": [
+            "Prazo geral de contestação: 15 dias úteis (art. 335).",
+            "Réplica: 15 dias úteis."
+          ]
         }
       ]
     }
   ]
 }
 
-Retorne EXCLUSIVAMENTE o JSON válido, sem markdown ou textos antes/depois. Seja criativo unindo ícones profissionais, imagens e gráficos limpos.`;
+Retorne EXCLUSIVAMENTE o JSON válido com base nesse modelo estruturado, sem markdown ou textos antes/depois.`;
 
 export default function MapaMentalPage() {
   const [mapasPorDisciplina, setMapasPorDisciplina] = useState<Record<string, any>>({});
@@ -230,7 +253,6 @@ export default function MapaMentalPage() {
   const [editandoRamoId, setEditandoRamoId] = useState<string | null>(null);
   const [novoAssuntoInput, setNovoAssuntoInput] = useState<string>('');
 
-  // Estados para o Modal de Carrossel de Imagens em Tela Cheia
   const [modalImagensState, setModalImagensState] = useState<{ imagens: string[]; indexAtual: number } | null>(null);
 
   useEffect(() => { carregarDadosSupabase(); }, []);
@@ -710,10 +732,10 @@ export default function MapaMentalPage() {
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <span className="bg-amber-400 text-zinc-950 font-bold text-xs px-2.5 py-0.5 rounded-full">Mentor VUNESP</span>
-              <h2 className="text-sm font-bold text-white">Prompt Mestre Estruturado (Ícones, Múltiplas Imagens e Blocos Visuais)</h2>
+              <h2 className="text-sm font-bold text-white">Prompt Mestre Estruturado (Ícones, Cores, Gráficos e Imagens)</h2>
             </div>
             <p className="text-xs text-zinc-400">
-              Gera conteúdos sem texto corrido, focado em cartões modulares, ícones profissionais e galerias.
+              Gera conteúdos estruturados em cartões coloridos, ícones profissionais e galerias.
             </p>
           </div>
 

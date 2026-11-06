@@ -313,32 +313,32 @@ export default function MapaMentalPage() {
     }
   };
 
+  // SALVAMENTO ASSÍNCRONO OTIMIZADO (NÃO TRAVA A TELA)
   const salvarNoSupabaseComBackup = async (disciplinaAlvo: string, payloadMapa: any) => {
-    try {
-      const { data: dadosAtuais } = await supabase.from('mapas_mentais').select('*').eq('disciplina', disciplinaAlvo).maybeSingle();
-      if (dadosAtuais) {
-        await supabase.from('temp_mapas_mentais').upsert({
-          disciplina: dadosAtuais.disciplina,
-          titulo: dadosAtuais.titulo,
-          banca: dadosAtuais.banca,
-          ramos: dadosAtuais.ramos,
-          backed_up_at: new Date().toISOString()
+    setTimeout(async () => {
+      try {
+        const { data: dadosAtuais } = await supabase.from('mapas_mentais').select('*').eq('disciplina', disciplinaAlvo).maybeSingle();
+        if (dadosAtuais) {
+          await supabase.from('temp_mapas_mentais').upsert({
+            disciplina: dadosAtuais.disciplina,
+            titulo: dadosAtuais.titulo,
+            banca: dadosAtuais.banca,
+            ramos: dadosAtuais.ramos,
+            backed_up_at: new Date().toISOString()
+          }, { onConflict: 'disciplina' });
+        }
+
+        await supabase.from('mapas_mentais').upsert({
+          disciplina: disciplinaAlvo,
+          titulo: payloadMapa.titulo,
+          banca: payloadMapa.banca || 'VUNESP',
+          ramos: payloadMapa.ramos,
+          updated_at: new Date().toISOString()
         }, { onConflict: 'disciplina' });
+      } catch (e) {
+        console.error("Erro no salvamento em segundo plano:", e);
       }
-
-      const { error } = await supabase.from('mapas_mentais').upsert({
-        disciplina: disciplinaAlvo,
-        titulo: payloadMapa.titulo,
-        banca: payloadMapa.banca || 'VUNESP',
-        ramos: payloadMapa.ramos,
-        updated_at: new Date().toISOString()
-      }, { onConflict: 'disciplina' });
-
-      if (error) throw error;
-      setMapasPorDisciplina(prev => ({ ...prev, [disciplinaAlvo]: payloadMapa }));
-    } catch (e) {
-      alert("Erro ao salvar no banco.");
-    }
+    }, 10);
   };
 
   const handleCarregarJson = async () => {
@@ -351,17 +351,11 @@ export default function MapaMentalPage() {
       let parsed = JSON.parse(textoLimpo);
 
       if (parsed && parsed.ramos && Array.isArray(parsed.ramos)) {
-        const { data: registroAtual } = await supabase
-          .from('mapas_mentais')
-          .select('*')
-          .eq('disciplina', modalDisciplinaAlvo)
-          .maybeSingle();
+        const registroAtual = mapasPorDisciplina[modalDisciplinaAlvo];
 
         let ramosExistentes = [];
         if (registroAtual && registroAtual.ramos) {
-          ramosExistentes = typeof registroAtual.ramos === 'string' 
-            ? JSON.parse(registroAtual.ramos) 
-            : registroAtual.ramos;
+          ramosExistentes = registroAtual.ramos;
         }
 
         const mapaRamosUnificados = new Map();
@@ -397,11 +391,14 @@ export default function MapaMentalPage() {
           ramos: ramosFinais
         };
 
-        await salvarNoSupabaseComBackup(modalDisciplinaAlvo, payloadFinal);
+        // Atualização instantânea na tela
+        setMapasPorDisciplina(prev => ({ ...prev, [modalDisciplinaAlvo]: payloadFinal }));
         setShowJsonModal(false);
         setJsonInputText('');
         setSelectedDisciplina(modalDisciplinaAlvo);
-        alert(`Conteúdo incorporado com sucesso para ${modalDisciplinaAlvo}!`);
+
+        // Salva em segundo plano
+        salvarNoSupabaseComBackup(modalDisciplinaAlvo, payloadFinal);
       } else {
         alert('O JSON precisa conter a chave "ramos".');
       }
@@ -432,8 +429,16 @@ export default function MapaMentalPage() {
       return r;
     });
 
-    await salvarNoSupabaseComBackup(selectedDisciplina, { ...mapaAtual, ramos: ramosAtualizados });
-    alert(`${novasBase64.length} imagem(ns) adicionada(s) e salva(s) com sucesso!`);
+    const mapaAtualizadoFinal = { ...mapaAtual, ramos: ramosAtualizados };
+
+    // Atualiza o estado local imediatamente sem delay
+    setMapasPorDisciplina(prev => ({
+      ...prev,
+      [selectedDisciplina]: mapaAtualizadoFinal
+    }));
+
+    // Salva no Supabase em segundo plano
+    salvarNoSupabaseComBackup(selectedDisciplina, mapaAtualizadoFinal);
   };
 
   const removerImagemUnica = async (ramoId: string, indexParaRemover: number) => {
@@ -447,7 +452,14 @@ export default function MapaMentalPage() {
         }
         return r;
       });
-      await salvarNoSupabaseComBackup(selectedDisciplina, { ...mapaAtual, ramos: ramosAtualizados });
+      const mapaAtualizadoFinal = { ...mapaAtual, ramos: ramosAtualizados };
+      
+      setMapasPorDisciplina(prev => ({
+        ...prev,
+        [selectedDisciplina]: mapaAtualizadoFinal
+      }));
+
+      salvarNoSupabaseComBackup(selectedDisciplina, mapaAtualizadoFinal);
     }
   };
 
@@ -457,7 +469,9 @@ export default function MapaMentalPage() {
       if (r && r.id === ramoId) return { ...r, revisar: !r.revisar };
       return r;
     });
-    await salvarNoSupabaseComBackup(selectedDisciplina, { ...mapaAtual, ramos: ramosAtualizados });
+    const mapaAtualizadoFinal = { ...mapaAtual, ramos: ramosAtualizados };
+    setMapasPorDisciplina(prev => ({ ...prev, [selectedDisciplina]: mapaAtualizadoFinal }));
+    salvarNoSupabaseComBackup(selectedDisciplina, mapaAtualizadoFinal);
   };
 
   const toggleRevisarParaProva = async (ramoId: string) => {
@@ -466,7 +480,9 @@ export default function MapaMentalPage() {
       if (r && r.id === ramoId) return { ...r, revisarParaProva: !r.revisarParaProva };
       return r;
     });
-    await salvarNoSupabaseComBackup(selectedDisciplina, { ...mapaAtual, ramos: ramosAtualizados });
+    const mapaAtualizadoFinal = { ...mapaAtual, ramos: ramosAtualizados };
+    setMapasPorDisciplina(prev => ({ ...prev, [selectedDisciplina]: mapaAtualizadoFinal }));
+    salvarNoSupabaseComBackup(selectedDisciplina, mapaAtualizadoFinal);
   };
 
   const salvarAssuntoEditado = async (ramoId: string) => {
@@ -475,7 +491,9 @@ export default function MapaMentalPage() {
       if (r && r.id === ramoId) return { ...r, assunto: novoAssuntoInput };
       return r;
     });
-    await salvarNoSupabaseComBackup(selectedDisciplina, { ...mapaAtual, ramos: ramosAtualizados });
+    const mapaAtualizadoFinal = { ...mapaAtual, ramos: ramosAtualizados };
+    setMapasPorDisciplina(prev => ({ ...prev, [selectedDisciplina]: mapaAtualizadoFinal }));
+    salvarNoSupabaseComBackup(selectedDisciplina, mapaAtualizadoFinal);
     setEditandoRamoId(null);
   };
 
@@ -489,7 +507,9 @@ export default function MapaMentalPage() {
         delete novoEstado[selectedDisciplina];
         setMapasPorDisciplina(novoEstado);
       } else {
-        await salvarNoSupabaseComBackup(selectedDisciplina, { ...mapaAtual, ramos: novosRamos });
+        const mapaAtualizadoFinal = { ...mapaAtual, ramos: novosRamos };
+        setMapasPorDisciplina(prev => ({ ...prev, [selectedDisciplina]: mapaAtualizadoFinal }));
+        salvarNoSupabaseComBackup(selectedDisciplina, mapaAtualizadoFinal);
       }
     }
   };

@@ -105,7 +105,7 @@ function TextoGrifavel({ children, idUnico }: { children: React.ReactNode; idUni
   );
 }
 
-// --- COMPONENTE VISUAL DE DIAGRAMAS COM SUPORTE A ÍCONES ---
+// --- COMPONENTE DE DIAGRAMAS COM SUPORTE A ÍCONES (SEM EMOJIS) ---
 function LogicalDiagram({ grafico }: { grafico: any }) {
   if (!grafico) return null;
   const listaItens = Array.isArray(grafico.elementos) ? grafico.elementos
@@ -119,9 +119,10 @@ function LogicalDiagram({ grafico }: { grafico: any }) {
   return (
     <div className="bg-zinc-950 border border-amber-400/30 rounded-2xl p-5 space-y-4 shadow-inner my-3">
       {grafico.titulo && (
-        <div className="border-b border-zinc-800 pb-2">
+        <div className="flex items-center gap-2 border-b border-zinc-800 pb-2">
+          {grafico.iconeUrl && <img src={grafico.iconeUrl} alt="" className="w-4 h-4 object-contain" />}
           <span className="text-xs font-bold uppercase tracking-wider text-amber-400">
-            📌 {grafico.titulo}
+            {grafico.titulo}
           </span>
         </div>
       )}
@@ -143,7 +144,7 @@ function LogicalDiagram({ grafico }: { grafico: any }) {
               }}
             >
               <div className="flex items-center justify-between border-b border-white/10 pb-2">
-                <span className="text-xs font-black uppercase tracking-wider flex items-center gap-1.5" style={{ color: card.corTitulo || '#F59E0B' }}>
+                <span className="text-xs font-black uppercase tracking-wider flex items-center gap-2" style={{ color: card.corTitulo || '#F59E0B' }}>
                   {card.iconeUrl && <img src={card.iconeUrl} alt="" className="w-4 h-4 object-contain inline-block" />}
                   {tituloCard}
                 </span>
@@ -173,42 +174,47 @@ function LogicalDiagram({ grafico }: { grafico: any }) {
 const PROMPT_MESTRE_TEXTO = `Atue como Especialista e Mentor para o concurso do TJSP (Banca VUNESP).
 Gere um JSON estruturado estrito contendo obrigatoriamente a chave "ramos".
 
-REGRAS CRÍTICAS DE FORMATAÇÃO DO JSON (OBRIGATÓRIO):
-1. NUNCA insira quebras de linha literais dentro dos valores de texto/string. Mantenha todo o texto em uma única linha.
-2. NUNCA utilize EMOJIS. Em vez de emojis, utilize URLs públicas de ícones profissionais em PNG/SVG no campo "iconeUrl", ou deixe o campo ausente.
-3. INSTRUÇÕES DE IMAGEM NO CARD: Cada objeto dentro do array "ramos" pode opcionalmente conter o campo "imagemUrl" (string com link direto de imagem ilustrativa ou diagrama) que será renderizado automaticamente abaixo do card com botão de expandir em tela cheia.
-4. Mantenha todas as chaves de fechamento devidamente pareadas.
+REGRAS CRÍTICAS DE FORMATAÇÃO DO JSON E ESTRUTURAÇÃO (OBRIGATÓRIO):
+1. NUNCA envie textos corridos ou blocos monolíticos de texto. Todo o conteúdo deve ser rigorosamente seccionado em blocos visuais, cards independentes, tópicos com marcadores, listas estruturadas e gráficos dedicados.
+2. PROIBIDO O USO DE EMOJIS. Em vez de emojis, utilize estritamente URLs públicas de ícones profissionais em PNG/SVG (ex: ícones limpos em miniatura de repositórios como Lucide/FontAwesome via CDN) no campo "iconeUrl" (tanto nos cards quanto nos títulos).
+3. SUPORTE A MÚLTIPLAS IMAGENS: Cada objeto dentro do array "ramos" pode conter opcionalmente a propriedade "imagens" (um array de strings contendo URLs diretas de imagens ilustrativas, diagramas ou esquemas).
+4. SINTAXE LIMPA: Mantenha todo o texto limpo, sem quebras de linha literais dentro das strings, garantindo JSON 100% válido.
 
 ESTRUTURA COMPLETA DO JSON EXIGIDA:
 {
   "ramos": [
     {
       "id": "identificador-unico-12345",
-      "titulo": "Título do Tópico",
+      "titulo": "Título Destacado do Tópico",
       "assunto": "Assunto Específico",
-      "imagemUrl": "https://exemplo.com/imagem-explicativa.png",
+      "iconeUrl": "https://cdn.jsdelivr.net/npm/lucide-static@0.321.0/icons/book-open.svg",
+      "imagens": [
+        "https://exemplo.com/fluxograma-1.png",
+        "https://exemplo.com/esquema-2.png"
+      ],
       "grafico": {
         "tipo": "cards_flexiveis",
-        "titulo": "Resumo Visual",
+        "titulo": "Resumo Visual Comparativo",
+        "iconeUrl": "https://cdn.jsdelivr.net/npm/lucide-static@0.321.0/icons/bar-chart.svg",
         "cards": [
           {
-            "titulo": "Conceito Chave",
-            "iconeUrl": "https://exemplo.com/icone.png",
+            "titulo": "Conceito A",
+            "iconeUrl": "https://cdn.jsdelivr.net/npm/lucide-static@0.321.0/icons/check-circle.svg",
             "topicos": ["Ponto 1", "Ponto 2"]
           }
         ]
       },
       "subnos": [
         {
-          "titulo": "Legislação Aplicada",
-          "itens": ["Detalhe 1", "Detalhe 2"]
+          "titulo": "Detalhamento e Legislação",
+          "itens": ["Item estruturado 1", "Item estruturado 2"]
         }
       ]
     }
   ]
 }
 
-Retorne EXCLUSIVAMENTE o JSON válido, sem markdown ou textos antes/depois.`;
+Retorne EXCLUSIVAMENTE o JSON válido, sem markdown ou textos antes/depois. Seja criativo unindo ícones profissionais, imagens e gráficos limpos.`;
 
 export default function MapaMentalPage() {
   const [mapasPorDisciplina, setMapasPorDisciplina] = useState<Record<string, any>>({});
@@ -224,8 +230,8 @@ export default function MapaMentalPage() {
   const [editandoRamoId, setEditandoRamoId] = useState<string | null>(null);
   const [novoAssuntoInput, setNovoAssuntoInput] = useState<string>('');
 
-  // Estado para controlar a imagem aberta em tela cheia (Modal Zoom)
-  const [imagemExpandidaUrl, setImagemExpandidaUrl] = useState<string | null>(null);
+  // Estados para o Modal de Carrossel de Imagens em Tela Cheia
+  const [modalImagensState, setModalImagensState] = useState<{ imagens: string[]; indexAtual: number } | null>(null);
 
   useEffect(() => { carregarDadosSupabase(); }, []);
 
@@ -254,11 +260,17 @@ export default function MapaMentalPage() {
             
             const eraImportante = r.importante === true || r.revisar === true || r.revisarParaProva === true;
 
+            let listaImagens = Array.isArray(r.imagens) ? r.imagens : [];
+            if (r.imagemUrl && !listaImagens.includes(r.imagemUrl)) {
+              listaImagens.unshift(r.imagemUrl);
+            }
+
             return { 
               ...r, 
               assunto: assuntoDefinitivo,
               revisar: r.revisar !== undefined ? r.revisar : eraImportante,
               revisarParaProva: r.revisarParaProva !== undefined ? r.revisarParaProva : eraImportante,
+              imagens: listaImagens,
               importante: undefined 
             };
           }) : [];
@@ -339,11 +351,15 @@ export default function MapaMentalPage() {
           if (r && r.id) {
             const existente = mapaRamosUnificados.get(r.id);
             if (existente) {
+              const imagsAntigas = Array.isArray(existente.imagens) ? existente.imagens : [];
+              const imagsNovas = Array.isArray(r.imagens) ? r.imagens : [];
+              const combinadas = Array.from(new Set([...imagsAntigas, ...imagsNovas]));
+
               mapaRamosUnificados.set(r.id, {
                 ...r,
                 revisar: existente.revisar || r.revisar,
                 revisarParaProva: existente.revisarParaProva || r.revisarParaProva,
-                imagemUrl: r.imagemUrl || existente.imagemUrl
+                imagens: combinadas
               });
             } else {
               mapaRamosUnificados.set(r.id, r);
@@ -372,25 +388,45 @@ export default function MapaMentalPage() {
     }
   };
 
-  const handleUploadImagemCard = async (ramoId: string, e: React.ChangeEvent<HTMLInputElement>) => {
-    const arquivo = e.target.files?.[0];
-    if (!arquivo || !mapaAtual) return;
+  const handleUploadMultiplasImagens = async (ramoId: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const arquivos = e.target.files;
+    if (!arquivos || arquivos.length === 0 || !mapaAtual) return;
 
-    const reader = new FileReader();
-    reader.onloadend = async () => {
-      const base64String = reader.result as string;
+    const promessasLeitura = Array.from(arquivos).map(file => {
+      return new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.readAsDataURL(file);
+      });
+    });
 
+    const novasBase64 = await Promise.all(promessasLeitura);
+
+    const ramosAtualizados = mapaAtual.ramos.map((r: any) => {
+      if (r && r.id === ramoId) {
+        const listaAtual = Array.isArray(r.imagens) ? r.imagens : [];
+        return { ...r, imagens: [...listaAtual, ...novasBase64] };
+      }
+      return r;
+    });
+
+    await salvarNoSupabaseComBackup(selectedDisciplina, { ...mapaAtual, ramos: ramosAtualizados });
+    alert(`${novasBase64.length} imagem(ns) adicionada(s) e salva(s) com sucesso!`);
+  };
+
+  const removerImagemUnica = async (ramoId: string, indexParaRemover: number) => {
+    if (!mapaAtual) return;
+    if (confirm("Deseja apagar esta imagem?")) {
       const ramosAtualizados = mapaAtual.ramos.map((r: any) => {
         if (r && r.id === ramoId) {
-          return { ...r, imagemUrl: base64String };
+          const listaAtual = Array.isArray(r.imagens) ? [...r.imagens] : [];
+          listaAtual.splice(indexParaRemover, 1);
+          return { ...r, imagens: listaAtual };
         }
         return r;
       });
-
       await salvarNoSupabaseComBackup(selectedDisciplina, { ...mapaAtual, ramos: ramosAtualizados });
-      alert("Imagem anexada e salva com segurança no banco!");
-    };
-    reader.readAsDataURL(arquivo);
+    }
   };
 
   const toggleRevisar = async (ramoId: string) => {
@@ -466,7 +502,7 @@ export default function MapaMentalPage() {
           <div>
             <div className="flex items-center gap-2">
               <span className="bg-blue-500/20 text-blue-400 text-xs font-bold px-2.5 py-0.5 rounded-full border border-blue-500/30">TJSP - VUNESP</span>
-              <span className="bg-emerald-500/20 text-emerald-400 font-bold text-xs px-2.5 py-0.5 rounded-full border border-emerald-500/30">Backup Automático Ativo 🟢</span>
+              <span className="bg-emerald-500/20 text-emerald-400 font-bold text-xs px-2.5 py-0.5 rounded-full border border-emerald-500/30">Backup Automático Ativo</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black text-white mt-1">
               {mapaAtual ? mapaAtual.titulo : "Painel de Revisão Estratégica"}
@@ -495,7 +531,7 @@ export default function MapaMentalPage() {
               <option value="Todas as Matérias">Todas as Matérias</option>
               {DISCIPLINAS_TJSP.map((disc) => (
                 <option key={disc} value={disc}>
-                  {disc} {mapasPorDisciplina[disc] ? "🟢" : "⚪"}
+                  {disc} {mapasPorDisciplina[disc] ? "(com mapas)" : ""}
                 </option>
               ))}
             </select>
@@ -536,6 +572,7 @@ export default function MapaMentalPage() {
                 const estaEditando = editandoRamoId === ramo.id;
                 const ehRevisarParaProva = ramo.revisarParaProva === true;
                 const ehRevisarGeral = ramo.revisar === true;
+                const listaImagensRamo = Array.isArray(ramo.imagens) ? ramo.imagens : [];
 
                 return (
                   <TextoGrifavel key={ramo.id} idUnico={ramo.id}>
@@ -545,7 +582,8 @@ export default function MapaMentalPage() {
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-zinc-800 gap-3">
                         <div className="space-y-1 w-full">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-xs font-bold uppercase tracking-wider px-2.5 py-1 rounded-md border text-amber-400 bg-amber-400/10 border-amber-400/20">
+                            <span className="text-xs font-bold uppercase tracking-wider px-2.5 py-1 rounded-md border text-amber-400 bg-amber-400/10 border-amber-400/20 flex items-center gap-1.5">
+                              {ramo.iconeUrl && <img src={ramo.iconeUrl} alt="" className="w-3.5 h-3.5 object-contain" />}
                               {selectedDisciplina}
                             </span>
                             {!estaEditando ? (
@@ -560,37 +598,43 @@ export default function MapaMentalPage() {
                               </div>
                             )}
                           </div>
-                          <h2 className="text-lg sm:text-xl font-extrabold text-white tracking-tight pt-2">{ramo.titulo}</h2>
+                          <h2 className="text-lg sm:text-xl font-extrabold text-white tracking-tight pt-2 flex items-center gap-2">
+                            {ramo.titulo}
+                          </h2>
                         </div>
 
-                        {/* BOTÕES DE FLAG E UPLOAD DE IMAGEM */}
+                        {/* BOTÕES DE FLAG E UPLOAD DE MÚLTIPLAS IMAGENS (SEM EMOJIS) */}
                         <div className="flex items-center gap-2 self-start sm:self-center shrink-0 flex-wrap">
                           <label className="text-xs font-bold px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-amber-400 border border-zinc-700 transition-all cursor-pointer shadow-md flex items-center gap-1.5">
-                            Imagem
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                            Enviar Imagens
                             <input 
                               type="file" 
                               accept="image/*" 
+                              multiple 
                               className="hidden" 
-                              onChange={(e) => handleUploadImagemCard(ramo.id, e)} 
+                              onChange={(e) => handleUploadMultiplasImagens(ramo.id, e)} 
                             />
                           </label>
 
                           <button
                             onClick={() => toggleRevisarParaProva(ramo.id)}
-                            className={`text-xs font-extrabold px-3 py-1.5 rounded-lg border transition-all cursor-pointer shadow-md ${
+                            className={`text-xs font-extrabold px-3 py-1.5 rounded-lg border transition-all cursor-pointer shadow-md flex items-center gap-1.5 ${
                               ramo.revisarParaProva ? 'bg-rose-600 text-white border-rose-400 ring-2 ring-rose-500/50' : 'bg-zinc-950 text-rose-400/70 border-rose-500/30 hover:text-rose-400'
                             }`}
                           >
-                            🔥 Revisar p/ Prova
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                            Revisar p/ Prova
                           </button>
 
                           <button
                             onClick={() => toggleRevisar(ramo.id)}
-                            className={`text-xs font-extrabold px-3 py-1.5 rounded-lg border transition-all cursor-pointer shadow-md ${
-                              ramo.revisar ? 'bg-amber-400 text-zinc-950 border-amber-300 ring-2 ring-amber-400/50' : 'bg-zinc-950 text-amber-400/70 border-amber-500/30 hover:text-amber-400'
+                            className={`text-xs font-extrabold px-3 py-1.5 rounded-lg border transition-all cursor-pointer shadow-md flex items-center gap-1.5 ${
+                              ramo.revisar ? 'bg-amber-400 text-zinc-950 border-amber-300 ring-2 ring-amber-400/50' : 'bg-zinc-950 text-amber-400/70 border-zinc-500/30 hover:text-amber-400'
                             }`}
                           >
-                            📌 Revisar Geral
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
+                            Revisar Geral
                           </button>
 
                           <button onClick={() => excluirRamo(ramo.id)} className="text-zinc-500 hover:text-rose-400 bg-zinc-950 p-2 rounded-lg border border-zinc-800 transition-all text-xs cursor-pointer" title="Apagar">✕</button>
@@ -599,44 +643,36 @@ export default function MapaMentalPage() {
 
                       {ramo.grafico && <LogicalDiagram grafico={ramo.grafico} />}
 
-                      {/* RENDERIZAÇÃO DA IMAGEM E BOTÃO DE EXPANDIR EM TELA CHEIA */}
-                      {ramo.imagemUrl && (
-                        <div className="mt-4 p-4 bg-zinc-950 border border-zinc-800 rounded-2xl flex flex-col items-center relative group">
-                          <div className="relative w-full flex justify-center cursor-pointer overflow-hidden rounded-xl" onClick={() => setImagemExpandidaUrl(ramo.imagemUrl)}>
-                            <img 
-                              src={ramo.imagemUrl} 
-                              alt="Ilustração do Tópico" 
-                              className="max-h-80 w-auto object-contain rounded-xl border border-zinc-800 shadow-md transition-transform duration-300 group-hover:scale-[1.02]"
-                            />
-                            {/* Botão flutuante sobre a imagem para tela cheia */}
-                            <button
-                              onClick={(e) => { e.stopPropagation(); setImagemExpandidaUrl(ramo.imagemUrl); }}
-                              className="absolute bottom-3 right-3 bg-zinc-900/90 hover:bg-amber-400 hover:text-zinc-950 text-amber-400 border border-amber-400/40 text-xs font-bold px-3 py-1.5 rounded-xl shadow-lg transition-all flex items-center gap-1.5 cursor-pointer"
-                            >
-                              Expandir Tela Cheia
-                            </button>
+                      {/* RENDERIZAÇÃO DA GALERIA DE MÚLTIPLAS IMAGENS DO CARD */}
+                      {listaImagensRamo.length > 0 && (
+                        <div className="mt-4 p-4 bg-zinc-950 border border-zinc-800 rounded-2xl space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-2">
+                              <svg className="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                              Imagens e Esquemas Anexados ({listaImagensRamo.length})
+                            </span>
+                            <span className="text-[10px] text-zinc-500">Clique em qualquer imagem para abrir em tela cheia</span>
                           </div>
 
-                          <div className="flex items-center justify-between w-full pt-3 mt-2 border-t border-zinc-900">
-                            <span className="text-[11px] text-zinc-500 font-medium">Ilustração / Esquema anexado</span>
-                            <button
-                              onClick={async () => {
-                                if (confirm("Deseja remover esta imagem?")) {
-                                  const ramosAtualizados = mapaAtual.ramos.map((r: any) => {
-                                    if (r && r.id === ramo.id) {
-                                      const copia = { ...r };
-                                      delete copia.imagemUrl;
-                                      return copia;
-                                    }
-                                    return r;
-                                  });
-                                  await salvarNoSupabaseComBackup(selectedDisciplina, { ...mapaAtual, ramos: ramosAtualizados });
-                                }
-                              }}
-                              className="text-xs text-rose-400 hover:underline cursor-pointer"
-                            >
-                              Remover Imagem ✕
-                            </button>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                            {listaImagensRamo.map((imgUrl: string, imgIdx: number) => (
+                              <div key={imgIdx} className="relative group rounded-xl overflow-hidden border border-zinc-800 bg-zinc-900 aspect-video flex items-center justify-center cursor-pointer" onClick={() => setModalImagensState({ imagens: listaImagensRamo, indexAtual: imgIdx })}>
+                                <img src={imgUrl} alt={`Anexo ${imgIdx + 1}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                  <span className="text-xs font-bold bg-amber-400 text-zinc-950 px-2.5 py-1 rounded-lg shadow-lg flex items-center gap-1">
+                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7"/></svg>
+                                    Ampliar
+                                  </span>
+                                </div>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); removerImagemUnica(ramo.id, imgIdx); }}
+                                  className="absolute top-2 right-2 bg-rose-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
+                                  title="Remover imagem"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            ))}
                           </div>
                         </div>
                       )}
@@ -644,7 +680,12 @@ export default function MapaMentalPage() {
                       <div className="space-y-6">
                         {ramo.subnos && ramo.subnos.map((sub: any, idx: number) => (
                           <div key={idx} className="p-5 sm:p-6 rounded-xl border-l-4 border-amber-400 shadow-md space-y-3 bg-zinc-950 border-t border-r border-b border-zinc-800/80">
-                            {sub.titulo && <h3 className="text-sm font-bold text-amber-300">{sub.titulo}</h3>}
+                            {sub.titulo && (
+                              <h3 className="text-sm font-bold text-amber-300 flex items-center gap-2">
+                                {sub.iconeUrl && <img src={sub.iconeUrl} alt="" className="w-4 h-4 object-contain" />}
+                                {sub.titulo}
+                              </h3>
+                            )}
                             {sub.descricao && <p className="text-zinc-300 text-xs sm:text-sm">{sub.descricao}</p>}
                             {sub.itens && (
                               <ul className="text-xs sm:text-sm text-zinc-200 space-y-2 pt-2 border-t border-zinc-900">
@@ -669,10 +710,10 @@ export default function MapaMentalPage() {
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <span className="bg-amber-400 text-zinc-950 font-bold text-xs px-2.5 py-0.5 rounded-full">Mentor VUNESP</span>
-              <h2 className="text-sm font-bold text-white">Prompt Mestre Atualizado (Ícones e Imagens nos Cards)</h2>
+              <h2 className="text-sm font-bold text-white">Prompt Mestre Estruturado (Ícones, Múltiplas Imagens e Blocos Visuais)</h2>
             </div>
             <p className="text-xs text-zinc-400">
-              Gera conteúdos sem emojis, com ícones profissionais e suporte a imagens explicativas.
+              Gera conteúdos sem texto corrido, focado em cartões modulares, ícones profissionais e galerias.
             </p>
           </div>
 
@@ -690,24 +731,48 @@ export default function MapaMentalPage() {
 
       </main>
 
-      {/* MODAL DE TELA CHEIA PARA A IMAGEM (MOBILE & DESKTOP) */}
-      {imagemExpandidaUrl && (
+      {/* MODAL DE CARROSSEL DE IMAGENS EM TELA CHEIA (IR PARA O LADO) */}
+      {modalImagensState && (
         <div 
           className="fixed inset-0 bg-black/95 backdrop-blur-md z-50 flex items-center justify-center p-4 sm:p-8 animate-in fade-in duration-200"
-          onClick={() => setImagemExpandidaUrl(null)}
+          onClick={() => setModalImagensState(null)}
         >
-          <div className="relative max-w-7xl max-h-[90vh] w-full flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+          <div className="relative max-w-7xl max-h-[90vh] w-full flex flex-col items-center justify-center gap-4" onClick={(e) => e.stopPropagation()}>
             <button 
-              onClick={() => setImagemExpandidaUrl(null)}
-              className="absolute -top-12 right-0 bg-zinc-800 hover:bg-rose-600 text-white w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shadow-2xl transition-all cursor-pointer border border-zinc-700"
+              onClick={() => setModalImagensState(null)}
+              className="absolute -top-12 right-0 bg-zinc-800 hover:bg-rose-600 text-white w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shadow-2xl transition-all cursor-pointer border border-zinc-700 z-10"
             >
               ✕
             </button>
-            <img 
-              src={imagemExpandidaUrl} 
-              alt="Visualização em Tela Cheia" 
-              className="max-w-full max-h-[85vh] object-contain rounded-2xl border border-zinc-800 shadow-2xl"
-            />
+
+            <div className="relative w-full flex items-center justify-center">
+              <img 
+                src={modalImagensState.imagens[modalImagensState.indexAtual]} 
+                alt="Visualização em Tela Cheia" 
+                className="max-w-full max-h-[80vh] object-contain rounded-2xl border border-zinc-800 shadow-2xl"
+              />
+
+              {modalImagensState.imagens.length > 1 && (
+                <>
+                  <button 
+                    onClick={() => setModalImagensState(prev => prev ? { ...prev, indexAtual: (prev.indexAtual - 1 + prev.imagens.length) % prev.imagens.length } : null)}
+                    className="absolute left-2 sm:left-4 bg-zinc-900/80 hover:bg-amber-400 hover:text-zinc-950 text-white w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg shadow-xl transition-all cursor-pointer border border-zinc-700"
+                  >
+                    ❮
+                  </button>
+                  <button 
+                    onClick={() => setModalImagensState(prev => prev ? { ...prev, indexAtual: (prev.indexAtual + 1) % prev.imagens.length } : null)}
+                    className="absolute right-2 sm:right-4 bg-zinc-900/80 hover:bg-amber-400 hover:text-zinc-950 text-white w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg shadow-xl transition-all cursor-pointer border border-zinc-700"
+                  >
+                    ❯
+                  </button>
+                </>
+              )}
+            </div>
+
+            <span className="text-xs font-bold text-zinc-400 bg-zinc-900 px-4 py-2 rounded-xl border border-zinc-800">
+              Imagem {modalImagensState.indexAtual + 1} de {modalImagensState.imagens.length}
+            </span>
           </div>
         </div>
       )}

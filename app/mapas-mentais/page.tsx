@@ -105,7 +105,7 @@ function TextoGrifavel({ children, idUnico }: { children: React.ReactNode; idUni
   );
 }
 
-// --- COMPONENTE DE DIAGRAMAS COM SUPORTE A ÍCONES E CORES PERSONALIZADAS ---
+// --- COMPONENTE DE DIAGRAMAS COM ÍCONES FORÇADOS EM AMARELO (FULTRO CSS) ---
 function LogicalDiagram({ grafico }: { grafico: any }) {
   if (!grafico) return null;
   const listaItens = Array.isArray(grafico.elementos) ? grafico.elementos
@@ -120,7 +120,14 @@ function LogicalDiagram({ grafico }: { grafico: any }) {
     <div className="bg-zinc-950 border border-amber-400/30 rounded-2xl p-5 space-y-4 shadow-inner my-3">
       {grafico.titulo && (
         <div className="flex items-center gap-2 border-b border-zinc-800 pb-2">
-          {grafico.iconeUrl && <img src={grafico.iconeUrl} alt="" className="w-4 h-4 object-contain" />}
+          {grafico.iconeUrl && (
+            <img 
+              src={grafico.iconeUrl} 
+              alt="" 
+              className="w-4 h-4 object-contain" 
+              style={{ filter: 'invert(80%) sepia(80%) saturate(1000%) hue-rotate(350deg) brightness(100%) contrast(100%)' }} 
+            />
+          )}
           <span className="text-xs font-bold uppercase tracking-wider text-amber-400">
             {grafico.titulo}
           </span>
@@ -133,11 +140,13 @@ function LogicalDiagram({ grafico }: { grafico: any }) {
           const subtituloCard = card.subtitulo || card.destaque || '';
           const conteudoCard = card.conteudo || card.descricao || '';
           const topicosCard = Array.isArray(card.topicos) ? card.topicos : Array.isArray(card.itens) ? card.itens : [];
+          const exemploCard = card.exemplo || '';
+          const alertaCard = card.alerta || '';
 
           return (
             <div 
               key={idx}
-              className="rounded-2xl p-4 border space-y-2.5 transition-all shadow-lg"
+              className="rounded-2xl p-4 border space-y-3 transition-all shadow-lg"
               style={{
                 backgroundColor: card.corFundo || 'rgba(24, 24, 27, 0.9)',
                 borderColor: card.corBorda || '#3F3F46'
@@ -145,14 +154,24 @@ function LogicalDiagram({ grafico }: { grafico: any }) {
             >
               <div className="flex items-center justify-between border-b border-white/10 pb-2">
                 <span className="text-xs font-black uppercase tracking-wider flex items-center gap-2" style={{ color: card.corTitulo || '#F59E0B' }}>
-                  {card.iconeUrl && <img src={card.iconeUrl} alt="" className="w-4 h-4 object-contain inline-block" />}
+                  {card.iconeUrl && (
+                    <img 
+                      src={card.iconeUrl} 
+                      alt="" 
+                      className="w-4 h-4 object-contain inline-block" 
+                      style={{ filter: 'invert(80%) sepia(80%) saturate(1000%) hue-rotate(350deg) brightness(100%) contrast(100%)' }} 
+                    />
+                  )}
                   {tituloCard}
                 </span>
               </div>
 
               {subtituloCard && <p className="text-xs font-bold text-zinc-200">{subtituloCard}</p>}
+              
+              {/* Texto Normal Explicativo */}
               {conteudoCard && <p className="text-xs text-zinc-300 leading-relaxed">{conteudoCard}</p>}
 
+              {/* Tópicos Opcionais (apenas se houver necessidade real) */}
               {topicosCard.length > 0 && (
                 <ul className="text-xs text-zinc-300 space-y-1.5 pt-1">
                   {topicosCard.map((tp: string, tIdx: number) => (
@@ -162,6 +181,22 @@ function LogicalDiagram({ grafico }: { grafico: any }) {
                     </li>
                   ))}
                 </ul>
+              )}
+
+              {/* Bloco de Exemplo Prático */}
+              {exemploCard && (
+                <div className="bg-zinc-900/90 border border-sky-500/30 rounded-xl p-3 text-xs space-y-1 mt-2">
+                  <span className="font-bold text-sky-400 uppercase tracking-wide text-[10px] block">Exemplo Prático:</span>
+                  <p className="text-zinc-300 leading-relaxed italic">{exemploCard}</p>
+                </div>
+              )}
+
+              {/* Bloco de Alerta / Pegadinha da VUNESP */}
+              {alertaCard && (
+                <div className="bg-rose-950/30 border border-rose-500/40 rounded-xl p-3 text-xs space-y-1 mt-2">
+                  <span className="font-bold text-rose-400 uppercase tracking-wide text-[10px] block">Atenção / Pegadinha VUNESP:</span>
+                  <p className="text-zinc-200 leading-relaxed">{alertaCard}</p>
+                </div>
               )}
             </div>
           );
@@ -174,70 +209,46 @@ function LogicalDiagram({ grafico }: { grafico: any }) {
 const PROMPT_MESTRE_TEXTO = `Atue como Especialista e Mentor para o concurso do TJSP (Banca VUNESP).
 Gere um JSON estruturado estrito contendo obrigatoriamente a chave "ramos".
 
-REGRAS CRÍTICAS DE FORMATAÇÃO E ESTILIZAÇÃO VISUAL (OBRIGATÓRIO):
-1. NUNCA envie textos corridos, blocos monolíticos ou listas simples de texto plano. Você DEVE estruturar todo o conteúdo principal dentro do objeto "grafico" utilizando obrigatoriamente o tipo "cards_flexiveis".
-2. USO OBRIGATÓRIO DE CORES E ÊFASE: Cada card dentro do array "cards" do gráfico DEVE conter obrigatoriamente as propriedades de estilo personalizadas para destacar visualmente a matéria:
-   - "corFundo": string em RGBA ou HEX suave para destacar a caixa (ex: "rgba(120, 53, 15, 0.4)" para tons âmbar/alerta, "rgba(30, 58, 138, 0.4)" para azul/destaque, "rgba(6, 78, 59, 0.4)" para verde/sucesso).
-   - "corBorda": string em HEX para a borda da caixa (ex: "#F59E0B", "#3B82F6", "#10B981").
-   - "corTitulo": string em HEX para colorir o título do card (#FBBF24, #60A5FA, #34D399).
-3. PROIBIDO O USO DE EMOJIS. Utilize estritamente URLs públicas de ícones profissionais em PNG/SVG no campo "iconeUrl" (tanto no nível do ramo quanto nos cards e títulos).
-4. SUPORTE A MÚLTIPLAS IMAGENS: Cada objeto dentro do array "ramos" pode conter opcionalmente a propriedade "imagens" (array de strings com URLs diretas de imagens ilustrativas ou esquemas).
+DIRETRIZES DE FORMATO E ESTILO (MUITO IMPORTANTE):
+1. TEXTO NORMAL E FLUIDO: Evite excesso de listas com checkboxes. O conteúdo principal de cada card deve ser redigido em **parágrafos normais e explicativos** dentro da propriedade "conteudo", garantindo leitura agradável.
+2. ÍCONES SEMPRE AMARELOS: Utilize URLs de ícones no campo "iconeUrl". O sistema aplicará um filtro automático para deixá-los amarelos, mas priorize URLs limpas.
+3. USO OBRIGATÓRIO DE EXEMPLOS E ALERTAS: Enriqueça os cards utilizando as propriedades opcionais **"exemplo"** (para ilustrar casos práticos de aplicação da lei) e **"alerta"** (para destacar as pegadinhas da banca VUNESP).
+4. CORES NOS CARDS: Cada objeto em "cards" DEVE conter "corFundo", "corBorda" e "corTitulo" (ex: tons de âmbar, azul ou verde) para dar ênfase visual profissional.
+5. PROIBIDO O USO DE EMOJIS.
 
-EXEMPLO EXATO DA ESTRUTURA VISUAL COLORIDA QUE VOCÊ DEVE OBRIGATORIAMENTE GERAR:
+EXEMPLO EXATO DA ESTRUTURA FLEXÍVEL (TEXTO NORMAL + EXEMPLO + ALERTA):
 {
   "ramos": [
     {
-      "id": "tjsp-processual-civil-01",
-      "titulo": "Procedimento Comum - Condutas do Réu",
-      "assunto": "Condutas do Réu",
-      "iconeUrl": "https://cdn.jsdelivr.net/npm/lucide-static@0.321.0/icons/scales.svg",
+      "id": "tjsp-exemplo-01",
+      "titulo": "Tutela Provisória - Dispositivos e Regras",
+      "assunto": "Tutela Antecipada",
+      "iconeUrl": "https://cdn.jsdelivr.net/npm/lucide-static@0.321.0/icons/shield.svg",
       "imagens": [],
       "grafico": {
         "tipo": "cards_flexiveis",
-        "titulo": "As Respostas do Réu (Destaques e Comparações)",
+        "titulo": "Visão Geral e Requisitos",
         "iconeUrl": "https://cdn.jsdelivr.net/npm/lucide-static@0.321.0/icons/layout-grid.svg",
         "cards": [
           {
-            "titulo": "Revelia",
-            "iconeUrl": "https://cdn.jsdelivr.net/npm/lucide-static@0.321.0/icons/alert-circle.svg",
-            "corFundo": "rgba(120, 53, 15, 0.4)",
-            "corBorda": "#F59E0B",
-            "corTitulo": "#FBBF24",
-            "subtitulo": "Ausência de Contestação",
-            "topicos": [
-              "O réu não apresenta contestação no prazo legal.",
-              "Efeito principal: presunção de veracidade dos fatos alegados."
-            ]
-          },
-          {
-            "titulo": "Contestação",
+            "titulo": "Requisitos Essenciais",
             "iconeUrl": "https://cdn.jsdelivr.net/npm/lucide-static@0.321.0/icons/check-circle.svg",
             "corFundo": "rgba(30, 58, 138, 0.4)",
             "corBorda": "#3B82F6",
             "corTitulo": "#60A5FA",
-            "subtitulo": "Defesa de Mérito e Preliminares",
-            "topicos": [
-              "Concentração da defesa na resposta.",
-              "Alegação de preliminares e impugnação específica do mérito."
-            ]
+            "subtitulo": "Probabilidade do direito e perigo de dano",
+            "conteudo": "A tutela provisória de urgência pode ser concedida em caráter antecedente ou incidental, exigindo a demonstração inequívoca da probabilidade do direito alegado somada ao perigo de dano ou ao risco de resultado útil ao processo.",
+            "exemplo": "Autor que tem contra si corte iminente de fornecimento de água essencial sem justificativa plausível.",
+            "alerta": "A VUNESP costuma cobrar que o perigo de dano deve ser contemporâneo à propositura da ação."
           }
         ]
       },
-      "subnos": [
-        {
-          "titulo": "Prazos Processuais Relevantes",
-          "iconeUrl": "https://cdn.jsdelivr.net/npm/lucide-static@0.321.0/icons/clock.svg",
-          "itens": [
-            "Prazo geral de contestação: 15 dias úteis (art. 335).",
-            "Réplica: 15 dias úteis."
-          ]
-        }
-      ]
+      "subnos": []
     }
   ]
 }
 
-Retorne EXCLUSIVAMENTE o JSON válido com base nesse modelo estruturado, sem markdown ou textos antes/depois.`;
+Retorne EXCLUSIVAMENTE o JSON válido com base nesse modelo estruturado, sem blocos de texto corrido ou markdown antes/depois.`;
 
 export default function MapaMentalPage() {
   const [mapasPorDisciplina, setMapasPorDisciplina] = useState<Record<string, any>>({});
@@ -313,7 +324,6 @@ export default function MapaMentalPage() {
     }
   };
 
-  // SALVAMENTO ASSÍNCRONO OTIMIZADO (NÃO TRAVA A TELA)
   const salvarNoSupabaseComBackup = async (disciplinaAlvo: string, payloadMapa: any) => {
     setTimeout(async () => {
       try {
@@ -391,13 +401,11 @@ export default function MapaMentalPage() {
           ramos: ramosFinais
         };
 
-        // Atualização instantânea na tela
         setMapasPorDisciplina(prev => ({ ...prev, [modalDisciplinaAlvo]: payloadFinal }));
         setShowJsonModal(false);
         setJsonInputText('');
         setSelectedDisciplina(modalDisciplinaAlvo);
 
-        // Salva em segundo plano
         salvarNoSupabaseComBackup(modalDisciplinaAlvo, payloadFinal);
       } else {
         alert('O JSON precisa conter a chave "ramos".');
@@ -431,13 +439,11 @@ export default function MapaMentalPage() {
 
     const mapaAtualizadoFinal = { ...mapaAtual, ramos: ramosAtualizados };
 
-    // Atualiza o estado local imediatamente sem delay
     setMapasPorDisciplina(prev => ({
       ...prev,
       [selectedDisciplina]: mapaAtualizadoFinal
     }));
 
-    // Salva no Supabase em segundo plano
     salvarNoSupabaseComBackup(selectedDisciplina, mapaAtualizadoFinal);
   };
 
@@ -625,7 +631,14 @@ export default function MapaMentalPage() {
                         <div className="space-y-1 w-full">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="text-xs font-bold uppercase tracking-wider px-2.5 py-1 rounded-md border text-amber-400 bg-amber-400/10 border-amber-400/20 flex items-center gap-1.5">
-                              {ramo.iconeUrl && <img src={ramo.iconeUrl} alt="" className="w-3.5 h-3.5 object-contain" />}
+                              {ramo.iconeUrl && (
+                                <img 
+                                  src={ramo.iconeUrl} 
+                                  alt="" 
+                                  className="w-3.5 h-3.5 object-contain" 
+                                  style={{ filter: 'invert(80%) sepia(80%) saturate(1000%) hue-rotate(350deg) brightness(100%) contrast(100%)' }} 
+                                />
+                              )}
                               {selectedDisciplina}
                             </span>
                             {!estaEditando ? (
@@ -724,7 +737,14 @@ export default function MapaMentalPage() {
                           <div key={idx} className="p-5 sm:p-6 rounded-xl border-l-4 border-amber-400 shadow-md space-y-3 bg-zinc-950 border-t border-r border-b border-zinc-800/80">
                             {sub.titulo && (
                               <h3 className="text-sm font-bold text-amber-300 flex items-center gap-2">
-                                {sub.iconeUrl && <img src={sub.iconeUrl} alt="" className="w-4 h-4 object-contain" />}
+                                {sub.iconeUrl && (
+                                  <img 
+                                    src={sub.iconeUrl} 
+                                    alt="" 
+                                    className="w-4 h-4 object-contain" 
+                                    style={{ filter: 'invert(80%) sepia(80%) saturate(1000%) hue-rotate(350deg) brightness(100%) contrast(100%)' }} 
+                                  />
+                                )}
                                 {sub.titulo}
                               </h3>
                             )}
@@ -752,10 +772,10 @@ export default function MapaMentalPage() {
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <span className="bg-amber-400 text-zinc-950 font-bold text-xs px-2.5 py-0.5 rounded-full">Mentor VUNESP</span>
-              <h2 className="text-sm font-bold text-white">Prompt Mestre Estruturado (Ícones, Cores, Gráficos e Imagens)</h2>
+              <h2 className="text-sm font-bold text-white">Prompt Mestre Estruturado (Texto Explicativo, Exemplos e Alertas Amarelos)</h2>
             </div>
             <p className="text-xs text-zinc-400">
-              Gera conteúdos estruturados em cartões coloridos, ícones profissionais e galerias.
+              Gera conteúdos em texto fluido com exemplos práticos, blocos de alerta e ícones amarelos.
             </p>
           </div>
 

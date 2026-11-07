@@ -105,7 +105,7 @@ function TextoGrifavel({ children, idUnico }: { children: React.ReactNode; idUni
   );
 }
 
-// --- COMPONENTE DE DIAGRAMAS COM ÍCONES FORÇADOS EM AMARELO (FULTRO CSS) ---
+// --- COMPONENTE DE DIAGRAMAS COM ÍCONES FORÇADOS EM AMARELO (FILTRO CSS) ---
 function LogicalDiagram({ grafico }: { grafico: any }) {
   if (!grafico) return null;
   const listaItens = Array.isArray(grafico.elementos) ? grafico.elementos
@@ -171,7 +171,7 @@ function LogicalDiagram({ grafico }: { grafico: any }) {
               {/* Texto Normal Explicativo */}
               {conteudoCard && <p className="text-xs text-zinc-300 leading-relaxed">{conteudoCard}</p>}
 
-              {/* Tópicos Opcionais (apenas se houver necessidade real) */}
+              {/* Tópicos Opcionais */}
               {topicosCard.length > 0 && (
                 <ul className="text-xs text-zinc-300 space-y-1.5 pt-1">
                   {topicosCard.map((tp: string, tIdx: number) => (
@@ -285,28 +285,34 @@ export default function MapaMentalPage() {
             try { rawRamos = JSON.parse(rawRamos); } catch (e) { rawRamos = []; }
           }
           
-          const ramosValidados = Array.isArray(rawRamos) ? rawRamos.filter(Boolean).map((r: any) => {
-            if (!r) return null;
-            const assuntoDefinitivo = r.assunto && r.assunto.trim() !== ""
-              ? r.assunto
-              : (r.titulo ? r.titulo.replace(/^[📌📍🚩⚡0-9.\-\)]+\s*/, '').trim() : "Geral");
-            
-            const eraImportante = r.importante === true || r.revisar === true || r.revisarParaProva === true;
+          // SALVAGUARDA DE SEGURANÇA 100%: Filtra e remove automaticamente o bloco corrompido sem tocar nos outros dados
+          const ramosValidados = Array.isArray(rawRamos) 
+            ? rawRamos
+                .filter(Boolean)
+                .filter((r: any) => r.id !== 'rlm-regra-geral-completa-1')
+                .map((r: any) => {
+                  if (!r) return null;
+                  const assuntoDefinitivo = r.assunto && r.assunto.trim() !== ""
+                    ? r.assunto
+                    : (r.titulo ? r.titulo.replace(/^[📌📍🚩⚡0-9.\-\)]+\s*/, '').trim() : "Geral");
+                  
+                  const eraImportante = r.importante === true || r.revisar === true || r.revisarParaProva === true;
 
-            let listaImagens = Array.isArray(r.imagens) ? r.imagens : [];
-            if (r.imagemUrl && !listaImagens.includes(r.imagemUrl)) {
-              listaImagens.unshift(r.imagemUrl);
-            }
+                  let listaImagens = Array.isArray(r.imagens) ? r.imagens : [];
+                  if (r.imagemUrl && !listaImagens.includes(r.imagemUrl)) {
+                    listaImagens.unshift(r.imagemUrl);
+                  }
 
-            return { 
-              ...r, 
-              assunto: assuntoDefinitivo,
-              revisar: r.revisar !== undefined ? r.revisar : eraImportante,
-              revisarParaProva: r.revisarParaProva !== undefined ? r.revisarParaProva : eraImportante,
-              imagens: listaImagens,
-              importante: undefined 
-            };
-          }) : [];
+                  return { 
+                    ...r, 
+                    assunto: assuntoDefinitivo,
+                    revisar: r.revisar !== undefined ? r.revisar : eraImportante,
+                    revisarParaProva: r.revisarParaProva !== undefined ? r.revisarParaProva : eraImportante,
+                    imagens: listaImagens,
+                    importante: undefined 
+                  };
+                }) 
+            : [];
 
           mapaFormatado[item.disciplina] = {
             disciplina: item.disciplina,
@@ -658,7 +664,7 @@ export default function MapaMentalPage() {
                           </h2>
                         </div>
 
-                        {/* BOTÕES DE FLAG E UPLOAD DE MÚLTIPLAS IMAGENS (SEM EMOJIS) */}
+                        {/* BOTÕES DE FLAG E UPLOAD DE MÚLTIPLAS IMAGENS */}
                         <div className="flex items-center gap-2 self-start sm:self-center shrink-0 flex-wrap">
                           <label className="text-xs font-bold px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-amber-400 border border-zinc-700 transition-all cursor-pointer shadow-md flex items-center gap-1.5">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
@@ -698,7 +704,7 @@ export default function MapaMentalPage() {
 
                       {ramo.grafico && <LogicalDiagram grafico={ramo.grafico} />}
 
-                      {/* RENDERIZAÇÃO DA GALERIA DE MÚLTIPLAS IMAGENS DO CARD */}
+                      {/* GALERIA DE MÚLTIPLAS IMAGENS */}
                       {listaImagensRamo.length > 0 && (
                         <div className="mt-4 p-4 bg-zinc-950 border border-zinc-800 rounded-2xl space-y-3">
                           <div className="flex items-center justify-between">
@@ -793,7 +799,7 @@ export default function MapaMentalPage() {
 
       </main>
 
-      {/* MODAL DE CARROSSEL DE IMAGENS EM TELA CHEIA (IR PARA O LADO) */}
+      {/* MODAL DE CARROSSEL DE IMAGENS EM TELA CHEIA */}
       {modalImagensState && (
         <div 
           className="fixed inset-0 bg-black/95 backdrop-blur-md z-50 flex items-center justify-center p-4 sm:p-8 animate-in fade-in duration-200"

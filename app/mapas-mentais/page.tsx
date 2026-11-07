@@ -285,11 +285,16 @@ export default function MapaMentalPage() {
             try { rawRamos = JSON.parse(rawRamos); } catch (e) { rawRamos = []; }
           }
           
-          // SALVAGUARDA DE SEGURANÇA 100%: Filtra e remove automaticamente o bloco corrompido sem tocar nos outros dados
+          // FILTRAGEM CIRÚRGICA DE SEGURANÇA (100% BLINDADA):
+          // Remove especificamente o bloco corrompido sem alterar nenhum outro ramo ou dado da aplicação
           const ramosValidados = Array.isArray(rawRamos) 
             ? rawRamos
                 .filter(Boolean)
-                .filter((r: any) => r.id !== 'rlm-regra-geral-completa-1')
+                .filter((r: any) => {
+                  const idCorrompido = r.id === 'rlm-regra-geral-completa-1';
+                  const tituloCorrompido = typeof r.titulo === 'string' && r.titulo.includes('Mapa Geral de Regras');
+                  return !idCorrompido && !tituloCorrompido;
+                })
                 .map((r: any) => {
                   if (!r) return null;
                   const assuntoDefinitivo = r.assunto && r.assunto.trim() !== ""

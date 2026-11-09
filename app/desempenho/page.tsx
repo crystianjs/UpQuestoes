@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Navbar from '../components/Navbar';
 import { supabase } from '@/lib/supabase';
-import { BarChart3, Award, CheckCircle2, XCircle, Clock, Calendar, Filter, FileText, Tag } from 'lucide-react';
+import { BarChart3, Award, CheckCircle2, XCircle, Clock, Calendar, Filter, FileText, Tag, Star, BookOpen, AlertCircle } from 'lucide-react';
 
 interface QuestaoRegistro {
   id: string;
@@ -33,11 +33,21 @@ interface SimuladoRegistro {
   created_at: string;
 }
 
+interface FlashcardDetalhado {
+  id: string;
+  disciplina: string;
+  assunto: string;
+  pergunta: string;
+  tag: string;
+  statusAvaliacao?: string | null;
+}
+
 export default function DesempenhoPage() {
   const router = useRouter();
   const [questoes, setQuestoes] = useState<QuestaoRegistro[]>([]);
   const [redacoes, setRedacoes] = useState<RedacaoRegistro[]>([]);
   const [simulados, setSimulados] = useState<SimuladoRegistro[]>([]);
+  const [cardsRevisao, setCardsRevisao] = useState<FlashcardDetalhado[]>([]);
   
   const [loading, setLoading] = useState(true);
   const [filtroPeriodo, setFiltroPeriodo] = useState<'todas' | 'semana' | 'mes'>('todas');
@@ -52,15 +62,39 @@ export default function DesempenhoPage() {
 
       const userId = session.user.id;
 
-      const [qRes, rRes, sRes] = await Promise.all([
+      const [qRes, rRes, sRes, revRes] = await Promise.all([
         supabase.from('user_questions').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
         supabase.from('redaccoes').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
-        supabase.from('simulados').select('*').eq('user_id', userId).order('created_at', { ascending: false })
+        supabase.from('simulados').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
+        supabase.from('caderno_revisao').select('*')
       ]);
 
       if (qRes.data) setQuestoes(qRes.data);
       if (rRes.data) setRedacoes(rRes.data);
       if (sRes.data) setSimulados(sRes.data);
+      
+      if (revRes.data) {
+        let todosCards: FlashcardDetalhado[] = [];
+        revRes.data.forEach((item: any) => {
+          let rawCards = item.cards;
+          if (typeof rawCards === 'string') {
+            try { rawCards = JSON.parse(rawCards); } catch (e) { rawCards = []; }
+          }
+          if (Array.isArray(rawCards)) {
+            rawCards.forEach((c: any) => {
+              todosCards.push({
+                id: c.id,
+                disciplina: item.disciplina,
+                assunto: c.assunto || c.titulo || "Geral",
+                pergunta: c.pergunta || c.titulo || "Questão de Revisão",
+                tag: c.tag || "VUNESP",
+                statusAvaliacao: c.statusAvaliacao
+              });
+            });
+          }
+        });
+        setCardsRevisao(todosCards);
+      }
 
       setLoading(false);
     }
@@ -98,6 +132,9 @@ export default function DesempenhoPage() {
   const mediaSimulados = simuladosFiltrados.length > 0
     ? (simuladosFiltrados.reduce((acc, s) => acc + Number(s.nota), 0) / simuladosFiltrados.length).toFixed(1)
     : '0.0';
+
+  const cardsImportanteRevisar = cardsRevisao.filter(c => c.statusAvaliacao === 'importante_revisar');
+  const cardsRevisaoGeral = cardsRevisao.filter(c => c.statusAvaliacao === 'revisao_geral');
 
   const formatarTempoRedacao = (segundosTotais: number) => {
     if (!segundosTotais || segundosTotais === 0) return '0s';
@@ -176,7 +213,7 @@ export default function DesempenhoPage() {
         ) : (
           <>
             {/* Cards de Métricas Principais */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
               <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-5 shadow-xl relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-1.5 h-full bg-amber-500"></div>
                 <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">Questões no Período</p>
@@ -204,10 +241,101 @@ export default function DesempenhoPage() {
                 <h3 className="text-2xl font-black text-white mt-1.5">{mediaSimulados} <span className="text-xs font-normal text-zinc-500">/ 10</span></h3>
                 <span className="text-[11px] text-zinc-500 mt-1 block">{simuladosFiltrados.length} simulados registados</span>
               </div>
+
+              <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-5 shadow-xl relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-1.5 h-full bg-amber-400"></div>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">Importante Revisar</p>
+                <h3 className="text-2xl font-black text-white mt-1.5">{cardsImportanteRevisar.length}</h3>
+                <span className="text-[11px] text-zinc-500 mt-1 block">Flashcards marcados</span>
+              </div>
+
+              <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-5 shadow-xl relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-1.5 h-full bg-blue-600"></div>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">Revisão Geral</p>
+                <h3 className="text-2xl font-black text-white mt-1.5">{cardsRevisaoGeral.length}</h3>
+                <span className="text-[11px] text-zinc-500 mt-1 block">Flashcards marcados</span>
+              </div>
             </div>
 
-            {/* Listagens Detalhadas */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* SEÇÕES DETALHADAS DE REVISÃO (UM ABAIXO DO OUTRO POR MATÉRIA E ASSUNTO) */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pt-4">
+              
+              {/* Importante Revisar para Prova */}
+              <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 shadow-xl space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
+                  <h2 className="text-base font-bold text-white flex items-center gap-2">
+                    <Star className="w-4 h-4 text-amber-400 fill-current" />
+                    Importante Revisar para Prova ({cardsImportanteRevisar.length})
+                  </h2>
+                  <span className="text-xs font-mono bg-amber-400/10 text-amber-400 border border-amber-400/30 px-2.5 py-1 rounded-lg">
+                    Prioridade Alta
+                  </span>
+                </div>
+
+                {cardsImportanteRevisar.length === 0 ? (
+                  <p className="text-xs text-zinc-500 py-6 text-center">Nenhum flashcard marcado como importante para revisar.</p>
+                ) : (
+                  <div className="space-y-3 max-h-[420px] overflow-y-auto pr-2">
+                    {cardsImportanteRevisar.map((c) => (
+                      <div key={c.id} className="bg-zinc-900/60 border border-amber-400/30 rounded-xl p-4 space-y-2 hover:border-amber-400/60 transition-all">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-bold uppercase tracking-wider text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded border border-amber-400/20">
+                            {c.disciplina}
+                          </span>
+                          <span className="text-[10px] font-bold text-zinc-400 bg-zinc-950 px-2 py-0.5 rounded border border-zinc-800">
+                            {c.tag}
+                          </span>
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-zinc-300">Assunto: <span className="text-white">{c.assunto}</span></p>
+                          <p className="text-xs text-zinc-400 mt-1 line-clamp-2">{c.pergunta}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Revisão Geral */}
+              <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 shadow-xl space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
+                  <h2 className="text-base font-bold text-white flex items-center gap-2">
+                    <BookOpen className="w-4 h-4 text-blue-400" />
+                    Revisão Geral ({cardsRevisaoGeral.length})
+                  </h2>
+                  <span className="text-xs font-mono bg-blue-500/10 text-blue-400 border border-blue-500/30 px-2.5 py-1 rounded-lg">
+                    Acompanhamento
+                  </span>
+                </div>
+
+                {cardsRevisaoGeral.length === 0 ? (
+                  <p className="text-xs text-zinc-500 py-6 text-center">Nenhum flashcard marcado para revisão geral.</p>
+                ) : (
+                  <div className="space-y-3 max-h-[420px] overflow-y-auto pr-2">
+                    {cardsRevisaoGeral.map((c) => (
+                      <div key={c.id} className="bg-zinc-900/60 border border-blue-500/30 rounded-xl p-4 space-y-2 hover:border-blue-500/60 transition-all">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-bold uppercase tracking-wider text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">
+                            {c.disciplina}
+                          </span>
+                          <span className="text-[10px] font-bold text-zinc-400 bg-zinc-950 px-2 py-0.5 rounded border border-zinc-800">
+                            {c.tag}
+                          </span>
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-zinc-300">Assunto: <span className="text-white">{c.assunto}</span></p>
+                          <p className="text-xs text-zinc-400 mt-1 line-clamp-2">{c.pergunta}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+            </div>
+
+            {/* Listagens Detalhadas (Questões, Simulados e Redações) */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 pt-4">
               
               {/* Histórico de Questões */}
               <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 shadow-xl space-y-4">

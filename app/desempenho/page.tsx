@@ -4,7 +4,22 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Navbar from '../components/Navbar';
 import { supabase } from '@/lib/supabase';
-import { BarChart3, Award, CheckCircle2, XCircle, Clock, Calendar, Filter, FileText, Tag, Star, BookOpen, AlertCircle } from 'lucide-react';
+import { BarChart3, Award, CheckCircle2, XCircle, Clock, Calendar, Filter, FileText, Tag, Star, BookOpen, Layers, Edit3, Trash2 } from 'lucide-react';
+
+const DISCIPLINAS_TJSP = [
+  "Língua Portuguesa",
+  "Direito Penal",
+  "Direito Processual Penal",
+  "Direito Processual Civil",
+  "Direito Constitucional",
+  "Direito Administrativo",
+  "Normas da Corregedoria",
+  "Matemática",
+  "Raciocínio Lógico",
+  "Informática",
+  "Atualidades",
+  "Estatuto da Pessoa com Deficiência"
+];
 
 interface QuestaoRegistro {
   id: string;
@@ -51,56 +66,94 @@ export default function DesempenhoPage() {
   
   const [loading, setLoading] = useState(true);
   const [filtroPeriodo, setFiltroPeriodo] = useState<'todas' | 'semana' | 'mes'>('todas');
+  const [filtroRevisao, setFiltroRevisao] = useState<'todos' | 'importante_revisar' | 'revisao_geral'>('todos');
+  const [filtroMateriaRevisao, setFiltroMateriaRevisao] = useState<string>('todas');
+
+  // Estados para edição inline de assunto nas questões
+  const [editandoQuestaoId, setEditandoQuestaoId] = useState<string | null>(null);
+  const [novoAssuntoQuestao, setNovoAssuntoQuestao] = useState<string>('');
 
   useEffect(() => {
-    async function carregarDados() {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        router.push('/');
-        return;
-      }
-
-      const userId = session.user.id;
-
-      const [qRes, rRes, sRes, revRes] = await Promise.all([
-        supabase.from('user_questions').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
-        supabase.from('redaccoes').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
-        supabase.from('simulados').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
-        supabase.from('caderno_revisao').select('*')
-      ]);
-
-      if (qRes.data) setQuestoes(qRes.data);
-      if (rRes.data) setRedacoes(rRes.data);
-      if (sRes.data) setSimulados(sRes.data);
-      
-      if (revRes.data) {
-        let todosCards: FlashcardDetalhado[] = [];
-        revRes.data.forEach((item: any) => {
-          let rawCards = item.cards;
-          if (typeof rawCards === 'string') {
-            try { rawCards = JSON.parse(rawCards); } catch (e) { rawCards = []; }
-          }
-          if (Array.isArray(rawCards)) {
-            rawCards.forEach((c: any) => {
-              todosCards.push({
-                id: c.id,
-                disciplina: item.disciplina,
-                assunto: c.assunto || c.titulo || "Geral",
-                pergunta: c.pergunta || c.titulo || "Questão de Revisão",
-                tag: c.tag || "VUNESP",
-                statusAvaliacao: c.statusAvaliacao
-              });
-            });
-          }
-        });
-        setCardsRevisao(todosCards);
-      }
-
-      setLoading(false);
-    }
-
     carregarDados();
   }, [router]);
+
+  async function carregarDados() {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      router.push('/');
+      return;
+    }
+
+    const userId = session.user.id;
+
+    const [qRes, rRes, sRes, revRes] = await Promise.all([
+      supabase.from('user_questions').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
+      supabase.from('redaccoes').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
+      supabase.from('simulados').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
+      supabase.from('caderno_revisao').select('*')
+    ]);
+
+    if (qRes.data) setQuestoes(qRes.data);
+    if (rRes.data) setRedacoes(rRes.data);
+    if (sRes.data) setSimulados(sRes.data);
+    
+    if (revRes.data) {
+      let todosCards: FlashcardDetalhado[] = [];
+      revRes.data.forEach((item: any) => {
+        let rawCards = item.cards;
+        if (typeof rawCards === 'string') {
+          try { rawCards = JSON.parse(rawCards); } catch (e) { rawCards = []; }
+        }
+        if (Array.isArray(rawCards)) {
+          rawCards.forEach((c: any) => {
+            todosCards.push({
+              id: c.id,
+              disciplina: item.disciplina,
+              assunto: c.assunto || c.titulo || "Geral",
+              pergunta: c.pergunta || c.titulo || "Questão de Revisão",
+              tag: c.tag || "VUNESP",
+              statusAvaliacao: c.statusAvaliacao
+            });
+          });
+        }
+      });
+      setCardsRevisao(todosCards);
+    }
+
+    setLoading(false);
+  }
+
+  const salvarAssuntoQuestao = async (questaoId: string) => {
+    const { error } = await supabase
+      .from('user_questions')
+      .update({ assunto: novoAssuntoQuestao })
+      .eq('id', questaoId);
+
+    if (error) {
+      alert("Erro ao atualizar o assunto da questão.");
+      return;
+    }
+
+    setQuestoes(prev => prev.map(q => q.id === questaoId ? { ...q, assunto: novoAssuntoQuestao } : q));
+    setEditandoQuestaoId(null);
+    setNovoAssuntoQuestao('');
+  };
+
+  const excluirQuestao = async (questaoId: string) => {
+    if (!confirm("Deseja apagar este registo de questão?")) return;
+
+    const { error } = await supabase
+      .from('user_questions')
+      .delete()
+      .eq('id', questaoId);
+
+    if (error) {
+      alert("Erro ao excluir questão.");
+      return;
+    }
+
+    setQuestoes(prev => prev.filter(q => q.id !== questaoId));
+  };
 
   const filtrarPorPeriodo = <T extends { created_at: string }>(itens: T[]) => {
     const agora = new Date();
@@ -135,6 +188,23 @@ export default function DesempenhoPage() {
 
   const cardsImportanteRevisar = cardsRevisao.filter(c => c.statusAvaliacao === 'importante_revisar');
   const cardsRevisaoGeral = cardsRevisao.filter(c => c.statusAvaliacao === 'revisao_geral');
+
+  const cardsRevisaoFiltrados = useMemo(() => {
+    let base = cardsRevisao;
+    if (filtroRevisao === 'importante_revisar') {
+      base = cardsImportanteRevisar;
+    } else if (filtroRevisao === 'revisao_geral') {
+      base = cardsRevisaoGeral;
+    } else {
+      base = cardsRevisao.filter(c => c.statusAvaliacao === 'importante_revisar' || c.statusAvaliacao === 'revisao_geral');
+    }
+
+    if (filtroMateriaRevisao !== 'todas') {
+      base = base.filter(c => c.disciplina === filtroMateriaRevisao);
+    }
+
+    return base;
+  }, [cardsRevisao, cardsImportanteRevisar, cardsRevisaoGeral, filtroRevisao, filtroMateriaRevisao]);
 
   const formatarTempoRedacao = (segundosTotais: number) => {
     if (!segundosTotais || segundosTotais === 0) return '0s';
@@ -257,84 +327,95 @@ export default function DesempenhoPage() {
               </div>
             </div>
 
-            {/* SEÇÕES DETALHADAS DE REVISÃO (UM ABAIXO DO OUTRO POR MATÉRIA E ASSUNTO) */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pt-4">
-              
-              {/* Importante Revisar para Prova */}
-              <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 shadow-xl space-y-4">
-                <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
-                  <h2 className="text-base font-bold text-white flex items-center gap-2">
-                    <Star className="w-4 h-4 text-amber-400 fill-current" />
-                    Importante Revisar para Prova ({cardsImportanteRevisar.length})
+            {/* SEÇÃO DETALHADA DE REVISÕES COM FILTRO POR TIPO E MATÉRIA */}
+            <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 shadow-xl space-y-6">
+              <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 pb-4 border-b border-zinc-800">
+                <div>
+                  <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                    <Layers className="w-5 h-5 text-amber-500" />
+                    Painel de Revisões por Matéria e Assunto
                   </h2>
-                  <span className="text-xs font-mono bg-amber-400/10 text-amber-400 border border-amber-400/30 px-2.5 py-1 rounded-lg">
-                    Prioridade Alta
-                  </span>
+                  <p className="text-xs text-zinc-400 mt-0.5">Acompanhamento centralizado dos flashcards marcados para estudo focado.</p>
                 </div>
 
-                {cardsImportanteRevisar.length === 0 ? (
-                  <p className="text-xs text-zinc-500 py-6 text-center">Nenhum flashcard marcado como importante para revisar.</p>
-                ) : (
-                  <div className="space-y-3 max-h-[420px] overflow-y-auto pr-2">
-                    {cardsImportanteRevisar.map((c) => (
-                      <div key={c.id} className="bg-zinc-900/60 border border-amber-400/30 rounded-xl p-4 space-y-2 hover:border-amber-400/60 transition-all">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[11px] font-bold uppercase tracking-wider text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded border border-amber-400/20">
-                            {c.disciplina}
-                          </span>
-                          <span className="text-[10px] font-bold text-zinc-400 bg-zinc-950 px-2 py-0.5 rounded border border-zinc-800">
-                            {c.tag}
-                          </span>
-                        </div>
-                        <div>
-                          <p className="text-xs font-bold text-zinc-300">Assunto: <span className="text-white">{c.assunto}</span></p>
-                          <p className="text-xs text-zinc-400 mt-1 line-clamp-2">{c.pergunta}</p>
-                        </div>
-                      </div>
+                <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+                  {/* Filtro por Matéria */}
+                  <select
+                    value={filtroMateriaRevisao}
+                    onChange={(e) => setFiltroMateriaRevisao(e.target.value)}
+                    className="bg-zinc-900 border border-zinc-800 text-zinc-200 text-xs rounded-xl px-3 py-2 outline-none focus:border-amber-500 font-semibold cursor-pointer"
+                  >
+                    <option value="todas">Todas as Matérias</option>
+                    {DISCIPLINAS_TJSP.map((disc) => (
+                      <option key={disc} value={disc}>{disc}</option>
                     ))}
-                  </div>
-                )}
-              </div>
+                  </select>
 
-              {/* Revisão Geral */}
-              <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 shadow-xl space-y-4">
-                <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
-                  <h2 className="text-base font-bold text-white flex items-center gap-2">
-                    <BookOpen className="w-4 h-4 text-blue-400" />
-                    Revisão Geral ({cardsRevisaoGeral.length})
-                  </h2>
-                  <span className="text-xs font-mono bg-blue-500/10 text-blue-400 border border-blue-500/30 px-2.5 py-1 rounded-lg">
-                    Acompanhamento
-                  </span>
+                  {/* Filtro por Tipo de Revisão */}
+                  <div className="flex items-center gap-1 bg-zinc-900 border border-zinc-800 p-1 rounded-xl">
+                    <button 
+                      onClick={() => setFiltroRevisao('todos')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${filtroRevisao === 'todos' ? 'bg-amber-500 text-black font-bold shadow' : 'text-zinc-400 hover:text-white'}`}
+                    >
+                      Todos
+                    </button>
+                    <button 
+                      onClick={() => setFiltroRevisao('importante_revisar')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${filtroRevisao === 'importante_revisar' ? 'bg-amber-500 text-black font-bold shadow' : 'text-zinc-400 hover:text-white'}`}
+                    >
+                      Importante Revisar
+                    </button>
+                    <button 
+                      onClick={() => setFiltroRevisao('revisao_geral')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${filtroRevisao === 'revisao_geral' ? 'bg-amber-500 text-black font-bold shadow' : 'text-zinc-400 hover:text-white'}`}
+                    >
+                      Revisão Geral
+                    </button>
+                  </div>
                 </div>
-
-                {cardsRevisaoGeral.length === 0 ? (
-                  <p className="text-xs text-zinc-500 py-6 text-center">Nenhum flashcard marcado para revisão geral.</p>
-                ) : (
-                  <div className="space-y-3 max-h-[420px] overflow-y-auto pr-2">
-                    {cardsRevisaoGeral.map((c) => (
-                      <div key={c.id} className="bg-zinc-900/60 border border-blue-500/30 rounded-xl p-4 space-y-2 hover:border-blue-500/60 transition-all">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[11px] font-bold uppercase tracking-wider text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">
-                            {c.disciplina}
-                          </span>
-                          <span className="text-[10px] font-bold text-zinc-400 bg-zinc-950 px-2 py-0.5 rounded border border-zinc-800">
-                            {c.tag}
-                          </span>
-                        </div>
-                        <div>
-                          <p className="text-xs font-bold text-zinc-300">Assunto: <span className="text-white">{c.assunto}</span></p>
-                          <p className="text-xs text-zinc-400 mt-1 line-clamp-2">{c.pergunta}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
 
+              {cardsRevisaoFiltrados.length === 0 ? (
+                <p className="text-xs text-zinc-500 py-10 text-center">Nenhum flashcard encontrado para os filtros selecionados.</p>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {cardsRevisaoFiltrados.map((c) => {
+                    const isImportante = c.statusAvaliacao === 'importante_revisar';
+                    return (
+                      <div 
+                        key={c.id} 
+                        className={`rounded-xl p-4 space-y-3 transition-all border ${
+                          isImportante 
+                            ? 'bg-amber-950/10 border-amber-400/40 hover:border-amber-400/70' 
+                            : 'bg-blue-950/10 border-blue-500/40 hover:border-blue-500/70'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border ${
+                            isImportante 
+                              ? 'text-amber-400 bg-amber-400/10 border-amber-400/30' 
+                              : 'text-blue-400 bg-blue-500/10 border-blue-500/30'
+                          }`}>
+                            {c.disciplina}
+                          </span>
+                          <span className="text-[10px] font-bold text-zinc-400 bg-zinc-950 px-2 py-0.5 rounded border border-zinc-800 flex items-center gap-1">
+                            {isImportante ? <Star className="w-3 h-3 text-amber-400 fill-current" /> : <BookOpen className="w-3 h-3 text-blue-400" />}
+                            {isImportante ? 'Prioridade' : 'Geral'}
+                          </span>
+                        </div>
+
+                        <div className="space-y-1">
+                          <p className="text-xs font-bold text-zinc-200">Assunto: <span className="text-white font-extrabold">{c.assunto}</span></p>
+                          <p className="text-xs text-zinc-400 line-clamp-2">{c.pergunta}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
-            {/* Listagens Detalhadas (Questões, Simulados e Redações) */}
+            {/* Listagens Detalhadas (Questões com Edição/Lixeira, Simulados e Redações) */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 pt-4">
               
               {/* Histórico de Questões */}
@@ -348,26 +429,82 @@ export default function DesempenhoPage() {
                   <p className="text-xs text-zinc-500 py-6 text-center">Nenhum registo de questões.</p>
                 ) : (
                   <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
-                    {questoesFiltradas.map((q) => (
-                      <div key={q.id} className="bg-zinc-900/60 border border-zinc-800/80 rounded-xl p-4 flex justify-between items-center">
-                        <div className="space-y-1">
-                          <h4 className="text-sm font-bold text-white">{q.materia}</h4>
-                          {q.assunto && (
-                            <p className="text-[11px] text-amber-400 font-medium flex items-center gap-1">
-                              <Tag className="w-3 h-3" /> {q.assunto}
-                            </p>
-                          )}
-                          <span className="text-[10px] text-zinc-500 flex items-center gap-1">
-                            <Calendar className="w-3 h-3" />
-                            {new Date(q.created_at).toLocaleDateString('pt-BR')}
-                          </span>
+                    {questoesFiltradas.map((q) => {
+                      const estaEditando = editandoQuestaoId === q.id;
+                      return (
+                        <div key={q.id} className="bg-zinc-900/60 border border-zinc-800/80 rounded-xl p-4 space-y-3">
+                          <div className="flex justify-between items-start gap-2">
+                            <div className="space-y-1 w-full">
+                              <h4 className="text-sm font-bold text-white">{q.materia}</h4>
+                              
+                              {!estaEditando ? (
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  {q.assunto ? (
+                                    <p className="text-[11px] text-amber-400 font-medium flex items-center gap-1">
+                                      <Tag className="w-3 h-3" /> {q.assunto}
+                                    </p>
+                                  ) : (
+                                    <span className="text-[11px] text-zinc-500 italic">Sem assunto definido</span>
+                                  )}
+                                  <button
+                                    onClick={() => {
+                                      setEditandoQuestaoId(q.id);
+                                      setNovoAssuntoQuestao(q.assunto || '');
+                                    }}
+                                    className="text-[10px] text-amber-400 hover:underline bg-zinc-950 px-2 py-0.5 rounded border border-amber-400/20 flex items-center gap-1 cursor-pointer"
+                                  >
+                                    <Edit3 className="w-3 h-3" /> Editar Assunto
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-2 mt-1">
+                                  <input
+                                    type="text"
+                                    value={novoAssuntoQuestao}
+                                    onChange={(e) => setNovoAssuntoQuestao(e.target.value)}
+                                    placeholder="Nome do assunto..."
+                                    className="bg-zinc-950 border border-amber-400 text-zinc-100 text-xs px-2.5 py-1 rounded-lg outline-none w-full"
+                                  />
+                                  <button
+                                    onClick={() => salvarAssuntoQuestao(q.id)}
+                                    className="px-3 py-1 bg-amber-400 text-zinc-950 text-xs font-bold rounded-lg cursor-pointer shrink-0"
+                                  >
+                                    Salvar
+                                  </button>
+                                  <button
+                                    onClick={() => setEditandoQuestaoId(null)}
+                                    className="px-2 py-1 bg-zinc-800 text-zinc-400 text-xs rounded-lg cursor-pointer shrink-0"
+                                  >
+                                    Cancelar
+                                  </button>
+                                </div>
+                              )}
+
+                              <span className="text-[10px] text-zinc-500 flex items-center gap-1 pt-1">
+                                <Calendar className="w-3 h-3" />
+                                {new Date(q.created_at).toLocaleDateString('pt-BR')}
+                              </span>
+                            </div>
+
+                            <button
+                              onClick={() => excluirQuestao(q.id)}
+                              className="text-zinc-600 hover:text-rose-400 p-1.5 rounded-lg transition-all cursor-pointer shrink-0"
+                              title="Apagar registo"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+
+                          <div className="flex items-center justify-between pt-2 border-t border-zinc-800 text-xs">
+                            <span className="text-zinc-400">Total Feitas: <strong className="text-white">{q.total_feitas}</strong></span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-emerald-400 flex items-center gap-0.5 font-semibold"><CheckCircle2 className="w-3.5 h-3.5" />{q.acertos}</span>
+                              <span className="text-red-400 flex items-center gap-0.5 font-semibold"><XCircle className="w-3.5 h-3.5" />{q.erros}</span>
+                            </div>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2 text-xs">
-                          <span className="text-emerald-400 flex items-center gap-0.5 font-semibold"><CheckCircle2 className="w-3.5 h-3.5" />{q.acertos}</span>
-                          <span className="text-red-400 flex items-center gap-0.5 font-semibold"><XCircle className="w-3.5 h-3.5" />{q.erros}</span>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>

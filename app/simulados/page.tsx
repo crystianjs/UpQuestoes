@@ -103,7 +103,7 @@ export default function SimuladosPage() {
       setLoading(true);
       const [simRes, melRes] = await Promise.all([
         supabase.from('simulados').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
-        supabase.from('pontos_melhoria').select('*').eq('user_id', uid).order('created_at', { ascending: false })
+        supabase.from('pontos_melhoria').select('*').eq('user_id', uid)
       ]);
 
       if (simRes.data && simRes.data.length > 0) {
@@ -125,34 +125,37 @@ export default function SimuladosPage() {
 
   const simuladoAtivo = simuladosList.find(s => s.id === simuladoSelecionadoId) || simuladosList[0];
 
+  // Filtro restrito e seguro por simulado_id
   const melhoriasBrutas = melhorias.filter((m) => {
     if (!simuladoAtivo) return false;
-    if (m.simulado_id === simuladoAtivo.id) return true;
-    
-    if (m.created_at && simuladoAtivo.created_at) {
-      const dataM = new Date(m.created_at).toISOString().split('T')[0];
-      const dataS = new Date(simuladoAtivo.created_at).toISOString().split('T')[0];
-      return dataM === dataS;
-    }
-    return false;
+    return m.simulado_id === simuladoAtivo.id;
   });
 
-  // Filtro de unicidade para evitar duplicadas por nome de matéria no simulado ativo
-  const mapaUnico = new Map<string, PontoMelhoria>();
+  // Consolidação por nome de matéria para evitar duplicadas
+  const mapaConsolidado = new Map<string, PontoMelhoria>();
   melhoriasBrutas.forEach((m) => {
-    const nomeLimpo = m.materia.trim().toLowerCase();
-    if (!mapaUnico.has(nomeLimpo)) {
-      mapaUnico.set(nomeLimpo, m);
+    const nomeBruto = m.materia.trim();
+    const chave = nomeBruto.toLowerCase();
+
+    if (mapaConsolidado.has(chave)) {
+      const existente = mapaConsolidado.get(chave)!;
+      existente.quantidade_acertos += (m.quantidade_acertos || 0);
+      existente.quantidade_erros += (m.quantidade_erros || 0);
+      if (m.assunto_estudar && !existente.assunto_estudar.includes(m.assunto_estudar)) {
+        existente.assunto_estudar += `; ${m.assunto_estudar}`;
+      }
+    } else {
+      mapaConsolidado.set(chave, { ...m, materia: nomeBruto });
     }
   });
-  const melhoriasDoSimuladoAtivo = Array.from(mapaUnico.values());
+  const melhoriasDoSimuladoAtivo = Array.from(mapaConsolidado.values());
 
   const totalAcertosAnalitico = simuladoAtivo ? simuladoAtivo.acertos : 0;
   const totalQuestoesAnalitico = simuladoAtivo ? simuladoAtivo.total_questoes : 70;
   const totalErrosAnalitico = Math.max(0, totalQuestoesAnalitico - totalAcertosAnalitico);
   const aproveitamentoTotal = totalQuestoesAnalitico > 0 ? ((totalAcertosAnalitico / totalQuestoesAnalitico) * 100).toFixed(1) : '0';
 
-  // Métricas de Acertos por Bloco (baseado nas matérias únicas)
+  // Métricas de Acertos por Bloco
   const acertosBloco1 = melhoriasDoSimuladoAtivo
     .filter(m => MATERIAS_BLOCO_1.some(b => m.materia.toLowerCase().includes(b.toLowerCase())))
     .reduce((acc, m) => acc + (m.quantidade_acertos || 0), 0);

@@ -153,8 +153,9 @@ export default function CadernoRevisaoPage() {
 
       if (error) throw error;
       setRevisoesPorDisciplina(prev => ({ ...prev, [disciplinaAlvo]: payload }));
-    } catch (e) {
-      alert("Erro ao atualizar o registo no banco de dados.");
+    } catch (e: any) {
+      console.error("Erro detalhado Supabase:", e);
+      alert(`Erro ao atualizar no banco: ${e.message || JSON.stringify(e)}`);
     }
   };
 

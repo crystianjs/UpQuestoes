@@ -119,14 +119,19 @@ export default function CadernoRevisaoPage() {
         });
         setRevisoesPorDisciplina(formatado);
       } else {
-        await supabase.from('caderno_revisao').upsert({
-          user_id: uid,
-          disciplina: revisaoInicialExemplo.disciplina,
-          titulo: revisaoInicialExemplo.titulo,
-          banca: revisaoInicialExemplo.banca,
-          cards: revisaoInicialExemplo.cards
-        }, { onConflict: 'user_id,disciplina' });
-        setRevisoesPorDisciplina({ [revisaoInicialExemplo.disciplina]: revisaoInicialExemplo });
+        // Isolação estrita: Apenas o seu ID principal recebe dados iniciais automáticos
+        if (uid === '96d5de06-229d-4a5c-97c0-dbb47224bb17') {
+          await supabase.from('caderno_revisao').upsert({
+            user_id: uid,
+            disciplina: revisaoInicialExemplo.disciplina,
+            titulo: revisaoInicialExemplo.titulo,
+            banca: revisaoInicialExemplo.banca,
+            cards: revisaoInicialExemplo.cards
+          }, { onConflict: 'user_id,disciplina' });
+          setRevisoesPorDisciplina({ [revisaoInicialExemplo.disciplina]: revisaoInicialExemplo });
+        } else {
+          setRevisoesPorDisciplina({});
+        }
       }
     } catch (e) {
       console.error("Erro ao carregar do Supabase:", e);

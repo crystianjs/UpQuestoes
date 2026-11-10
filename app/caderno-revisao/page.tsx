@@ -119,7 +119,6 @@ export default function CadernoRevisaoPage() {
         });
         setRevisoesPorDisciplina(formatado);
       } else {
-        // Isolação estrita: Apenas o seu ID principal recebe dados iniciais automáticos
         if (uid === '96d5de06-229d-4a5c-97c0-dbb47224bb17') {
           await supabase.from('caderno_revisao').upsert({
             user_id: uid,
@@ -140,27 +139,9 @@ export default function CadernoRevisaoPage() {
     }
   };
 
-  const salvarNoSupabaseComBackup = async (disciplinaAlvo: string, payload: any) => {
+  const salvarNoSupabase = async (disciplinaAlvo: string, payload: any) => {
     if (!userId) return;
     try {
-      const { data: dadosAtuais } = await supabase
-        .from('caderno_revisao')
-        .select('*')
-        .eq('disciplina', disciplinaAlvo)
-        .eq('user_id', userId)
-        .maybeSingle();
-
-      if (dadosAtuais) {
-        await supabase.from('temp_caderno_revisao').upsert({
-          user_id: userId,
-          disciplina: dadosAtuais.disciplina,
-          titulo: dadosAtuais.titulo,
-          banca: dadosAtuais.banca,
-          cards: dadosAtuais.cards,
-          backed_up_at: new Date().toISOString()
-        }, { onConflict: 'user_id,disciplina' });
-      }
-
       const { error } = await supabase.from('caderno_revisao').upsert({
         user_id: userId,
         disciplina: disciplinaAlvo,
@@ -173,7 +154,7 @@ export default function CadernoRevisaoPage() {
       if (error) throw error;
       setRevisoesPorDisciplina(prev => ({ ...prev, [disciplinaAlvo]: payload }));
     } catch (e) {
-      alert("Erro crítico ao salvar no banco. O backup temp_caderno_revisao foi preservado.");
+      alert("Erro ao atualizar o registo no banco de dados.");
     }
   };
 
@@ -211,7 +192,7 @@ export default function CadernoRevisaoPage() {
           cards: novosCardsValidos
         };
 
-        await salvarNoSupabaseComBackup(modalDisciplinaAlvo, payloadFinal);
+        await salvarNoSupabase(modalDisciplinaAlvo, payloadFinal);
         setShowJsonModal(false);
         setJsonInputText('');
         setSelectedDisciplina(modalDisciplinaAlvo);
@@ -244,7 +225,7 @@ export default function CadernoRevisaoPage() {
       cards: cardsAtualizados
     };
 
-    await salvarNoSupabaseComBackup(selectedDisciplina, payloadAtualizado);
+    await salvarNoSupabase(selectedDisciplina, payloadAtualizado);
   };
 
   const salvarAssuntoEditado = async (cardId: string) => {
@@ -262,7 +243,7 @@ export default function CadernoRevisaoPage() {
       cards: cardsAtualizados
     };
 
-    await salvarNoSupabaseComBackup(selectedDisciplina, payloadAtualizado);
+    await salvarNoSupabase(selectedDisciplina, payloadAtualizado);
     setEditandoCardId(null);
   };
 
@@ -277,7 +258,7 @@ export default function CadernoRevisaoPage() {
         setRevisoesPorDisciplina(novoEstado);
       } else {
         const novoMapa = { ...revisaoAtual, cards: novosCards };
-        await salvarNoSupabaseComBackup(selectedDisciplina, novoMapa);
+        await salvarNoSupabase(selectedDisciplina, novoMapa);
       }
       setSelectedAssunto('all');
     }
@@ -313,7 +294,7 @@ export default function CadernoRevisaoPage() {
           <div>
             <div className="flex items-center gap-2">
               <span className="bg-blue-500/20 text-blue-400 text-xs font-bold px-2.5 py-0.5 rounded-full border border-blue-500/30">TJSP - VUNESP</span>
-              <span className="bg-emerald-500/20 text-emerald-400 font-bold text-xs px-2.5 py-0.5 rounded-full border border-emerald-500/30">Backup Automático Ativo</span>
+              <span className="bg-emerald-500/20 text-emerald-400 font-bold text-xs px-2.5 py-0.5 rounded-full border border-emerald-500/30">Segurança Ativa</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black text-white mt-1 tracking-tight">
               {revisaoAtual ? revisaoAtual.titulo : "Painel de Flashcards"}
@@ -557,7 +538,7 @@ export default function CadernoRevisaoPage() {
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <span className="bg-amber-400 text-zinc-950 font-bold text-xs px-2.5 py-0.5 rounded-full">Mentor VUNESP</span>
-              <h2 className="text-sm font-bold text-white">Prompt Mestre para Flashcards (Blindado com Backup)</h2>
+              <h2 className="text-sm font-bold text-white">Prompt Mestre para Flashcards</h2>
             </div>
             <p className="text-xs text-zinc-400">
               Gera os cards limpos e com IDs seguros em formato timestamp para proteger o seu histórico.
@@ -646,7 +627,7 @@ export default function CadernoRevisaoPage() {
               </div>
               <div>
                 <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full border bg-amber-400 text-zinc-950 border-amber-500">
-                  Gerenciador com Backup em Nuvem
+                  Gerenciador em Nuvem
                 </span>
                 <h2 className="text-lg font-bold text-white mt-1">Adicionar / Atualizar Flashcard com Segurança</h2>
               </div>
@@ -676,12 +657,12 @@ export default function CadernoRevisaoPage() {
             </div>
 
             <div className="pt-2 border-t border-zinc-800 flex items-center justify-between">
-              <span className="text-[11px] text-zinc-500">Cria cópia em temp_caderno_revisao antes de salvar.</span>
+              <span className="text-[11px] text-zinc-500">A operação será gravada de forma segura na nuvem.</span>
               <button 
                 onClick={handleCarregarJson} 
                 className="px-5 py-2.5 bg-amber-400 hover:bg-amber-500 text-zinc-950 font-extrabold rounded-xl text-xs transition-all flex items-center gap-1.5 shadow-md cursor-pointer"
               >
-                Salvar com Backup Automático
+                Salvar na Nuvem
               </button>
             </div>
           </div>

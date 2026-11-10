@@ -125,7 +125,7 @@ export default function SimuladosPage() {
 
   const simuladoAtivo = simuladosList.find(s => s.id === simuladoSelecionadoId) || simuladosList[0];
 
-  const melhoriasDoSimuladoAtivo = melhorias.filter((m) => {
+  const melhoriasBrutas = melhorias.filter((m) => {
     if (!simuladoAtivo) return false;
     if (m.simulado_id === simuladoAtivo.id) return true;
     
@@ -137,12 +137,22 @@ export default function SimuladosPage() {
     return false;
   });
 
+  // Filtro de unicidade para evitar duplicadas por nome de matéria no simulado ativo
+  const mapaUnico = new Map<string, PontoMelhoria>();
+  melhoriasBrutas.forEach((m) => {
+    const nomeLimpo = m.materia.trim().toLowerCase();
+    if (!mapaUnico.has(nomeLimpo)) {
+      mapaUnico.set(nomeLimpo, m);
+    }
+  });
+  const melhoriasDoSimuladoAtivo = Array.from(mapaUnico.values());
+
   const totalAcertosAnalitico = simuladoAtivo ? simuladoAtivo.acertos : 0;
   const totalQuestoesAnalitico = simuladoAtivo ? simuladoAtivo.total_questoes : 70;
   const totalErrosAnalitico = Math.max(0, totalQuestoesAnalitico - totalAcertosAnalitico);
   const aproveitamentoTotal = totalQuestoesAnalitico > 0 ? ((totalAcertosAnalitico / totalQuestoesAnalitico) * 100).toFixed(1) : '0';
 
-  // Métricas de Acertos por Bloco
+  // Métricas de Acertos por Bloco (baseado nas matérias únicas)
   const acertosBloco1 = melhoriasDoSimuladoAtivo
     .filter(m => MATERIAS_BLOCO_1.some(b => m.materia.toLowerCase().includes(b.toLowerCase())))
     .reduce((acc, m) => acc + (m.quantidade_acertos || 0), 0);
@@ -155,7 +165,6 @@ export default function SimuladosPage() {
     .filter(m => MATERIAS_BLOCO_3.some(b => m.materia.toLowerCase().includes(b.toLowerCase())))
     .reduce((acc, m) => acc + (m.quantidade_acertos || 0), 0);
 
-  // Metas do Edital e Sorocaba
   const metaMinimaEdital = 23;
   const metaAprovacaoSorocaba = 56;
   const progressoMinimo = Math.min(100, Math.round((totalAcertosAnalitico / metaMinimaEdital) * 100));

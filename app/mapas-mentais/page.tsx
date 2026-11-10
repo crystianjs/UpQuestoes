@@ -453,7 +453,6 @@ export default function MapaMentalPage() {
     if (confirm("Deseja remover este card/tópico interno?")) {
       const ramosAtualizados = mapaAtual.ramos.map((r: any) => {
         if (r && r.id === ramoId && r.grafico) {
-          // Identifica qual propriedade de lista está sendo usada no gráfico
           const campoLista = Array.isArray(r.grafico.cards) ? 'cards'
                            : Array.isArray(r.grafico.elementos) ? 'elementos'
                            : Array.isArray(r.grafico.conjuntos) ? 'conjuntos'
@@ -918,7 +917,7 @@ export default function MapaMentalPage() {
               {DISCIPLINAS_TJSP.map((disc) => <option key={disc} value={disc}>{disc}</option>)}
             </select>
             <textarea value={jsonInputText} onChange={(e) => setJsonInputText(e.target.value)} className="w-full h-44 bg-zinc-900 text-amber-300 p-3.5 rounded-2xl border border-zinc-800 font-mono text-xs outline-none" placeholder="Cole o JSON aqui..." />
-            <button onClick={handleCarregarJson} className="w-full py.25 bg-amber-400 hover:bg-amber-500 text-zinc-950 font-extrabold rounded-xl text-xs cursor-pointer">Salvar com Backup Automático</button>
+            <button onClick={handleCarregarJson} className="w-full py-2.5 bg-amber-400 hover:bg-amber-500 text-zinc-950 font-extrabold rounded-xl text-xs cursor-pointer">Salvar com Backup Automático</button>
           </div>
         </div>
       )}

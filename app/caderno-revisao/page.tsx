@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Navbar from '../components/Navbar';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { Lightbulb, Star, Tag, Check, X, Edit3, Plus, Trash2, BookOpen } from 'lucide-react';
+import { Lightbulb, Tag, Check, X, Edit3, Plus, Trash2, BookOpen } from 'lucide-react';
 
 const DISCIPLINAS_TJSP = [
   "Língua Portuguesa",
@@ -33,8 +33,7 @@ const revisaoInicialExemplo = {
       detalhes: "PEGADINHA VUNESP: A banca costuma tentar incluir interjeições e artigos como variáveis em graus compostos.",
       pergunta: "Quais são as 10 classes gramaticais da Língua Portuguesa?",
       respostaResumida: "Substantivo, Artigo, Adjetivo, Pronome, Numeral, Verbo, Advérbio, Preposição, Conjunção e Interjeição.",
-      statusAvaliacao: null,
-      importante: false
+      statusAvaliacao: null
     }
   ]
 };
@@ -59,8 +58,7 @@ Retorne EXCLUSIVAMENTE o JSON válido, seguindo esta estrutura exata:
       "pergunta": "Pergunta objetiva com foco na VUNESP?",
       "respostaResumida": "Explicação ou gabarito direto da resposta.",
       "detalhes": "PEGADINHA VUNESP: Explicação do ponto que a banca mais erra.",
-      "statusAvaliacao": null,
-      "importante": false
+      "statusAvaliacao": null
     }
   ]
 }`;
@@ -80,11 +78,9 @@ export default function CadernoRevisaoPage() {
   const [copiadoPrompt, setCopiadoPrompt] = useState<boolean>(false);
   const [carregando, setCarregando] = useState<boolean>(true);
 
-  // Estados para edição inline do assunto do card
   const [editandoCardId, setEditandoCardId] = useState<string | null>(null);
   const [novoAssuntoInput, setNovoAssuntoInput] = useState<string>('');
 
-  // Controle de flashcards revelados
   const [respostasReveladas, setRespostasReveladas] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
@@ -234,24 +230,6 @@ export default function CadernoRevisaoPage() {
     const cardsAtualizados = revisaoAtual.cards.map((c: any) => {
       if (c.id === cardId) {
         return { ...c, statusAvaliacao: status };
-      }
-      return c;
-    });
-
-    const payloadAtualizado = {
-      ...revisaoAtual,
-      cards: cardsAtualizados
-    };
-
-    await salvarNoSupabaseComBackup(selectedDisciplina, payloadAtualizado);
-  };
-
-  const toggleImportante = async (cardId: string) => {
-    if (!revisaoAtual) return;
-
-    const cardsAtualizados = revisaoAtual.cards.map((c: any) => {
-      if (c.id === cardId) {
-        return { ...c, importante: !c.importante };
       }
       return c;
     });
@@ -420,25 +398,16 @@ export default function CadernoRevisaoPage() {
                 const revelado = respostasReveladas[card.id];
                 const statusAtual = card.statusAvaliacao;
                 const estaEditando = editandoCardId === card.id;
-                const ehImportante = card.importante === true;
 
                 return (
                   <div 
                     key={card.id}
-                    className={`rounded-2xl p-6 sm:p-8 shadow-xl space-y-6 relative transition-all border ${
-                      ehImportante 
-                        ? 'bg-amber-950/20 border-amber-400/60 shadow-amber-500/10' 
-                        : 'bg-zinc-900/60 border-zinc-800/80'
-                    }`}
+                    className="rounded-2xl p-6 sm:p-8 shadow-xl space-y-6 relative transition-all border bg-zinc-900/60 border-zinc-800/80"
                   >
-                    <div className={`flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b gap-3 ${ehImportante ? 'border-amber-400/40' : 'border-zinc-800'}`}>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-zinc-800 gap-3">
                       <div className="space-y-1 w-full">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className={`text-xs font-bold uppercase tracking-wider px-2.5 py-1 rounded-md border ${
-                            ehImportante 
-                              ? 'text-amber-300 bg-amber-400/20 border-amber-400/40' 
-                              : 'text-amber-400 bg-amber-400/10 border-amber-400/20'
-                          }`}>
+                          <span className="text-xs font-bold uppercase tracking-wider px-2.5 py-1 rounded-md border text-amber-400 bg-amber-400/10 border-amber-400/20">
                             {selectedDisciplina}
                           </span>
                           
@@ -488,17 +457,6 @@ export default function CadernoRevisaoPage() {
                       </div>
 
                       <div className="flex items-center gap-2 self-start sm:self-center shrink-0">
-                        <button
-                          onClick={() => toggleImportante(card.id)}
-                          className={`text-xs font-extrabold px-3 py-1.5 rounded-lg border transition-all cursor-pointer shadow-md flex items-center gap-1.5 ${
-                            ehImportante
-                              ? 'bg-amber-400 text-zinc-950 border-amber-300 ring-2 ring-amber-400/50'
-                              : 'bg-zinc-950 text-amber-400/70 border-amber-500/30 hover:text-amber-400 hover:border-amber-400/50'
-                          }`}
-                        >
-                          <Star className="w-3.5 h-3.5 fill-current" /> Importante
-                        </button>
-
                         <span className="text-xs font-bold px-3 py-1 rounded-lg bg-zinc-950 text-amber-400 border border-amber-400/30 whitespace-nowrap flex items-center gap-1">
                           <Tag className="w-3 h-3" /> {card.tag}
                         </span>
@@ -558,7 +516,7 @@ export default function CadernoRevisaoPage() {
                               : 'bg-zinc-950 text-amber-400 border-amber-500/30 hover:bg-amber-950/20'
                           }`}
                         >
-                          <Star className="w-3.5 h-3.5" /> 1. Revisar para prova
+                          1. Revisar para prova
                         </button>
                         <button
                           onClick={() => definirStatus(card.id, 'revisao_geral')}

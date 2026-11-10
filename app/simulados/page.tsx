@@ -72,7 +72,7 @@ export default function SimuladosPage() {
   const [editSimuladoId, setEditSimuladoId] = useState('');
   const [editSimTitulo, setEditSimTitulo] = useState('');
   const [editSimAcertos, setEditSimAcertos] = useState(0);
-  const [editSimTotal, setEditSimTotal] = useState(100);
+  const [editSimTotal, setEditSimTotal] = useState(70);
 
   useEffect(() => {
     async function init() {
@@ -121,9 +121,15 @@ export default function SimuladosPage() {
   );
 
   const totalAcertosAnalitico = simuladoAtivo ? simuladoAtivo.acertos : 0;
-  const totalQuestoesAnalitico = simuladoAtivo ? simuladoAtivo.total_questoes : 100;
+  const totalQuestoesAnalitico = simuladoAtivo ? simuladoAtivo.total_questoes : 70;
   const totalErrosAnalitico = Math.max(0, totalQuestoesAnalitico - totalAcertosAnalitico);
   const aproveitamentoTotal = totalQuestoesAnalitico > 0 ? ((totalAcertosAnalitico / totalQuestoesAnalitico) * 100).toFixed(1) : '0';
+
+  // Metas do Edital / Sorocaba
+  const metaMinimaEdital = 23; // 8 Português + 15 Direito
+  const metaAprovacaoSorocaba = 56; // 80% de 70 questões
+  const progressoMinimo = Math.min(100, Math.round((totalAcertosAnalitico / metaMinimaEdital) * 100));
+  const progressoMeta = Math.min(100, Math.round((totalAcertosAnalitico / metaAprovacaoSorocaba) * 100));
 
   function adicionarMateriaManualTemp(e: React.FormEvent) {
     e.preventDefault();
@@ -147,7 +153,6 @@ export default function SimuladosPage() {
     setListaManualTemporaria(listaManualTemporaria.filter((_, i) => i !== index));
   }
 
-  // --- FUNÇÃO DE SALVAR TUDO (SIMULADO + MATÉRIAS VINCULADAS DIRETAMENTE) ---
   async function handleSalvarSimuladoCompleto(e: React.FormEvent) {
     e.preventDefault();
     if (!userId || aGuardar) return;
@@ -206,13 +211,12 @@ export default function SimuladosPage() {
       const numTotal = somaAcertos + somaErros;
       const notaCalculada = numTotal > 0 ? Number(((somaAcertos / numTotal) * 10).toFixed(2)) : 0;
 
-      // 1. Insere o Simulado principal associado ao user_id
       const { data: novoSimuladoInserido, error: erroSimulado } = await supabase.from('simulados').insert([
         {
           user_id: userId,
           titulo: titulo || 'Simulado VUNESP',
           acertos: somaAcertos,
-          total_questoes: numTotal,
+          total_questoes: numTotal > 0 ? numTotal : 70,
           nota: notaCalculada,
           created_at: dataFinalSimulado
         },
@@ -224,7 +228,6 @@ export default function SimuladosPage() {
         return;
       }
 
-      // 2. Mapeia os itens garantindo o vínculo estrito com o user_id e simulado_id criado
       const itensComSimuladoId = arrayMateriasBrutas.map((item) => ({
         user_id: userId,
         simulado_id: novoSimuladoInserido.id,
@@ -235,7 +238,6 @@ export default function SimuladosPage() {
         created_at: item.data ? new Date(item.data).toISOString() : dataFinalSimulado
       }));
 
-      // 3. Insere os pontos de melhoria vinculados
       const { error: erroMelhoria } = await supabase.from('pontos_melhoria').insert(itensComSimuladoId);
       if (erroMelhoria) {
         alert(`Erro ao guardar Matérias: ${erroMelhoria.message}`);
@@ -392,7 +394,7 @@ Analise o meu desempenho no simulado e gere um payload JSON estrito contendo a d
               Simulados e Desempenho — VUNESP / TJSP
             </h1>
             <p className="text-sm text-zinc-400 mt-1">
-              Selecione o simulado abaixo para abrir o painel analítico detalhado e as estatísticas por matéria.
+              Acompanhe sua evolução em relação ao mínimo de eliminação e à meta segura de 80% para Sorocaba.
             </p>
           </div>
           <button
@@ -404,7 +406,7 @@ Analise o meu desempenho no simulado e gere um payload JSON estrito contendo a d
           </button>
         </div>
 
-        {/* BARRA DE SELEÇÃO DO SIMULADO POR DATA/TÍTULO */}
+        {/* BARRA DE SELEÇÃO DO SIMULADO */}
         {simuladosList.length > 0 && (
           <div className="bg-zinc-900/90 border border-zinc-800 p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-lg">
             <div className="flex items-center gap-2 w-full sm:w-auto">
@@ -451,7 +453,7 @@ Analise o meu desempenho no simulado e gere um payload JSON estrito contendo a d
             <div className="border-b border-zinc-800 pb-4 flex justify-between items-center">
               <div>
                 <span className="text-[10px] font-extrabold uppercase tracking-widest text-amber-400 bg-amber-400/10 px-3 py-1 rounded-full border border-amber-400/20">
-                  Relatório de Desempenho Analítico
+                  Relatório Analítico de Metas (TJSP)
                 </span>
                 <h2 className="text-xl font-black text-white mt-2">{simuladoAtivo.titulo}</h2>
               </div>
@@ -460,37 +462,78 @@ Analise o meu desempenho no simulado e gere um payload JSON estrito contendo a d
               </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 bg-zinc-950 p-6 rounded-2xl border border-zinc-800">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 bg-zinc-950 p-6 rounded-2xl border border-zinc-800">
               <div className="space-y-1">
                 <span className="text-xs text-zinc-400 font-bold uppercase tracking-wide">Acertos</span>
                 <div className="text-3xl font-black text-emerald-400 font-mono">
-                  {totalAcertosAnalitico} <span className="text-xs text-zinc-400 font-sans font-normal">de {totalQuestoesAnalitico} questões</span>
+                  {totalAcertosAnalitico} <span className="text-xs text-zinc-400 font-sans font-normal">de {totalQuestoesAnalitico}</span>
                 </div>
               </div>
 
               <div className="space-y-1">
                 <span className="text-xs text-zinc-400 font-bold uppercase tracking-wide">Erros</span>
                 <div className="text-3xl font-black text-rose-500 font-mono">
-                  {totalErrosAnalitico} <span className="text-xs text-zinc-400 font-sans font-normal">questões incorretas</span>
+                  {totalErrosAnalitico} <span className="text-xs text-zinc-400 font-sans font-normal">questões</span>
                 </div>
               </div>
 
-              <div className="space-y-1 pt-4 border-t border-zinc-900">
-                <span className="text-xs text-zinc-400 font-bold uppercase tracking-wide">Aproveitamento Total</span>
+              <div className="space-y-1">
+                <span className="text-xs text-zinc-400 font-bold uppercase tracking-wide">Aproveitamento</span>
                 <div className="text-3xl font-black text-amber-400 font-mono">
-                  {aproveitamentoTotal}% <span className="text-xs text-zinc-400 font-sans font-normal">({totalAcertosAnalitico} de {totalQuestoesAnalitico} questões)</span>
+                  {aproveitamentoTotal}%
                 </div>
               </div>
 
-              <div className="space-y-1 pt-4 border-t border-zinc-900">
-                <span className="text-xs text-zinc-400 font-bold uppercase tracking-wide">Nota do Simulado (0 a 10)</span>
+              <div className="space-y-1">
+                <span className="text-xs text-zinc-400 font-bold uppercase tracking-wide">Nota do Simulado</span>
                 <div className="text-3xl font-black text-white font-mono">
-                  {simuladoAtivo.nota} <span className="text-xs text-zinc-400 font-sans font-normal">pontos</span>
+                  {simuladoAtivo.nota} <span className="text-xs text-zinc-400 font-sans font-normal">pts</span>
                 </div>
               </div>
             </div>
 
-            {/* Desempenho por Matéria (Filtrado estritamente pelo Simulado Ativo) */}
+            {/* BARRAS DE PROGRESSO DAS METAS (MÍNIMO EDITAL & META SOROCABA) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-zinc-950 p-6 rounded-2xl border border-zinc-800">
+              {/* Meta 1: Mínimo Obrigatório */}
+              <div className="space-y-2">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="font-bold text-zinc-300 flex items-center gap-1.5">
+                    <Target className="w-4 h-4 text-amber-400" /> Mínimo Edital (Blocos I e II: 23 acertos)
+                  </span>
+                  <span className={`font-mono font-bold ${totalAcertosAnalitico >= metaMinimaEdital ? 'text-emerald-400' : 'text-rose-400'}`}>
+                    {totalAcertosAnalitico >= metaMinimaEdital ? 'Superado ✓' : `${totalAcertosAnalitico}/23`}
+                  </span>
+                </div>
+                <div className="w-full bg-zinc-900 h-3 rounded-full overflow-hidden border border-zinc-800">
+                  <div 
+                    className={`h-full transition-all duration-500 ${totalAcertosAnalitico >= metaMinimaEdital ? 'bg-emerald-500' : 'bg-rose-500'}`} 
+                    style={{ width: `${progressoMinimo}%` }}
+                  ></div>
+                </div>
+                <p className="text-[11px] text-zinc-500">Garante que você não é eliminado por blocos.</p>
+              </div>
+
+              {/* Meta 2: Aprovação / Sorocaba (80%) */}
+              <div className="space-y-2">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="font-bold text-zinc-300 flex items-center gap-1.5">
+                    <Award className="w-4 h-4 text-amber-400" /> Meta Sorocaba (80%: 56 acertos)
+                  </span>
+                  <span className={`font-mono font-bold ${totalAcertosAnalitico >= metaAprovacaoSorocaba ? 'text-emerald-400' : 'text-amber-400'}`}>
+                    {totalAcertosAnalitico >= metaAprovacaoSorocaba ? 'Meta Atingida! 🏆' : `${totalAcertosAnalitico}/56`}
+                  </span>
+                </div>
+                <div className="w-full bg-zinc-900 h-3 rounded-full overflow-hidden border border-zinc-800">
+                  <div 
+                    className={`h-full transition-all duration-500 ${totalAcertosAnalitico >= metaAprovacaoSorocaba ? 'bg-emerald-500' : 'bg-amber-400'}`} 
+                    style={{ width: `${progressoMeta}%` }}
+                  ></div>
+                </div>
+                <p className="text-[11px] text-zinc-500">Patamar seguro para classificação nas vagas.</p>
+              </div>
+            </div>
+
+            {/* Desempenho por Matéria */}
             <div className="space-y-4 pt-4">
               <h3 className="text-sm font-extrabold uppercase tracking-wider text-white flex items-center gap-2">
                 <BarChart2 className="w-4 h-4 text-amber-400" />
@@ -506,7 +549,7 @@ Analise o meu desempenho no simulado e gere um payload JSON estrito contendo a d
                     const errosMat = m.quantidade_erros || 0;
                     const totalMat = acertosMat + errosMat;
                     const percMat = totalMat > 0 ? Math.round((acertosMat / totalMat) * 100) : 0;
-                    const corBarra = percMat >= 70 ? 'bg-emerald-500' : percMat >= 50 ? 'bg-amber-400' : 'bg-rose-600';
+                    const corBarra = percMat >= 80 ? 'bg-emerald-500' : percMat >= 50 ? 'bg-amber-400' : 'bg-rose-600';
 
                     return (
                       <div key={m.id} className="bg-zinc-950 border border-zinc-800 p-4 rounded-xl space-y-2">
@@ -548,7 +591,7 @@ Analise o meu desempenho no simulado e gere um payload JSON estrito contendo a d
               <div className="flex justify-between items-center border-b border-zinc-800 pb-4">
                 <h3 className="text-base font-bold text-white flex items-center gap-2">
                   <Award className="w-5 h-5 text-amber-400" />
-                  Registar Simulado e Desempenho
+                  Registar Simulado (70 Questões)
                 </h3>
                 <button onClick={() => setModalOpen(false)} className="text-zinc-400 hover:text-white cursor-pointer">
                   <XCircle className="w-5 h-5" />
@@ -609,7 +652,7 @@ Analise o meu desempenho no simulado e gere um payload JSON estrito contendo a d
                           className="text-[11px] bg-zinc-900 border border-zinc-700 hover:border-amber-400 text-amber-300 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all cursor-pointer font-bold"
                         >
                           {copiado ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3 text-amber-400" />}
-                          {copiado ? 'Prompt Copiado!' : 'Copiar Prompt para IA (Com Data)'}
+                          {copiado ? 'Prompt Copiado!' : 'Copiar Prompt para IA'}
                         </button>
                         <button 
                           type="button" 
@@ -624,7 +667,7 @@ Analise o meu desempenho no simulado e gere um payload JSON estrito contendo a d
                         rows={7}
                         value={jsonInput}
                         onChange={(e) => setJsonInput(e.target.value)}
-                        placeholder='{"data": "2026-10-18", "materias": [{"materia": "Informática", "quantidade_erros": 1, "quantidade_acertos": 8, "assunto_estudar": "..."}]}'
+                        placeholder='{"data": "2026-10-18", "materias": [{"materia": "Língua Portuguesa", "quantidade_erros": 2, "quantidade_acertos": 14, "assunto_estudar": "..."}]}'
                         className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-xs text-amber-300 font-mono focus:outline-none focus:border-amber-400"
                       />
                     </div>
@@ -639,7 +682,7 @@ Analise o meu desempenho no simulado e gere um payload JSON estrito contendo a d
                             type="text"
                             value={materiaManual}
                             onChange={(e) => setMateriaManual(e.target.value)}
-                            placeholder="Ex: Direito Constitucional"
+                            placeholder="Ex: Língua Portuguesa"
                             className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
                           />
                         </div>
@@ -673,7 +716,7 @@ Analise o meu desempenho no simulado e gere um payload JSON estrito contendo a d
                           type="text"
                           value={assuntoManual}
                           onChange={(e) => setAssuntoManual(e.target.value)}
-                          placeholder="Ex: Artigo 5º da CF/88"
+                          placeholder="Ex: Regência Verbal"
                           className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
                         />
                       </div>
@@ -717,7 +760,7 @@ Analise o meu desempenho no simulado e gere um payload JSON estrito contendo a d
                     disabled={aGuardar}
                     className="px-5 py-2 rounded-xl text-xs font-black bg-amber-400 hover:bg-amber-500 text-zinc-950 shadow-md cursor-pointer disabled:opacity-50"
                   >
-                    {aGuardar ? 'A guardar...' : 'Guardar Registo Completo'}
+                    {aGuardar ? 'A guardar...' : 'Guardar Simulado'}
                   </button>
                 </div>
               </form>

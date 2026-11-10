@@ -69,7 +69,6 @@ export default function DesempenhoPage() {
   const [filtroRevisao, setFiltroRevisao] = useState<'todos' | 'importante_revisar' | 'revisao_geral'>('todos');
   const [filtroMateriaRevisao, setFiltroMateriaRevisao] = useState<string>('todas');
 
-  // Estados para edição inline de assunto nas questões
   const [editandoQuestaoId, setEditandoQuestaoId] = useState<string | null>(null);
   const [novoAssuntoQuestao, setNovoAssuntoQuestao] = useState<string>('');
 
@@ -90,7 +89,7 @@ export default function DesempenhoPage() {
       supabase.from('user_questions').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
       supabase.from('redaccoes').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
       supabase.from('simulados').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
-      supabase.from('caderno_revisao').select('*')
+      supabase.from('caderno_revisao').select('*').eq('user_id', userId) // <-- Filtrado estritamente por user_id[cite: 13]
     ]);
 
     if (qRes.data) setQuestoes(qRes.data);
@@ -339,7 +338,6 @@ export default function DesempenhoPage() {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
-                  {/* Filtro por Matéria */}
                   <select
                     value={filtroMateriaRevisao}
                     onChange={(e) => setFiltroMateriaRevisao(e.target.value)}
@@ -351,7 +349,6 @@ export default function DesempenhoPage() {
                     ))}
                   </select>
 
-                  {/* Filtro por Tipo de Revisão */}
                   <div className="flex items-center gap-1 bg-zinc-900 border border-zinc-800 p-1 rounded-xl">
                     <button 
                       onClick={() => setFiltroRevisao('todos')}
@@ -415,10 +412,10 @@ export default function DesempenhoPage() {
               )}
             </div>
 
-            {/* Listagens Detalhadas (Questões com Edição/Lixeira, Simulados e Redações) */}
+            {/* Listagens Detalhadas */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 pt-4">
               
-              {/* Histórico de Questões */}
+              {/* Questões */}
               <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 shadow-xl space-y-4">
                 <h2 className="text-lg font-bold text-white flex items-center gap-2">
                   <Award className="w-5 h-5 text-amber-500" />
@@ -509,7 +506,7 @@ export default function DesempenhoPage() {
                 )}
               </div>
 
-              {/* Simulados Recentes */}
+              {/* Simulados */}
               <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 shadow-xl space-y-4">
                 <div className="flex justify-between items-center">
                   <h2 className="text-lg font-bold text-white flex items-center gap-2">

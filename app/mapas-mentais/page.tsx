@@ -102,8 +102,8 @@ function TextoGrifavel({ children, idUnico }: { children: React.ReactNode; idUni
   );
 }
 
-// --- COMPONENTE DE DIAGRAMAS COM ÍCONES FORÇADOS EM AMARELO (FILTRO CSS) ---
-function LogicalDiagram({ grafico }: { grafico: any }) {
+// --- COMPONENTE DE DIAGRAMAS COM BOTÃO DE EXCLUIR CARD INDIVIDUAL ---
+function LogicalDiagram({ grafico, onDeletarCard }: { grafico: any; onDeletarCard?: (index: number) => void }) {
   if (!grafico) return null;
   const listaItens = Array.isArray(grafico.elementos) ? grafico.elementos
                    : Array.isArray(grafico.conjuntos) ? grafico.conjuntos
@@ -143,7 +143,7 @@ function LogicalDiagram({ grafico }: { grafico: any }) {
           return (
             <div 
               key={idx}
-              className="rounded-2xl p-4 border space-y-3 transition-all shadow-lg"
+              className="rounded-2xl p-4 border space-y-3 transition-all shadow-lg relative group"
               style={{
                 backgroundColor: card.corFundo || 'rgba(24, 24, 27, 0.9)',
                 borderColor: card.corBorda || '#3F3F46'
@@ -161,6 +161,17 @@ function LogicalDiagram({ grafico }: { grafico: any }) {
                   )}
                   {tituloCard}
                 </span>
+
+                {/* Botão de Excluir este card específico */}
+                {onDeletarCard && (
+                  <button
+                    onClick={() => onDeletarCard(idx)}
+                    className="text-zinc-400 hover:text-rose-400 bg-zinc-900/80 hover:bg-rose-950/50 w-6 h-6 rounded-lg flex items-center justify-center text-xs transition-all border border-zinc-700/50 cursor-pointer"
+                    title="Excluir este card"
+                  >
+                    ✕
+                  </button>
+                )}
               </div>
 
               {subtituloCard && <p className="text-xs font-bold text-zinc-200">{subtituloCard}</p>}
@@ -433,6 +444,42 @@ export default function MapaMentalPage() {
       }
     } catch (e: any) {
       alert(`Erro no JSON: ${e.message}`);
+    }
+  };
+
+  // Função para deletar um card individual de dentro de um ramo específico
+  const handleDeletarCardInterno = async (ramoId: string, cardIndexParaRemover: number) => {
+    if (!mapaAtual) return;
+    if (confirm("Deseja remover este card/tópico interno?")) {
+      const ramosAtualizados = mapaAtual.ramos.map((r: any) => {
+        if (r && r.id === ramoId && r.grafico) {
+          // Identifica qual propriedade de lista está sendo usada no gráfico
+          const campoLista = Array.isArray(r.grafico.cards) ? 'cards'
+                           : Array.isArray(r.grafico.elementos) ? 'elementos'
+                           : Array.isArray(r.grafico.conjuntos) ? 'conjuntos'
+                           : Array.isArray(r.grafico.grupos) ? 'grupos'
+                           : Array.isArray(r.grafico.etapas) ? 'etapas'
+                           : Array.isArray(r.grafico.itens) ? 'itens'
+                           : null;
+
+          if (campoLista && Array.isArray(r.grafico[campoLista])) {
+            const novaLista = [...r.grafico[campoLista]];
+            novaLista.splice(cardIndexParaRemover, 1);
+            return {
+              ...r,
+              grafico: {
+                ...r.grafico,
+                [campoLista]: novaLista
+              }
+            };
+          }
+        }
+        return r;
+      });
+
+      const mapaAtualizadoFinal = { ...mapaAtual, ramos: ramosAtualizados };
+      setMapasPorDisciplina(prev => ({ ...prev, [selectedDisciplina]: mapaAtualizadoFinal }));
+      salvarNoSupabaseComBackup(selectedDisciplina, mapaAtualizadoFinal);
     }
   };
 
@@ -712,11 +759,17 @@ export default function MapaMentalPage() {
                             Revisar Geral
                           </button>
 
-                          <button onClick={() => excluirRamo(ramo.id)} className="text-zinc-500 hover:text-rose-400 bg-zinc-950 p-2 rounded-lg border border-zinc-800 transition-all text-xs cursor-pointer" title="Apagar">✕</button>
+                          <button onClick={() => excluirRamo(ramo.id)} className="text-zinc-500 hover:text-rose-400 bg-zinc-950 p-2 rounded-lg border border-zinc-800 transition-all text-xs cursor-pointer" title="Apagar Ramo">✕</button>
                         </div>
                       </div>
 
-                      {ramo.grafico && <LogicalDiagram grafico={ramo.grafico} />}
+                      {/* Diagrama Flexível com a função de remoção de card interno passada por parâmetro */}
+                      {ramo.grafico && (
+                        <LogicalDiagram 
+                          grafico={ramo.grafico} 
+                          onDeletarCard={(cardIdx) => handleDeletarCardInterno(ramo.id, cardIdx)} 
+                        />
+                      )}
 
                       {listaImagensRamo.length > 0 && (
                         <div className="mt-4 p-4 bg-zinc-950 border border-zinc-800 rounded-2xl space-y-3">
@@ -865,7 +918,7 @@ export default function MapaMentalPage() {
               {DISCIPLINAS_TJSP.map((disc) => <option key={disc} value={disc}>{disc}</option>)}
             </select>
             <textarea value={jsonInputText} onChange={(e) => setJsonInputText(e.target.value)} className="w-full h-44 bg-zinc-900 text-amber-300 p-3.5 rounded-2xl border border-zinc-800 font-mono text-xs outline-none" placeholder="Cole o JSON aqui..." />
-            <button onClick={handleCarregarJson} className="w-full py-2.5 bg-amber-400 hover:bg-amber-500 text-zinc-950 font-extrabold rounded-xl text-xs cursor-pointer">Salvar com Backup Automático</button>
+            <button onClick={handleCarregarJson} className="w-full py.25 bg-amber-400 hover:bg-amber-500 text-zinc-950 font-extrabold rounded-xl text-xs cursor-pointer">Salvar com Backup Automático</button>
           </div>
         </div>
       )}

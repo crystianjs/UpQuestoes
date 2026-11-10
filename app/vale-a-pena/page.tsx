@@ -2,11 +2,8 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import Navbar from '../components/Navbar';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
 
 const DISCIPLINAS_TJSP = [
   "Língua Portuguesa",
@@ -131,18 +128,33 @@ function LogicalDiagram({ grafico }: { grafico: any }) {
 }
 
 export default function ValeAPenaPage() {
+  const router = useRouter();
+  const [userId, setUserId] = useState<string | null>(null);
+
   const [mapasPorDisciplina, setMapasPorDisciplina] = useState<Record<string, any>>({});
   const [abaSelecionada, setAbaSelecionada] = useState<'revisar' | 'revisarParaProva'>('revisarParaProva');
   const [selectedDisciplina, setSelectedDisciplina] = useState<string>("Todas as Matérias");
   const [carregando, setCarregando] = useState<boolean>(true);
 
-  useEffect(() => { carregarDados(); }, []);
+  useEffect(() => {
+    async function init() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        router.push('/');
+        return;
+      }
+      const uid = session.user.id;
+      setUserId(uid);
+      carregarDados(uid);
+    }
+    init();
+  }, [router]);
 
-  const carregarDados = async () => {
+  const carregarDados = async (uid: string) => {
     try {
       setCarregando(true);
-      const { data: dadosEspelho } = await supabase.from('temp_mapas_mentais').select('*');
-      const { data, error } = await supabase.from('mapas_mentais').select('*');
+      const { data: dadosEspelho } = await supabase.from('temp_mapas_mentais').select('*').eq('user_id', uid);
+      const { data, error } = await supabase.from('mapas_mentais').select('*').eq('user_id', uid);
       if (error) throw error;
 
       const fonteDados = (dadosEspelho && dadosEspelho.length > 0) ? dadosEspelho : data;
@@ -166,6 +178,7 @@ export default function ValeAPenaPage() {
   };
 
   const atualizarRamoNoSupabase = async (disciplinaAlvo: string, ramoId: string, campo: 'revisar' | 'revisarParaProva', novoValor: boolean) => {
+    if (!userId) return;
     const mapaAtual = mapasPorDisciplina[disciplinaAlvo];
     if (!mapaAtual) return;
 
@@ -188,12 +201,13 @@ export default function ValeAPenaPage() {
 
     try {
       const { error } = await supabase.from('mapas_mentais').upsert({
+        user_id: userId,
         disciplina: disciplinaAlvo,
         titulo: mapaAtual.titulo,
         banca: mapaAtual.banca || 'VUNESP',
         ramos: ramosAtualizados,
         updated_at: new Date().toISOString()
-      }, { onConflict: 'disciplina' });
+      }, { onConflict: 'user_id,disciplina' });
 
       if (error) throw error;
     } catch (e) {
@@ -202,7 +216,6 @@ export default function ValeAPenaPage() {
     }
   };
 
-  // Coleta rigorosamente TODOS os itens marcados em todas as disciplinas carregadas
   const itensFiltrados: { disciplina: string; ramo: any; indexOriginal: number }[] = [];
   Object.keys(mapasPorDisciplina).forEach(disc => {
     if (selectedDisciplina === "Todas as Matérias" || selectedDisciplina === disc) {
@@ -225,7 +238,6 @@ export default function ValeAPenaPage() {
       <Navbar />
       <main className="w-full px-4 sm:px-8 py-6 space-y-6">
         
-        {/* Cabeçalho */}
         <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
@@ -235,7 +247,6 @@ export default function ValeAPenaPage() {
             <h1 className="text-2xl sm:text-3xl font-black text-white mt-1">Vale a Pena Ver de Novo</h1>
           </div>
 
-          {/* Abas de Alternância */}
           <div className="flex items-center gap-2 bg-zinc-900 p-1.5 rounded-xl border border-zinc-800">
             <button
               onClick={() => setAbaSelecionada('revisarParaProva')}
@@ -260,7 +271,6 @@ export default function ValeAPenaPage() {
           </div>
         </div>
 
-        {/* Filtro de Matéria */}
         <div className="bg-zinc-950 border border-zinc-800 p-4 rounded-2xl shadow-lg flex items-center gap-4">
           <span className="text-xs font-bold text-zinc-400 whitespace-nowrap">Filtrar Matéria:</span>
           <select 
@@ -275,7 +285,6 @@ export default function ValeAPenaPage() {
           </select>
         </div>
 
-        {/* Listagem dos Cards */}
         <div className="bg-zinc-950 rounded-3xl border border-zinc-800 shadow-2xl p-6 sm:p-10 min-h-[60vh]">
           {carregando ? (
             <div className="flex items-center justify-center p-20 text-zinc-400 text-sm">Carregando tópicos...</div>
@@ -291,7 +300,6 @@ export default function ValeAPenaPage() {
                   ? 'text-rose-300 bg-rose-500/20 border-rose-500/40'
                   : 'text-amber-300 bg-amber-500/20 border-amber-500/40';
 
-                // Chave única e infalível baseada em índice, disciplina e ID para evitar duplicatas do React
                 const chaveUnicaCard = `${disciplina}-${ramo.id || 'id'}-${indexOriginal}-${globalIdx}`;
 
                 return (
@@ -311,7 +319,6 @@ export default function ValeAPenaPage() {
                           </h2>
                         </div>
 
-                        {/* Botões interativos */}
                         <div className="flex items-center gap-2 self-start sm:self-center shrink-0 flex-wrap">
                           <button
                             onClick={() => atualizarRamoNoSupabase(disciplina, ramo.id, 'revisarParaProva', !ramo.revisarParaProva)}

@@ -2,12 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import Navbar from '../components/Navbar';
-import { createClient } from '@supabase/supabase-js';
+import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
 import { Lightbulb, Star, Tag, Check, X, Edit3, Plus, Trash2, BookOpen } from 'lucide-react';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 const DISCIPLINAS_TJSP = [
   "Língua Portuguesa",
@@ -69,6 +66,9 @@ Retorne EXCLUSIVAMENTE o JSON válido, seguindo esta estrutura exata:
 }`;
 
 export default function CadernoRevisaoPage() {
+  const router = useRouter();
+  const [userId, setUserId] = useState<string | null>(null);
+
   const [revisoesPorDisciplina, setRevisoesPorDisciplina] = useState<Record<string, any>>({});
   const [selectedDisciplina, setSelectedDisciplina] = useState<string>("Língua Portuguesa");
   const [selectedAssunto, setSelectedAssunto] = useState<string>("all");
@@ -88,13 +88,23 @@ export default function CadernoRevisaoPage() {
   const [respostasReveladas, setRespostasReveladas] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    carregarDadosSupabase();
-  }, []);
+    async function init() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        router.push('/');
+        return;
+      }
+      const uid = session.user.id;
+      setUserId(uid);
+      carregarDadosSupabase(uid);
+    }
+    init();
+  }, [router]);
 
-  const carregarDadosSupabase = async () => {
+  const carregarDadosSupabase = async (uid: string) => {
     try {
       setCarregando(true);
-      const { data, error } = await supabase.from('caderno_revisao').select('*');
+      const { data, error } = await supabase.from('caderno_revisao').select('*').eq('user_id', uid);
       if (error) throw error;
 
       if (data && data.length > 0) {
@@ -114,11 +124,12 @@ export default function CadernoRevisaoPage() {
         setRevisoesPorDisciplina(formatado);
       } else {
         await supabase.from('caderno_revisao').upsert({
+          user_id: uid,
           disciplina: revisaoInicialExemplo.disciplina,
           titulo: revisaoInicialExemplo.titulo,
           banca: revisaoInicialExemplo.banca,
           cards: revisaoInicialExemplo.cards
-        }, { onConflict: 'disciplina' });
+        }, { onConflict: 'user_id,disciplina' });
         setRevisoesPorDisciplina({ [revisaoInicialExemplo.disciplina]: revisaoInicialExemplo });
       }
     } catch (e) {
@@ -129,30 +140,34 @@ export default function CadernoRevisaoPage() {
   };
 
   const salvarNoSupabaseComBackup = async (disciplinaAlvo: string, payload: any) => {
+    if (!userId) return;
     try {
       const { data: dadosAtuais } = await supabase
         .from('caderno_revisao')
         .select('*')
         .eq('disciplina', disciplinaAlvo)
+        .eq('user_id', userId)
         .maybeSingle();
 
       if (dadosAtuais) {
         await supabase.from('temp_caderno_revisao').upsert({
+          user_id: userId,
           disciplina: dadosAtuais.disciplina,
           titulo: dadosAtuais.titulo,
           banca: dadosAtuais.banca,
           cards: dadosAtuais.cards,
           backed_up_at: new Date().toISOString()
-        }, { onConflict: 'disciplina' });
+        }, { onConflict: 'user_id,disciplina' });
       }
 
       const { error } = await supabase.from('caderno_revisao').upsert({
+        user_id: userId,
         disciplina: disciplinaAlvo,
         titulo: payload.titulo,
         banca: payload.banca || 'VUNESP',
         cards: payload.cards,
         updated_at: new Date().toISOString()
-      }, { onConflict: 'disciplina' });
+      }, { onConflict: 'user_id,disciplina' });
 
       if (error) throw error;
       setRevisoesPorDisciplina(prev => ({ ...prev, [disciplinaAlvo]: payload }));
@@ -269,11 +284,11 @@ export default function CadernoRevisaoPage() {
   };
 
   const excluirCard = async (cardId: string) => {
-    if (!revisaoAtual) return;
+    if (!revisaoAtual || !userId) return;
     if (confirm("Deseja apagar este flashcard?")) {
       const novosCards = revisaoAtual.cards.filter((r: any) => r.id !== cardId);
       if (novosCards.length === 0) {
-        await supabase.from('caderno_revisao').delete().eq('disciplina', selectedDisciplina);
+        await supabase.from('caderno_revisao').delete().eq('disciplina', selectedDisciplina).eq('user_id', userId);
         const novoEstado = { ...revisoesPorDisciplina };
         delete novoEstado[selectedDisciplina];
         setRevisoesPorDisciplina(novoEstado);
@@ -473,7 +488,6 @@ export default function CadernoRevisaoPage() {
                       </div>
 
                       <div className="flex items-center gap-2 self-start sm:self-center shrink-0">
-                        {/* Botão Importante */}
                         <button
                           onClick={() => toggleImportante(card.id)}
                           className={`text-xs font-extrabold px-3 py-1.5 rounded-lg border transition-all cursor-pointer shadow-md flex items-center gap-1.5 ${

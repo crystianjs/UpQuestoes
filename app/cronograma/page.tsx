@@ -102,7 +102,6 @@ export default function CronogramaPage() {
       let indexMapeado = hojeJs === 0 ? 6 : hojeJs - 1;
       setDiaAtualIndex(indexMapeado);
 
-      // Carrega estado salvo do progresso (concluído/não feito) mantendo a estrutura fixa
       await carregarProgressoSupabase(uid);
     }
     init();
@@ -153,11 +152,9 @@ export default function CronogramaPage() {
         .maybeSingle();
       
       if (data && data.dias) {
-        // Mescla o estado salvo com a estrutura fixa do loop para garantir que os cards corretos apareçam
         const diasMesclados = cronogramaLoopFixo.map(diaFixo => {
           const diaSalvo = data.dias.find((d: any) => d.id === diaFixo.id);
           if (diaSalvo && diaSalvo.tarefas) {
-            // Mantém as tarefas salvas ou usa a fixa se vazio
             return diaSalvo;
           }
           return diaFixo;
@@ -358,7 +355,7 @@ export default function CronogramaPage() {
               Cronograma Fixo de Alta Performance
             </h1>
             <p className="text-xs text-zinc-400 max-w-2xl leading-relaxed">
-             Sem se enganar, não vamos assistir uma aula por assistir, vamos estudar de forma ativa, com revisões e questões, para garantir que o conhecimento seja fixado na memória de longo prazo.
+             Estude de forma ativa com revisões e questões para fixar o conhecimento na memória de longo prazo.
             </p>
           </div>
 
@@ -367,7 +364,7 @@ export default function CronogramaPage() {
               onClick={handleRestaurarPadrao}
               className="px-4 py-2.5 bg-amber-400 hover:bg-amber-300 text-zinc-950 font-black text-xs rounded-xl transition-all shadow-lg cursor-pointer uppercase"
             >
-              Atualizar para o Padrão Oficial
+              Restaurar Padrão Oficial
             </button>
           </div>
         </div>
@@ -478,12 +475,6 @@ export default function CronogramaPage() {
                                 <p className={`text-xs leading-relaxed transition-colors break-words whitespace-pre-wrap ${isFeito ? 'text-zinc-500 line-through' : isNaoFeito ? 'text-rose-200' : 'text-zinc-200'}`}>
                                   {tarefa.titulo}
                                 </p>
-
-                                <div className="mt-1.5 flex items-center gap-1.5">
-                                  <span className="text-[10px] font-bold text-zinc-400 bg-zinc-950 px-2.5 py-0.5 rounded-md border border-zinc-800">
-                                    Matéria
-                                  </span>
-                                </div>
                               </div>
                             </div>
 

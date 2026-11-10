@@ -98,19 +98,6 @@ export default function Navbar() {
         >
           Simulados
         </Link>
-
-        {/* Link do Chat IA (Destaque NVIDIA)
-        <Link 
-          href="/chat" 
-          className={`px-3 py-2 rounded-xl transition-all flex items-center gap-1.5 ${
-            isActive('/chat') 
-              ? 'bg-red-600 text-white font-bold shadow-lg shadow-red-600/20' 
-              : 'text-red-400 hover:text-red-300 bg-red-950/20 border border-red-600/30 hover:bg-red-950/40'
-          }`}
-        >
-          <Sparkles className="w-3.5 h-3.5 animate-pulse" />
-          Chat IA
-        </Link> */}
       </div>
 
       {/* Botão de Sair */}

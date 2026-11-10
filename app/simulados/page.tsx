@@ -13,6 +13,7 @@ interface Simulado {
   acertos: number;
   total_questoes: number;
   nota: number;
+  user_id?: string;
 }
 
 interface PontoMelhoria {
@@ -23,6 +24,7 @@ interface PontoMelhoria {
   quantidade_acertos: number;
   assunto_estudar: string;
   created_at: string;
+  user_id?: string;
 }
 
 export default function SimuladosPage() {
@@ -31,6 +33,7 @@ export default function SimuladosPage() {
   const [melhorias, setMelhorias] = useState<PontoMelhoria[]>([]);
   const [loading, setLoading] = useState(true);
   const [aGuardar, setAGuardar] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
   
   // Estado para o Simulado Selecionado no Dashboard Analítico
   const [simuladoSelecionadoId, setSimuladoSelecionadoId] = useState<string>('');
@@ -72,20 +75,25 @@ export default function SimuladosPage() {
   const [editSimTotal, setEditSimTotal] = useState(100);
 
   useEffect(() => {
-    carregarDados();
-  }, []);
-
-  async function carregarDados() {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
+    async function init() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
         router.push('/');
         return;
       }
+      const uid = session.user.id;
+      setUserId(uid);
+      carregarDados(uid);
+    }
+    init();
+  }, [router]);
 
+  async function carregarDados(uid: string) {
+    try {
+      setLoading(true);
       const [simRes, melRes] = await Promise.all([
-        supabase.from('simulados').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
-        supabase.from('pontos_melhoria').select('*').eq('user_id', user.id).order('created_at', { ascending: false })
+        supabase.from('simulados').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
+        supabase.from('pontos_melhoria').select('*').eq('user_id', uid).order('created_at', { ascending: false })
       ]);
 
       if (simRes.data && simRes.data.length > 0) {
@@ -142,16 +150,10 @@ export default function SimuladosPage() {
   // --- FUNÇÃO DE SALVAR TUDO (SIMULADO + MATÉRIAS VINCULADAS DIRETAMENTE) ---
   async function handleSalvarSimuladoCompleto(e: React.FormEvent) {
     e.preventDefault();
-    if (aGuardar) return;
+    if (!userId || aGuardar) return;
     setAGuardar(true);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        setAGuardar(false);
-        return;
-      }
-
       let arrayMateriasBrutas: any[] = [];
       let dataFinalSimulado = dataSimulado ? new Date(dataSimulado).toISOString() : new Date().toISOString();
 
@@ -199,16 +201,15 @@ export default function SimuladosPage() {
         arrayMateriasBrutas = listaManualTemporaria;
       }
 
-      // Calcula totais com base nas matérias brutas
       const somaAcertos = arrayMateriasBrutas.reduce((acc, item) => acc + (Number(item.quantidade_acertos) || 0), 0);
       const somaErros = arrayMateriasBrutas.reduce((acc, item) => acc + (Number(item.quantidade_erros) || 0), 0);
       const numTotal = somaAcertos + somaErros;
       const notaCalculada = numTotal > 0 ? Number(((somaAcertos / numTotal) * 10).toFixed(2)) : 0;
 
-      // 1. Insere o Simulado principal primeiro para gerar o ID
+      // 1. Insere o Simulado principal associado ao user_id
       const { data: novoSimuladoInserido, error: erroSimulado } = await supabase.from('simulados').insert([
         {
-          user_id: user.id,
+          user_id: userId,
           titulo: titulo || 'Simulado VUNESP',
           acertos: somaAcertos,
           total_questoes: numTotal,
@@ -223,9 +224,9 @@ export default function SimuladosPage() {
         return;
       }
 
-      // 2. Mapeia os itens garantindo o vínculo estrito com o simulado_id criado
+      // 2. Mapeia os itens garantindo o vínculo estrito com o user_id e simulado_id criado
       const itensComSimuladoId = arrayMateriasBrutas.map((item) => ({
-        user_id: user.id,
+        user_id: userId,
         simulado_id: novoSimuladoInserido.id,
         materia: item.materia || item.nome || item.disciplina || '',
         quantidade_erros: Number(item.quantidade_erros) || 0,
@@ -242,13 +243,12 @@ export default function SimuladosPage() {
         return;
       }
 
-      // Limpa formulários e fecha modal
       setTitulo('');
       setJsonInput('');
       setListaManualTemporaria([]);
       setModalOpen(false);
       
-      await carregarDados();
+      await carregarDados(userId);
       setSimuladoSelecionadoId(novoSimuladoInserido.id);
     } catch (error) {
       console.error('Erro ao guardar:', error);
@@ -269,6 +269,7 @@ export default function SimuladosPage() {
 
   async function handleSalvarEdicaoMelhoria(e: React.FormEvent) {
     e.preventDefault();
+    if (!userId) return;
     try {
       const { error } = await supabase
         .from('pontos_melhoria')
@@ -278,11 +279,12 @@ export default function SimuladosPage() {
           quantidade_erros: Number(editErros),
           assunto_estudar: editAssunto
         })
-        .eq('id', editMelhoriaId);
+        .eq('id', editMelhoriaId)
+        .eq('user_id', userId);
 
       if (error) { alert(`Erro: ${error.message}`); return; }
       setModalEditMelhoriaOpen(false);
-      carregarDados();
+      carregarDados(userId);
     } catch (err) {
       console.error(err);
     }
@@ -298,6 +300,7 @@ export default function SimuladosPage() {
 
   async function handleSalvarEdicaoSimulado(e: React.FormEvent) {
     e.preventDefault();
+    if (!userId) return;
     try {
       const ac = Number(editSimAcertos);
       const tot = Number(editSimTotal);
@@ -306,20 +309,22 @@ export default function SimuladosPage() {
       const { error } = await supabase
         .from('simulados')
         .update({ titulo: editSimTitulo, acertos: ac, total_questoes: tot, nota: notaCalculada })
-        .eq('id', editSimuladoId);
+        .eq('id', editSimuladoId)
+        .eq('user_id', userId);
 
       if (error) { alert(`Erro: ${error.message}`); return; }
       setModalEditSimuladoOpen(false);
-      carregarDados();
+      carregarDados(userId);
     } catch (err) {
       console.error(err);
     }
   }
 
   async function apagarMelhoria(id: string) {
+    if (!userId) return;
     if (!confirm('Deseja apagar esta matéria?')) return;
     try {
-      await supabase.from('pontos_melhoria').delete().eq('id', id);
+      await supabase.from('pontos_melhoria').delete().eq('id', id).eq('user_id', userId);
       setMelhorias(melhorias.filter((m) => m.id !== id));
     } catch (err) {
       console.error(err);
@@ -327,18 +332,18 @@ export default function SimuladosPage() {
   }
 
   async function apagarSimulado(id: string) {
+    if (!userId) return;
     if (!confirm('Deseja apagar este simulado? As matérias associadas também serão removidas.')) return;
     try {
-      // Como configuramos cascade no banco, deletar o simulado apaga as matérias atreladas
-      await supabase.from('pontos_melhoria').delete().eq('simulado_id', id);
-      await supabase.from('simulados').delete().eq('id', id);
+      await supabase.from('pontos_melhoria').delete().eq('simulado_id', id).eq('user_id', userId);
+      await supabase.from('simulados').delete().eq('id', id).eq('user_id', userId);
       
       const restantes = simuladosList.filter((s) => s.id !== id);
       setSimuladosList(restantes);
       if (restantes.length > 0) setSimuladoSelecionadoId(restantes[0].id);
       else setSimuladoSelecionadoId('');
       
-      await carregarDados();
+      await carregarDados(userId);
     } catch (err) {
       console.error(err);
     }

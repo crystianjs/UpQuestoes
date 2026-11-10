@@ -1,13 +1,10 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import Navbar from '../components/Navbar';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase';
 import { Plus, Trash2, Filter, Image as ImageIcon, Tag, BookOpen, Layers, X, AlertCircle, Upload, Edit3, Save } from 'lucide-react';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 const DISCIPLINAS_TJSP = [
   "Língua Portuguesa",
@@ -26,6 +23,7 @@ const DISCIPLINAS_TJSP = [
 
 interface ErroCard {
   id: string;
+  user_id?: string;
   disciplina: string;
   assunto: string;
   titulo: string;
@@ -36,6 +34,9 @@ interface ErroCard {
 }
 
 export default function AprendizadoPage() {
+  const router = useRouter();
+  const [userId, setUserId] = useState<string | null>(null);
+
   const [errosPorDisciplina, setErrosPorDisciplina] = useState<Record<string, ErroCard[]>>({});
   const [selectedDisciplina, setSelectedDisciplina] = useState<string>("Todas as Matérias");
   const [selectedAssunto, setSelectedAssunto] = useState<string>("Todos os Assuntos");
@@ -61,13 +62,28 @@ export default function AprendizadoPage() {
   const [arquivoImagem, setArchivoImagem] = useState<File | null>(null);
 
   useEffect(() => {
-    carregarDadosSupabase();
-  }, []);
+    async function init() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        router.push('/');
+        return;
+      }
+      const uid = session.user.id;
+      setUserId(uid);
+      carregarDadosSupabase(uid);
+    }
+    init();
+  }, [router]);
 
-  const carregarDadosSupabase = async () => {
+  const carregarDadosSupabase = async (uid: string) => {
     try {
       setLoading(true);
-      const { data, error } = await supabase.from('aprendendo_erros').select('*').order('created_at', { ascending: false });
+      const { data, error } = await supabase
+        .from('aprendendo_erros')
+        .select('*')
+        .eq('user_id', uid) // Filtra estritamente pelo ID do utilizador logado
+        .order('created_at', { ascending: false });
+
       if (error) throw error;
 
       if (data && data.length > 0) {
@@ -91,6 +107,7 @@ export default function AprendizadoPage() {
 
   const handleCriarCard = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!userId) return;
     if (!tituloModal.trim() || !conteudoModal.trim() || !assuntoModal.trim()) {
       alert("Preencha os campos obrigatórios (Assunto, Título e Descrição).");
       return;
@@ -102,7 +119,7 @@ export default function AprendizadoPage() {
 
       if (arquivoImagem) {
         const fileExt = arquivoImagem.name.split('.').pop();
-        const fileName = `${Date.now()}.${fileExt}`;
+        const fileName = `${userId}_${Date.now()}.${fileExt}`;
         const filePath = `${fileName}`;
 
         const { error: uploadError } = await supabase.storage
@@ -120,6 +137,7 @@ export default function AprendizadoPage() {
 
       const novoCard: any = {
         id: `err-${Date.now()}`,
+        user_id: userId, // Associa o registo ao utilizador ativo
         disciplina: disciplinaModal,
         assunto: assuntoModal.trim(),
         titulo: tituloModal.trim(),
@@ -132,7 +150,7 @@ export default function AprendizadoPage() {
       const { error: insertError } = await supabase.from('aprendendo_erros').insert([novoCard]);
       if (insertError) throw insertError;
 
-      await carregarDadosSupabase();
+      await carregarDadosSupabase(userId);
       setShowModal(false);
       setAssuntoModal('');
       setTituloModal('');
@@ -158,6 +176,7 @@ export default function AprendizadoPage() {
   };
 
   const salvarEdicao = async (idCard: string) => {
+    if (!userId) return;
     try {
       const { error } = await supabase
         .from('aprendendo_erros')
@@ -168,12 +187,13 @@ export default function AprendizadoPage() {
           conteudo: editConteudo.trim(),
           observacao: editObservacao.trim() || null
         })
-        .eq('id', idCard);
+        .eq('id', idCard)
+        .eq('user_id', userId);
 
       if (error) throw error;
 
       setEditandoId(null);
-      await carregarDadosSupabase();
+      await carregarDadosSupabase(userId);
     } catch (err: any) {
       console.error("Erro ao atualizar:", err);
       alert(`Erro ao atualizar: ${err.message || JSON.stringify(err)}`);
@@ -181,19 +201,24 @@ export default function AprendizadoPage() {
   };
 
   const excluirCard = async (idCard: string) => {
+    if (!userId) return;
     if (!confirm("Deseja apagar este registro?")) return;
 
     try {
-      const { error } = await supabase.from('aprendendo_erros').delete().eq('id', idCard);
+      const { error } = await supabase
+        .from('aprendendo_erros')
+        .delete()
+        .eq('id', idCard)
+        .eq('user_id', userId);
+
       if (error) throw error;
-      await carregarDadosSupabase();
+      await carregarDadosSupabase(userId);
     } catch (err) {
       console.error("Erro ao excluir:", err);
       alert("Erro ao excluir o registro.");
     }
   };
 
-  // Lista de assuntos disponíveis com base na matéria selecionada
   const assuntosDisponiveis = useMemo(() => {
     let listaCards: ErroCard[] = [];
     if (selectedDisciplina === "Todas as Matérias") {
@@ -207,7 +232,6 @@ export default function AprendizadoPage() {
     return unicos;
   }, [errosPorDisciplina, selectedDisciplina]);
 
-  // Filtragem final dos cards
   const cardsParaExibir = useMemo(() => {
     let lista = selectedDisciplina === "Todas as Matérias"
       ? Object.values(errosPorDisciplina).flat()
@@ -350,12 +374,10 @@ export default function AprendizadoPage() {
                           </h2>
                         </div>
 
-                        {/* Descrição / Enunciado */}
                         <div className="bg-zinc-950/80 border border-zinc-800/80 rounded-xl p-4 text-zinc-300 text-xs sm:text-sm leading-relaxed whitespace-pre-wrap break-words">
                           {card.conteudo}
                         </div>
 
-                        {/* Campo Observação */}
                         {card.observacao && (
                           <div className="bg-amber-950/20 border border-amber-400/30 rounded-xl p-3 text-amber-200 text-xs space-y-1">
                             <span className="font-bold text-amber-400 uppercase text-[10px] tracking-wider block">Observação:</span>
@@ -375,7 +397,6 @@ export default function AprendizadoPage() {
                         )}
                       </div>
                     ) : (
-                      /* Formulário de Edição Livre Inline */
                       <div className="space-y-3 bg-zinc-950 p-4 rounded-xl border border-amber-400/50">
                         <div className="flex items-center justify-between">
                           <span className="text-xs font-bold text-amber-400">Modo de Edição</span>
@@ -490,7 +511,7 @@ export default function AprendizadoPage() {
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs font-bold text-zinc-300">Assunto (Ex: Pronome Relativo):</label>
+                <label className="text-xs font-bold text-zinc-300">Assunto:</label>
                 <input
                   type="text"
                   required

@@ -2,11 +2,8 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import Navbar from '../components/Navbar';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
 
 const DISCIPLINAS_TJSP = [
   "Língua Portuguesa",
@@ -168,10 +165,8 @@ function LogicalDiagram({ grafico }: { grafico: any }) {
 
               {subtituloCard && <p className="text-xs font-bold text-zinc-200">{subtituloCard}</p>}
               
-              {/* Texto Normal Explicativo */}
               {conteudoCard && <p className="text-xs text-zinc-300 leading-relaxed">{conteudoCard}</p>}
 
-              {/* Tópicos Opcionais */}
               {topicosCard.length > 0 && (
                 <ul className="text-xs text-zinc-300 space-y-1.5 pt-1">
                   {topicosCard.map((tp: string, tIdx: number) => (
@@ -183,7 +178,6 @@ function LogicalDiagram({ grafico }: { grafico: any }) {
                 </ul>
               )}
 
-              {/* Bloco de Exemplo Prático */}
               {exemploCard && (
                 <div className="bg-zinc-900/90 border border-sky-500/30 rounded-xl p-3 text-xs space-y-1 mt-2">
                   <span className="font-bold text-sky-400 uppercase tracking-wide text-[10px] block">Exemplo Prático:</span>
@@ -191,7 +185,6 @@ function LogicalDiagram({ grafico }: { grafico: any }) {
                 </div>
               )}
 
-              {/* Bloco de Alerta / Pegadinha da VUNESP */}
               {alertaCard && (
                 <div className="bg-rose-950/30 border border-rose-500/40 rounded-xl p-3 text-xs space-y-1 mt-2">
                   <span className="font-bold text-rose-400 uppercase tracking-wide text-[10px] block">Atenção / Pegadinha VUNESP:</span>
@@ -251,6 +244,9 @@ EXEMPLO EXATO DA ESTRUTURA FLEXÍVEL (TEXTO NORMAL + EXEMPLO + ALERTA):
 Retorne EXCLUSIVAMENTE o JSON válido com base nesse modelo estruturado, sem blocos de texto corrido ou markdown antes/depois.`;
 
 export default function MapaMentalPage() {
+  const router = useRouter();
+  const [userId, setUserId] = useState<string | null>(null);
+
   const [mapasPorDisciplina, setMapasPorDisciplina] = useState<Record<string, any>>({});
   const [selectedDisciplina, setSelectedDisciplina] = useState<string>("Todas as Matérias");
   const [selectedAssunto, setSelectedAssunto] = useState<string>("all");
@@ -266,13 +262,25 @@ export default function MapaMentalPage() {
 
   const [modalImagensState, setModalImagensState] = useState<{ imagens: string[]; indexAtual: number } | null>(null);
 
-  useEffect(() => { carregarDadosSupabase(); }, []);
+  useEffect(() => {
+    async function init() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        router.push('/');
+        return;
+      }
+      const uid = session.user.id;
+      setUserId(uid);
+      carregarDadosSupabase(uid);
+    }
+    init();
+  }, [router]);
 
-  const carregarDadosSupabase = async () => {
+  const carregarDadosSupabase = async (uid: string) => {
     try {
       setCarregando(true);
-      let { data: dadosEspelho } = await supabase.from('temp_mapas_mentais').select('*');
-      const { data: dadosPrincipal, error: erroPrincipal } = await supabase.from('mapas_mentais').select('*');
+      let { data: dadosEspelho } = await supabase.from('temp_mapas_mentais').select('*').eq('user_id', uid);
+      const { data: dadosPrincipal, error: erroPrincipal } = await supabase.from('mapas_mentais').select('*').eq('user_id', uid);
       if (erroPrincipal) throw erroPrincipal;
 
       const dadosParaUsar = (dadosEspelho && dadosEspelho.length > 0) ? dadosEspelho : dadosPrincipal;
@@ -285,8 +293,6 @@ export default function MapaMentalPage() {
             try { rawRamos = JSON.parse(rawRamos); } catch (e) { rawRamos = []; }
           }
           
-          // FILTRAGEM CIRÚRGICA DE SEGURANÇA (100% BLINDADA):
-          // Remove especificamente o bloco corrompido sem alterar nenhum outro ramo ou dado da aplicação
           const ramosValidados = Array.isArray(rawRamos) 
             ? rawRamos
                 .filter(Boolean)
@@ -336,26 +342,29 @@ export default function MapaMentalPage() {
   };
 
   const salvarNoSupabaseComBackup = async (disciplinaAlvo: string, payloadMapa: any) => {
+    if (!userId) return;
     setTimeout(async () => {
       try {
-        const { data: dadosAtuais } = await supabase.from('mapas_mentais').select('*').eq('disciplina', disciplinaAlvo).maybeSingle();
+        const { data: dadosAtuais } = await supabase.from('mapas_mentais').select('*').eq('disciplina', disciplinaAlvo).eq('user_id', userId).maybeSingle();
         if (dadosAtuais) {
           await supabase.from('temp_mapas_mentais').upsert({
+            user_id: userId,
             disciplina: dadosAtuais.disciplina,
             titulo: dadosAtuais.titulo,
             banca: dadosAtuais.banca,
             ramos: dadosAtuais.ramos,
             backed_up_at: new Date().toISOString()
-          }, { onConflict: 'disciplina' });
+          }, { onConflict: 'user_id,disciplina' });
         }
 
         await supabase.from('mapas_mentais').upsert({
+          user_id: userId,
           disciplina: disciplinaAlvo,
           titulo: payloadMapa.titulo,
           banca: payloadMapa.banca || 'VUNESP',
           ramos: payloadMapa.ramos,
           updated_at: new Date().toISOString()
-        }, { onConflict: 'disciplina' });
+        }, { onConflict: 'user_id,disciplina' });
       } catch (e) {
         console.error("Erro no salvamento em segundo plano:", e);
       }
@@ -363,6 +372,7 @@ export default function MapaMentalPage() {
   };
 
   const handleCarregarJson = async () => {
+    if (!userId) return;
     try {
       let textoLimpo = jsonInputText.trim();
       if (textoLimpo.startsWith('```')) {
@@ -515,11 +525,11 @@ export default function MapaMentalPage() {
   };
 
   const excluirRamo = async (ramoId: string) => {
-    if (!mapaAtual) return;
+    if (!mapaAtual || !userId) return;
     if (confirm("Deseja apagar este tópico?")) {
       const novosRamos = mapaAtual.ramos.filter((r: any) => r && r.id !== ramoId);
       if (novosRamos.length === 0) {
-        await supabase.from('mapas_mentais').delete().eq('disciplina', selectedDisciplina);
+        await supabase.from('mapas_mentais').delete().eq('disciplina', selectedDisciplina).eq('user_id', userId);
         const novoEstado = { ...mapasPorDisciplina };
         delete novoEstado[selectedDisciplina];
         setMapasPorDisciplina(novoEstado);
@@ -669,7 +679,6 @@ export default function MapaMentalPage() {
                           </h2>
                         </div>
 
-                        {/* BOTÕES DE FLAG E UPLOAD DE MÚLTIPLAS IMAGENS */}
                         <div className="flex items-center gap-2 self-start sm:self-center shrink-0 flex-wrap">
                           <label className="text-xs font-bold px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-amber-400 border border-zinc-700 transition-all cursor-pointer shadow-md flex items-center gap-1.5">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
@@ -709,7 +718,6 @@ export default function MapaMentalPage() {
 
                       {ramo.grafico && <LogicalDiagram grafico={ramo.grafico} />}
 
-                      {/* GALERIA DE MÚLTIPLAS IMAGENS */}
                       {listaImagensRamo.length > 0 && (
                         <div className="mt-4 p-4 bg-zinc-950 border border-zinc-800 rounded-2xl space-y-3">
                           <div className="flex items-center justify-between">
@@ -778,7 +786,6 @@ export default function MapaMentalPage() {
           )}
         </div>
 
-        {/* SEÇÃO DO PROMPT MESTRE */}
         <div className="bg-zinc-950 p-6 rounded-2xl border border-zinc-800 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
@@ -804,7 +811,6 @@ export default function MapaMentalPage() {
 
       </main>
 
-      {/* MODAL DE CARROSSEL DE IMAGENS EM TELA CHEIA */}
       {modalImagensState && (
         <div 
           className="fixed inset-0 bg-black/95 backdrop-blur-md z-50 flex items-center justify-center p-4 sm:p-8 animate-in fade-in duration-200"
@@ -850,7 +856,6 @@ export default function MapaMentalPage() {
         </div>
       )}
 
-      {/* Modal de JSON */}
       {showJsonModal && (
         <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="bg-zinc-950 border border-zinc-800 rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl relative space-y-4">

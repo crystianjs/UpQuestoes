@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import Navbar from '../components/Navbar';
-import { Award, Plus, CheckCircle2, XCircle, Calendar, BarChart2, Target, Code, Copy, Check, Trash2, Sparkles, Pencil } from 'lucide-react';
+import { Award, Plus, CheckCircle2, XCircle, Calendar, BarChart2, Target, Code, Copy, Check, Trash2, Sparkles, Pencil, ShieldCheck } from 'lucide-react';
 
 interface Simulado {
   id: string;
@@ -27,6 +27,24 @@ interface PontoMelhoria {
   user_id?: string;
 }
 
+// Mapeamento dos Blocos do Edital TJSP
+const MATERIAS_BLOCO_1 = ["Língua Portuguesa"];
+const MATERIAS_BLOCO_2 = [
+  "Direito Penal",
+  "Direito Processual Penal",
+  "Direito Processual Civil",
+  "Direito Constitucional",
+  "Direito Administrativo",
+  "Normas da Corregedoria"
+];
+const MATERIAS_BLOCO_3 = [
+  "Matemática",
+  "Raciocínio Lógico",
+  "Informática",
+  "Atualidades",
+  "Estatuto da Pessoa com Deficiência"
+];
+
 export default function SimuladosPage() {
   const router = useRouter();
   const [simuladosList, setSimuladosList] = useState<Simulado[]>([]);
@@ -35,40 +53,32 @@ export default function SimuladosPage() {
   const [aGuardar, setAGuardar] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   
-  // Estado para o Simulado Selecionado no Dashboard Analítico
   const [simuladoSelecionadoId, setSimuladoSelecionadoId] = useState<string>('');
 
-  // Modais de Criação e Edição
   const [modalOpen, setModalOpen] = useState(false);
   const [modalEditMelhoriaOpen, setModalEditMelhoriaOpen] = useState(false);
   const [modalEditSimuladoOpen, setModalEditSimuladoOpen] = useState(false);
   const [copiado, setCopiado] = useState(false);
 
-  // Estados do formulário de criação do Simulado
   const [titulo, setTitulo] = useState('');
   const [dataSimulado, setDataSimulado] = useState(new Date().toISOString().split('T')[0]);
 
-  // Modo de Adição de Matérias dentro do Modal ('json' ou 'manual')
   const [modoPreenchimento, setModoPreenchimento] = useState<'json' | 'manual'>('json');
 
-  // Estados para Inserção Manual 1 a 1
   const [materiaManual, setMateriaManual] = useState('');
   const [acertosManual, setAcertosManual] = useState('');
   const [errosManual, setErrosManual] = useState('');
   const [assuntoManual, setAssuntoManual] = useState('');
   const [listaManualTemporaria, setListaManualTemporaria] = useState<any[]>([]);
 
-  // Estado para Payload JSON
   const [jsonInput, setJsonInput] = useState('');
 
-  // Estados para Edição de Matéria / Ponto de Melhoria
   const [editMelhoriaId, setEditMelhoriaId] = useState('');
   const [editMateria, setEditMateria] = useState('');
   const [editAcertos, setEditAcertos] = useState(0);
   const [editErros, setEditErros] = useState(0);
   const [editAssunto, setEditAssunto] = useState('');
 
-  // Estados para Edição de Simulado
   const [editSimuladoId, setEditSimuladoId] = useState('');
   const [editSimTitulo, setEditSimTitulo] = useState('');
   const [editSimAcertos, setEditSimAcertos] = useState(0);
@@ -115,19 +125,39 @@ export default function SimuladosPage() {
 
   const simuladoAtivo = simuladosList.find(s => s.id === simuladoSelecionadoId) || simuladosList[0];
 
-  // Filtra as matérias exclusivamente do simulado ativo atual utilizando o simulado_id
-  const melhoriasDoSimuladoAtivo = melhorias.filter(
-    (m) => m.simulado_id === simuladoAtivo?.id
-  );
+  const melhoriasDoSimuladoAtivo = melhorias.filter((m) => {
+    if (!simuladoAtivo) return false;
+    if (m.simulado_id === simuladoAtivo.id) return true;
+    
+    if (m.created_at && simuladoAtivo.created_at) {
+      const dataM = new Date(m.created_at).toISOString().split('T')[0];
+      const dataS = new Date(simuladoAtivo.created_at).toISOString().split('T')[0];
+      return dataM === dataS;
+    }
+    return false;
+  });
 
   const totalAcertosAnalitico = simuladoAtivo ? simuladoAtivo.acertos : 0;
   const totalQuestoesAnalitico = simuladoAtivo ? simuladoAtivo.total_questoes : 70;
   const totalErrosAnalitico = Math.max(0, totalQuestoesAnalitico - totalAcertosAnalitico);
   const aproveitamentoTotal = totalQuestoesAnalitico > 0 ? ((totalAcertosAnalitico / totalQuestoesAnalitico) * 100).toFixed(1) : '0';
 
-  // Metas do Edital / Sorocaba
-  const metaMinimaEdital = 23; // 8 Português + 15 Direito
-  const metaAprovacaoSorocaba = 56; // 80% de 70 questões
+  // Métricas de Acertos por Bloco
+  const acertosBloco1 = melhoriasDoSimuladoAtivo
+    .filter(m => MATERIAS_BLOCO_1.some(b => m.materia.toLowerCase().includes(b.toLowerCase())))
+    .reduce((acc, m) => acc + (m.quantidade_acertos || 0), 0);
+
+  const acertosBloco2 = melhoriasDoSimuladoAtivo
+    .filter(m => MATERIAS_BLOCO_2.some(b => m.materia.toLowerCase().includes(b.toLowerCase())))
+    .reduce((acc, m) => acc + (m.quantidade_acertos || 0), 0);
+
+  const acertosBloco3 = melhoriasDoSimuladoAtivo
+    .filter(m => MATERIAS_BLOCO_3.some(b => m.materia.toLowerCase().includes(b.toLowerCase())))
+    .reduce((acc, m) => acc + (m.quantidade_acertos || 0), 0);
+
+  // Metas do Edital e Sorocaba
+  const metaMinimaEdital = 23;
+  const metaAprovacaoSorocaba = 56;
   const progressoMinimo = Math.min(100, Math.round((totalAcertosAnalitico / metaMinimaEdital) * 100));
   const progressoMeta = Math.min(100, Math.round((totalAcertosAnalitico / metaAprovacaoSorocaba) * 100));
 
@@ -279,7 +309,8 @@ export default function SimuladosPage() {
           materia: editMateria,
           quantidade_acertos: Number(editAcertos),
           quantidade_erros: Number(editErros),
-          assunto_estudar: editAssunto
+          assunto_estudar: editAssunto,
+          simulado_id: simuladoAtivo?.id
         })
         .eq('id', editMelhoriaId)
         .eq('user_id', userId);
@@ -381,7 +412,7 @@ Analise o meu desempenho no simulado e gere um payload JSON estrito contendo a d
   };
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white flex flex-col selection:bg-amber-400 selection:text-zinc-950">
+    <div className="min-h-screen bg-black text-white flex flex-col selection:bg-amber-400 selection:text-zinc-950">
       <Navbar />
 
       <main className="flex-1 max-w-7xl w-full mx-auto p-6 md:p-8 space-y-10">
@@ -394,7 +425,7 @@ Analise o meu desempenho no simulado e gere um payload JSON estrito contendo a d
               Simulados e Desempenho — VUNESP / TJSP
             </h1>
             <p className="text-sm text-zinc-400 mt-1">
-              Acompanhe sua evolução em relação ao mínimo de eliminação e à meta segura de 80% para Sorocaba.
+              Acompanhe sua evolução em relação ao mínimo de aprovação e à meta de 80% de acerto por bloco.
             </p>
           </div>
           <button
@@ -408,7 +439,7 @@ Analise o meu desempenho no simulado e gere um payload JSON estrito contendo a d
 
         {/* BARRA DE SELEÇÃO DO SIMULADO */}
         {simuladosList.length > 0 && (
-          <div className="bg-zinc-900/90 border border-zinc-800 p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-lg">
+          <div className="bg-zinc-950 border border-zinc-800 p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-lg">
             <div className="flex items-center gap-2 w-full sm:w-auto">
               <Calendar className="w-5 h-5 text-amber-400 shrink-0" />
               <span className="text-xs font-bold uppercase tracking-wider text-zinc-300 whitespace-nowrap">Simulado Ativo:</span>
@@ -418,7 +449,7 @@ Analise o meu desempenho no simulado e gere um payload JSON estrito contendo a d
               <select
                 value={simuladoSelecionadoId}
                 onChange={(e) => setSimuladoSelecionadoId(e.target.value)}
-                className="w-full bg-zinc-950 border border-zinc-800 text-amber-300 text-xs font-bold rounded-xl px-4 py-3 outline-none focus:border-amber-400 cursor-pointer"
+                className="w-full bg-zinc-900 border border-zinc-800 text-amber-300 text-xs font-bold rounded-xl px-4 py-3 outline-none focus:border-amber-400 cursor-pointer"
               >
                 {simuladosList.map((sim) => (
                   <option key={sim.id} value={sim.id}>
@@ -449,7 +480,7 @@ Analise o meu desempenho no simulado e gere um payload JSON estrito contendo a d
 
         {/* PAINEL ANALÍTICO COMPLETO */}
         {simuladoAtivo ? (
-          <div className="space-y-6 bg-zinc-900/60 border border-zinc-800 rounded-3xl p-6 sm:p-8 shadow-2xl">
+          <div className="space-y-6 bg-zinc-950 border border-zinc-800 rounded-3xl p-6 sm:p-8 shadow-2xl">
             <div className="border-b border-zinc-800 pb-4 flex justify-between items-center">
               <div>
                 <span className="text-[10px] font-extrabold uppercase tracking-widest text-amber-400 bg-amber-400/10 px-3 py-1 rounded-full border border-amber-400/20">
@@ -462,7 +493,7 @@ Analise o meu desempenho no simulado e gere um payload JSON estrito contendo a d
               </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 bg-zinc-950 p-6 rounded-2xl border border-zinc-800">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 bg-zinc-900/60 p-6 rounded-2xl border border-zinc-800">
               <div className="space-y-1">
                 <span className="text-xs text-zinc-400 font-bold uppercase tracking-wide">Acertos</span>
                 <div className="text-3xl font-black text-emerald-400 font-mono">
@@ -492,19 +523,18 @@ Analise o meu desempenho no simulado e gere um payload JSON estrito contendo a d
               </div>
             </div>
 
-            {/* BARRAS DE PROGRESSO DAS METAS (MÍNIMO EDITAL & META SOROCABA) */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-zinc-950 p-6 rounded-2xl border border-zinc-800">
-              {/* Meta 1: Mínimo Obrigatório */}
+            {/* BARRAS DE PROGRESSO GERAIS */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-zinc-900/60 p-6 rounded-2xl border border-zinc-800">
               <div className="space-y-2">
                 <div className="flex justify-between items-center text-xs">
                   <span className="font-bold text-zinc-300 flex items-center gap-1.5">
-                    <Target className="w-4 h-4 text-amber-400" /> Mínimo Edital (Blocos I e II: 23 acertos)
+                    <Target className="w-4 h-4 text-amber-400" /> Mínimo aprovação (Blocos I e II: 23 acertos)
                   </span>
                   <span className={`font-mono font-bold ${totalAcertosAnalitico >= metaMinimaEdital ? 'text-emerald-400' : 'text-rose-400'}`}>
                     {totalAcertosAnalitico >= metaMinimaEdital ? 'Superado ✓' : `${totalAcertosAnalitico}/23`}
                   </span>
                 </div>
-                <div className="w-full bg-zinc-900 h-3 rounded-full overflow-hidden border border-zinc-800">
+                <div className="w-full bg-zinc-950 h-3 rounded-full overflow-hidden border border-zinc-800">
                   <div 
                     className={`h-full transition-all duration-500 ${totalAcertosAnalitico >= metaMinimaEdital ? 'bg-emerald-500' : 'bg-rose-500'}`} 
                     style={{ width: `${progressoMinimo}%` }}
@@ -513,23 +543,164 @@ Analise o meu desempenho no simulado e gere um payload JSON estrito contendo a d
                 <p className="text-[11px] text-zinc-500">Garante que você não é eliminado por blocos.</p>
               </div>
 
-              {/* Meta 2: Aprovação / Sorocaba (80%) */}
               <div className="space-y-2">
                 <div className="flex justify-between items-center text-xs">
                   <span className="font-bold text-zinc-300 flex items-center gap-1.5">
-                    <Award className="w-4 h-4 text-amber-400" /> Meta Sorocaba (80%: 56 acertos)
+                    <Award className="w-4 h-4 text-amber-400" /> Meta de 80% de acerto (56 acertos)
                   </span>
                   <span className={`font-mono font-bold ${totalAcertosAnalitico >= metaAprovacaoSorocaba ? 'text-emerald-400' : 'text-amber-400'}`}>
                     {totalAcertosAnalitico >= metaAprovacaoSorocaba ? 'Meta Atingida! 🏆' : `${totalAcertosAnalitico}/56`}
                   </span>
                 </div>
-                <div className="w-full bg-zinc-900 h-3 rounded-full overflow-hidden border border-zinc-800">
+                <div className="w-full bg-zinc-950 h-3 rounded-full overflow-hidden border border-zinc-800">
                   <div 
                     className={`h-full transition-all duration-500 ${totalAcertosAnalitico >= metaAprovacaoSorocaba ? 'bg-emerald-500' : 'bg-amber-400'}`} 
                     style={{ width: `${progressoMeta}%` }}
                   ></div>
                 </div>
                 <p className="text-[11px] text-zinc-500">Patamar seguro para classificação nas vagas.</p>
+              </div>
+            </div>
+
+            {/* CARDS DEDICADOS POR BLOCO (MÍNIMO E META DE 80%) */}
+            <div className="space-y-4 pt-2">
+              <h3 className="text-sm font-extrabold uppercase tracking-wider text-white flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-amber-400" />
+                Desempenho e Metas Detalhadas por Bloco
+              </h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                
+                {/* BLOCO I */}
+                <div className="bg-zinc-900/70 border border-zinc-800 p-5 rounded-2xl space-y-4">
+                  <div className="flex justify-between items-start border-b border-zinc-800 pb-3">
+                    <div>
+                      <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">16 Questões</span>
+                      <h4 className="text-sm font-extrabold text-white">Bloco I: Português</h4>
+                    </div>
+                    <span className="text-xs font-mono font-bold px-2.5 py-1 bg-zinc-950 border border-zinc-800 rounded-lg text-emerald-400">
+                      {acertosBloco1}/16
+                    </span>
+                  </div>
+
+                  <div className="space-y-3 text-xs">
+                    <div className="space-y-1">
+                      <div className="flex justify-between font-medium">
+                        <span className="text-zinc-400">Mínimo aprovação (50%):</span>
+                        <span className={acertosBloco1 >= 8 ? 'text-emerald-400 font-bold' : 'text-rose-400 font-bold'}>
+                          {acertosBloco1 >= 8 ? 'OK (8/8)' : `${acertosBloco1}/8`}
+                        </span>
+                      </div>
+                      <div className="w-full bg-zinc-950 h-2 rounded-full overflow-hidden">
+                        <div 
+                          className={`h-full ${acertosBloco1 >= 8 ? 'bg-emerald-500' : 'bg-rose-500'}`} 
+                          style={{ width: `${Math.min(100, (acertosBloco1 / 8) * 100)}%` }}
+                        ></div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <div className="flex justify-between font-medium">
+                        <span className="text-zinc-400">Meta de 80% (13 acertos):</span>
+                        <span className={acertosBloco1 >= 13 ? 'text-emerald-400 font-bold' : 'text-amber-400 font-bold'}>
+                          {acertosBloco1 >= 13 ? 'Atingida 🏆' : `${acertosBloco1}/13`}
+                        </span>
+                      </div>
+                      <div className="w-full bg-zinc-950 h-2 rounded-full overflow-hidden">
+                        <div 
+                          className={`h-full ${acertosBloco1 >= 13 ? 'bg-emerald-500' : 'bg-amber-400'}`} 
+                          style={{ width: `${Math.min(100, (acertosBloco1 / 13) * 100)}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* BLOCO II */}
+                <div className="bg-zinc-900/70 border border-zinc-800 p-5 rounded-2xl space-y-4">
+                  <div className="flex justify-between items-start border-b border-zinc-800 pb-3">
+                    <div>
+                      <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">30 Questões</span>
+                      <h4 className="text-sm font-extrabold text-white">Bloco II: Direito</h4>
+                    </div>
+                    <span className="text-xs font-mono font-bold px-2.5 py-1 bg-zinc-950 border border-zinc-800 rounded-lg text-emerald-400">
+                      {acertosBloco2}/30
+                    </span>
+                  </div>
+
+                  <div className="space-y-3 text-xs">
+                    <div className="space-y-1">
+                      <div className="flex justify-between font-medium">
+                        <span className="text-zinc-400">Mínimo aprovação (50%):</span>
+                        <span className={acertosBloco2 >= 15 ? 'text-emerald-400 font-bold' : 'text-rose-400 font-bold'}>
+                          {acertosBloco2 >= 15 ? 'OK (15/15)' : `${acertosBloco2}/15`}
+                        </span>
+                      </div>
+                      <div className="w-full bg-zinc-950 h-2 rounded-full overflow-hidden">
+                        <div 
+                          className={`h-full ${acertosBloco2 >= 15 ? 'bg-emerald-500' : 'bg-rose-500'}`} 
+                          style={{ width: `${Math.min(100, (acertosBloco2 / 15) * 100)}%` }}
+                        ></div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <div className="flex justify-between font-medium">
+                        <span className="text-zinc-400">Meta de 80% (25 acertos):</span>
+                        <span className={acertosBloco2 >= 25 ? 'text-emerald-400 font-bold' : 'text-amber-400 font-bold'}>
+                          {acertosBloco2 >= 25 ? 'Atingida 🏆' : `${acertosBloco2}/25`}
+                        </span>
+                      </div>
+                      <div className="w-full bg-zinc-950 h-2 rounded-full overflow-hidden">
+                        <div 
+                          className={`h-full ${acertosBloco2 >= 25 ? 'bg-emerald-500' : 'bg-amber-400'}`} 
+                          style={{ width: `${Math.min(100, (acertosBloco2 / 25) * 100)}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* BLOCO III */}
+                <div className="bg-zinc-900/70 border border-zinc-800 p-5 rounded-2xl space-y-4">
+                  <div className="flex justify-between items-start border-b border-zinc-800 pb-3">
+                    <div>
+                      <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">24 Questões</span>
+                      <h4 className="text-sm font-extrabold text-white">Bloco III: Gerais</h4>
+                    </div>
+                    <span className="text-xs font-mono font-bold px-2.5 py-1 bg-zinc-950 border border-zinc-800 rounded-lg text-emerald-400">
+                      {acertosBloco3}/24
+                    </span>
+                  </div>
+
+                  <div className="space-y-3 text-xs">
+                    <div className="space-y-1">
+                      <div className="flex justify-between font-medium">
+                        <span className="text-zinc-400">Mínimo aprovação:</span>
+                        <span className="text-zinc-400 font-bold">Sem Mínimo</span>
+                      </div>
+                      <div className="w-full bg-zinc-950 h-2 rounded-full overflow-hidden">
+                        <div className="h-full bg-blue-500" style={{ width: `${Math.min(100, (acertosBloco3 / 24) * 100)}%` }}></div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <div className="flex justify-between font-medium">
+                        <span className="text-zinc-400">Meta de 80% (18 acertos):</span>
+                        <span className={acertosBloco3 >= 18 ? 'text-emerald-400 font-bold' : 'text-amber-400 font-bold'}>
+                          {acertosBloco3 >= 18 ? 'Atingida 🏆' : `${acertosBloco3}/18`}
+                        </span>
+                      </div>
+                      <div className="w-full bg-zinc-950 h-2 rounded-full overflow-hidden">
+                        <div 
+                          className={`h-full ${acertosBloco3 >= 18 ? 'bg-emerald-500' : 'bg-amber-400'}`} 
+                          style={{ width: `${Math.min(100, (acertosBloco3 / 18) * 100)}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
               </div>
             </div>
 
@@ -552,13 +723,13 @@ Analise o meu desempenho no simulado e gere um payload JSON estrito contendo a d
                     const corBarra = percMat >= 80 ? 'bg-emerald-500' : percMat >= 50 ? 'bg-amber-400' : 'bg-rose-600';
 
                     return (
-                      <div key={m.id} className="bg-zinc-950 border border-zinc-800 p-4 rounded-xl space-y-2">
+                      <div key={m.id} className="bg-zinc-900/60 border border-zinc-800 p-4 rounded-xl space-y-2">
                         <div className="flex justify-between items-center text-xs">
                           <span className="font-bold text-white">{m.materia}</span>
                           <span className="font-mono font-bold text-zinc-300">{acertosMat}/{totalMat} ({percMat}%)</span>
                         </div>
                         
-                        <div className="w-full bg-zinc-900 h-2.5 rounded-full overflow-hidden border border-zinc-800">
+                        <div className="w-full bg-zinc-950 h-2.5 rounded-full overflow-hidden border border-zinc-800">
                           <div className={`h-full ${corBarra} transition-all duration-500`} style={{ width: `${percMat}%` }}></div>
                         </div>
 

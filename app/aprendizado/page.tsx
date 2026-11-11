@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Navbar from '../components/Navbar';
 import { supabase } from '@/lib/supabase';
-import { Plus, Trash2, Filter, Image as ImageIcon, Tag, BookOpen, Layers, X, AlertCircle, Upload, Edit3, Save } from 'lucide-react';
+import { Plus, Trash2, Filter, Image as ImageIcon, Tag, BookOpen, Layers, X, AlertCircle, Upload, Edit3, Save, Maximize2 } from 'lucide-react';
 
 const DISCIPLINAS_TJSP = [
   "Língua Portuguesa",
@@ -45,7 +45,10 @@ export default function AprendizadoPage() {
   const [showModal, setShowModal] = useState<boolean>(false);
   const [enviandoImagem, setEnviandoImagem] = useState<boolean>(false);
 
-  // Estados de Edição Livre
+  // Estado para Modal de Imagem em Tela Cheia
+  const [imagemModalUrl, setImagemModalUrl] = useState<string | null>(null);
+
+  // Estados de Edição Libre
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [editDisciplina, setEditDisciplina] = useState<string>('');
   const [editAssunto, setEditAssunto] = useState<string>('');
@@ -160,7 +163,7 @@ export default function AprendizadoPage() {
       alert("Registro de aprendizado adicionado com sucesso!");
     } catch (err: any) {
       console.error("Erro ao salvar:", err);
-      alert(`Erro ao salvar (verifique as políticas RLS do Supabase): ${err.message || JSON.stringify(err)}`);
+      alert(`Erro ao salvar: ${err.message || JSON.stringify(err)}`);
     } finally {
       setEnviandoImagem(false);
     }
@@ -248,16 +251,17 @@ export default function AprendizadoPage() {
     <div className="min-h-screen bg-black text-zinc-100 font-sans selection:bg-amber-400 selection:text-zinc-950">
       <Navbar />
 
-      <main className="max-w-4xl mx-auto px-4 sm:px-8 py-8 space-y-8">
+      {/* Container Full Width Responsivo */}
+      <main className="w-full max-w-7xl mx-auto px-4 sm:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8">
         
         {/* Header */}
-        <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4 sm:p-6 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="bg-amber-400/20 text-amber-400 text-xs font-bold px-2.5 py-0.5 rounded-full border border-amber-400/30">TJSP - VUNESP</span>
               <span className="bg-blue-500/20 text-blue-400 font-bold text-xs px-2.5 py-0.5 rounded-full border border-blue-500/30">Banco de Aprendizado Ativo</span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-black text-white mt-1 tracking-tight">
+            <h1 className="text-xl sm:text-3xl font-black text-white mt-1 tracking-tight">
               Aprendizado e Correção de Erros
             </h1>
             <p className="text-xs text-zinc-400 mt-1">
@@ -267,16 +271,16 @@ export default function AprendizadoPage() {
 
           <button
             onClick={() => setShowModal(true)}
-            className="text-xs font-bold px-4 py-2.5 rounded-xl border border-amber-400/50 bg-amber-400 hover:bg-amber-500 text-zinc-950 transition-all flex items-center gap-1.5 shadow-md cursor-pointer shrink-0"
+            className="w-full md:w-auto text-xs font-bold px-4 py-2.5 rounded-xl border border-amber-400/50 bg-amber-400 hover:bg-amber-500 text-zinc-950 transition-all flex items-center justify-center gap-1.5 shadow-md cursor-pointer shrink-0"
           >
             <Plus className="w-4 h-4" />
             Novo Registro de Aprendizado
           </button>
         </div>
 
-        {/* Filtros por Matéria e Assunto */}
+        {/* Filtros Full Width */}
         <div className="bg-zinc-950 border border-zinc-800 p-4 rounded-2xl shadow-lg flex flex-col md:flex-row items-center gap-4">
-          <div className="w-full md:w-1/2 flex items-center gap-3">
+          <div className="w-full md:w-1/2 flex items-center gap-2 sm:gap-3">
             <Filter className="w-4 h-4 text-amber-400 shrink-0 ml-1" />
             <span className="text-xs font-bold text-zinc-400 whitespace-nowrap">Matéria:</span>
             <select 
@@ -296,7 +300,7 @@ export default function AprendizadoPage() {
             </select>
           </div>
 
-          <div className="w-full md:w-1/2 flex items-center gap-3">
+          <div className="w-full md:w-1/2 flex items-center gap-2 sm:gap-3">
             <Tag className="w-4 h-4 text-amber-400 shrink-0 ml-1" />
             <span className="text-xs font-bold text-zinc-400 whitespace-nowrap">Assunto:</span>
             <select 
@@ -312,14 +316,14 @@ export default function AprendizadoPage() {
           </div>
         </div>
 
-        {/* Listagem dos Cards em Coluna (Um embaixo do outro) */}
-        <div className="bg-zinc-950 rounded-3xl border border-zinc-800 shadow-2xl p-6 sm:p-10 min-h-[50vh]">
+        {/* Painel Principal Full Width */}
+        <div className="bg-zinc-950 rounded-3xl border border-zinc-800 shadow-2xl p-4 sm:p-8 min-h-[50vh]">
           {loading ? (
             <div className="flex items-center justify-center p-20 text-zinc-400 text-sm">
               Carregando registros...
             </div>
           ) : cardsParaExibir.length === 0 ? (
-            <div className="flex flex-col items-center justify-center text-center p-20 space-y-3">
+            <div className="flex flex-col items-center justify-center text-center p-12 sm:p-20 space-y-3">
               <AlertCircle className="w-10 h-10 text-zinc-600" />
               <p className="text-sm text-zinc-400 font-medium">Nenhum registro encontrado para os filtros selecionados.</p>
               <button 
@@ -330,17 +334,17 @@ export default function AprendizadoPage() {
               </button>
             </div>
           ) : (
-            <div className="flex flex-col gap-8">
+            <div className="flex flex-col gap-6 sm:gap-8">
               {cardsParaExibir.map((card) => {
                 const isEditing = editandoId === card.id;
 
                 return (
                   <div 
                     key={card.id}
-                    className="bg-zinc-900/80 border border-zinc-800 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-5 transition-all hover:border-amber-400/40"
+                    className="w-full bg-zinc-900/80 border border-zinc-800 rounded-2xl sm:rounded-3xl p-4 sm:p-8 shadow-2xl space-y-4 sm:space-y-6 transition-all hover:border-amber-400/40"
                   >
                     {!isEditing ? (
-                      <div className="space-y-4">
+                      <div className="space-y-4 sm:space-y-5">
                         <div className="flex items-center justify-between gap-2 border-b border-zinc-800 pb-3">
                           <span className="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-lg bg-amber-400/10 text-amber-400 border border-amber-400/20">
                             {card.disciplina}
@@ -369,37 +373,49 @@ export default function AprendizadoPage() {
                             <Tag className="w-3.5 h-3.5" />
                             <span>{card.assunto}</span>
                           </div>
-                          <h2 className="text-lg sm:text-xl font-extrabold text-white tracking-tight break-words">
+                          <h2 className="text-lg sm:text-2xl font-extrabold text-white tracking-tight break-words">
                             {card.titulo}
                           </h2>
                         </div>
 
-                        {/* Campo de Enunciado em destaque na cor amarela */}
-                        <div className="bg-amber-400/10 border border-amber-400/40 rounded-2xl p-4 sm:p-5 text-amber-100 text-sm leading-relaxed whitespace-pre-wrap break-words shadow-inner">
-                          <span className="font-extrabold text-amber-400 uppercase text-[11px] tracking-wider block mb-1">Enunciado / Descrição:</span>
+                        {/* Enunciado Amarelo em Destaque */}
+                        <div className="bg-amber-400/10 border border-amber-400/40 rounded-2xl p-4 sm:p-6 text-amber-100 text-xs sm:text-sm leading-relaxed whitespace-pre-wrap break-words shadow-inner">
+                          <span className="font-extrabold text-amber-400 uppercase text-[10px] sm:text-[11px] tracking-wider block mb-2">Enunciado / Descrição:</span>
                           {card.conteudo}
                         </div>
 
+                        {/* Container da Imagem com Botão de Tela Cheia */}
                         {card.imagem_url && (
-                          <div className="rounded-2xl overflow-hidden border border-zinc-800 bg-black flex items-center justify-center p-2 shadow-inner">
+                          <div className="relative group rounded-2xl overflow-hidden border border-zinc-800 bg-black flex flex-col items-center justify-center p-2 shadow-inner">
                             <img 
                               src={card.imagem_url} 
                               alt={card.titulo} 
-                              className="max-h-[500px] object-contain w-full rounded-xl"
+                              className="max-h-[600px] w-full object-contain rounded-xl cursor-pointer"
+                              onClick={() => setImagemModalUrl(card.imagem_url || null)}
                               onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
                             />
+                            
+                            {/* Botão de Tela Cheia Responsivo */}
+                            <button
+                              onClick={() => setImagemModalUrl(card.imagem_url || null)}
+                              className="absolute top-4 right-4 bg-zinc-950/90 hover:bg-amber-400 text-white hover:text-zinc-950 px-3 py-2 rounded-xl text-xs font-bold border border-zinc-700 shadow-xl transition-all cursor-pointer flex items-center gap-1.5"
+                            >
+                              <Maximize2 className="w-3.5 h-3.5" />
+                              <span>Abrir em Tela Cheia</span>
+                            </button>
                           </div>
                         )}
 
+                        {/* Bloco de Observação */}
                         {card.observacao && (
-                          <div className="bg-amber-950/20 border border-amber-400/30 rounded-2xl p-4 text-amber-200 text-xs sm:text-sm space-y-1">
+                          <div className="bg-amber-950/20 border border-amber-400/30 rounded-2xl p-4 sm:p-5 text-amber-200 text-xs sm:text-sm space-y-1">
                             <span className="font-bold text-amber-400 uppercase text-[10px] tracking-wider block">Observação:</span>
                             <p className="whitespace-pre-wrap leading-relaxed">{card.observacao}</p>
                           </div>
                         )}
                       </div>
                     ) : (
-                      <div className="space-y-4 bg-zinc-950 p-6 rounded-2xl border border-amber-400/50">
+                      <div className="space-y-4 bg-zinc-950 p-4 sm:p-6 rounded-2xl border border-amber-400/50">
                         <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
                           <span className="text-xs font-bold text-amber-400">Modo de Edição</span>
                           <button 
@@ -473,6 +489,29 @@ export default function AprendizadoPage() {
         </div>
 
       </main>
+
+      {/* Modal de Imagem em Tela Cheia */}
+      {imagemModalUrl && (
+        <div 
+          className="fixed inset-0 bg-black/95 backdrop-blur-md z-50 flex items-center justify-center p-4 sm:p-8 animate-in fade-in duration-200"
+          onClick={() => setImagemModalUrl(null)}
+        >
+          <div className="relative max-w-7xl max-h-[90vh] w-full flex flex-col items-center justify-center gap-4" onClick={(e) => e.stopPropagation()}>
+            <button 
+              onClick={() => setImagemModalUrl(null)}
+              className="absolute -top-12 right-0 bg-zinc-800 hover:bg-rose-600 text-white w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shadow-2xl transition-all cursor-pointer border border-zinc-700 z-10"
+            >
+              ✕
+            </button>
+
+            <img 
+              src={imagemModalUrl} 
+              alt="Visualização em Tela Cheia" 
+              className="max-w-full max-h-[85vh] object-contain rounded-2xl border border-zinc-800 shadow-2xl"
+            />
+          </div>
+        </div>
+      )}
 
       {/* Modal de Cadastro Manual */}
       {showModal && (

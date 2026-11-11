@@ -81,7 +81,7 @@ export default function AprendizadoPage() {
       const { data, error } = await supabase
         .from('aprendendo_erros')
         .select('*')
-        .eq('user_id', uid) // Filtra estritamente pelo ID do utilizador logado
+        .eq('user_id', uid)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -109,7 +109,7 @@ export default function AprendizadoPage() {
     e.preventDefault();
     if (!userId) return;
     if (!tituloModal.trim() || !conteudoModal.trim() || !assuntoModal.trim()) {
-      alert("Preencha os campos obrigatórios (Assunto, Título e Descrição).");
+      alert("Preencha os campos obrigatórios (Assunto, Título e Enunciado).");
       return;
     }
 
@@ -137,7 +137,7 @@ export default function AprendizadoPage() {
 
       const novoCard: any = {
         id: `err-${Date.now()}`,
-        user_id: userId, // Associa o registo ao utilizador ativo
+        user_id: userId,
         disciplina: disciplinaModal,
         assunto: assuntoModal.trim(),
         titulo: tituloModal.trim(),
@@ -160,7 +160,7 @@ export default function AprendizadoPage() {
       alert("Registro de aprendizado adicionado com sucesso!");
     } catch (err: any) {
       console.error("Erro ao salvar:", err);
-      alert(`Erro ao salvar: ${err.message || JSON.stringify(err)}`);
+      alert(`Erro ao salvar (verifique as políticas RLS do Supabase): ${err.message || JSON.stringify(err)}`);
     } finally {
       setEnviandoImagem(false);
     }
@@ -248,7 +248,7 @@ export default function AprendizadoPage() {
     <div className="min-h-screen bg-black text-zinc-100 font-sans selection:bg-amber-400 selection:text-zinc-950">
       <Navbar />
 
-      <main className="max-w-6xl mx-auto px-4 sm:px-8 py-8 space-y-8">
+      <main className="max-w-4xl mx-auto px-4 sm:px-8 py-8 space-y-8">
         
         {/* Header */}
         <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
@@ -312,8 +312,8 @@ export default function AprendizadoPage() {
           </div>
         </div>
 
-        {/* Listagem dos Cards */}
-        <div className="bg-zinc-950 rounded-3xl border border-zinc-800 shadow-2xl p-6 sm:p-8 min-h-[50vh]">
+        {/* Listagem dos Cards em Coluna (Um embaixo do outro) */}
+        <div className="bg-zinc-950 rounded-3xl border border-zinc-800 shadow-2xl p-6 sm:p-10 min-h-[50vh]">
           {loading ? (
             <div className="flex items-center justify-center p-20 text-zinc-400 text-sm">
               Carregando registros...
@@ -330,33 +330,33 @@ export default function AprendizadoPage() {
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="flex flex-col gap-8">
               {cardsParaExibir.map((card) => {
                 const isEditing = editandoId === card.id;
 
                 return (
                   <div 
                     key={card.id}
-                    className="bg-zinc-900/70 border border-zinc-800 rounded-2xl p-6 shadow-xl space-y-4 flex flex-col justify-between transition-all hover:border-amber-400/40"
+                    className="bg-zinc-900/80 border border-zinc-800 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-5 transition-all hover:border-amber-400/40"
                   >
                     {!isEditing ? (
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-md bg-amber-400/10 text-amber-400 border border-amber-400/20">
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between gap-2 border-b border-zinc-800 pb-3">
+                          <span className="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-lg bg-amber-400/10 text-amber-400 border border-amber-400/20">
                             {card.disciplina}
                           </span>
                           
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-1.5">
                             <button
                               onClick={() => iniciarEdicao(card)}
-                              className="text-zinc-400 hover:text-amber-400 p-1.5 rounded-lg transition-all cursor-pointer"
+                              className="text-zinc-400 hover:text-amber-400 p-2 rounded-lg transition-all cursor-pointer bg-zinc-950 border border-zinc-800"
                               title="Editar card"
                             >
                               <Edit3 className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => excluirCard(card.id)}
-                              className="text-zinc-500 hover:text-rose-400 p-1.5 rounded-lg transition-all cursor-pointer"
+                              className="text-zinc-500 hover:text-rose-400 p-2 rounded-lg transition-all cursor-pointer bg-zinc-950 border border-zinc-800"
                               title="Apagar registro"
                             >
                               <Trash2 className="w-4 h-4" />
@@ -364,41 +364,43 @@ export default function AprendizadoPage() {
                           </div>
                         </div>
 
-                        <div className="space-y-1">
+                        <div className="space-y-1.5">
                           <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-300">
                             <Tag className="w-3.5 h-3.5" />
                             <span>{card.assunto}</span>
                           </div>
-                          <h2 className="text-base sm:text-lg font-extrabold text-white tracking-tight break-words">
+                          <h2 className="text-lg sm:text-xl font-extrabold text-white tracking-tight break-words">
                             {card.titulo}
                           </h2>
                         </div>
 
-                        <div className="bg-zinc-950/80 border border-zinc-800/80 rounded-xl p-4 text-zinc-300 text-xs sm:text-sm leading-relaxed whitespace-pre-wrap break-words">
+                        {/* Campo de Enunciado em destaque na cor amarela */}
+                        <div className="bg-amber-400/10 border border-amber-400/40 rounded-2xl p-4 sm:p-5 text-amber-100 text-sm leading-relaxed whitespace-pre-wrap break-words shadow-inner">
+                          <span className="font-extrabold text-amber-400 uppercase text-[11px] tracking-wider block mb-1">Enunciado / Descrição:</span>
                           {card.conteudo}
                         </div>
 
-                        {card.observacao && (
-                          <div className="bg-amber-950/20 border border-amber-400/30 rounded-xl p-3 text-amber-200 text-xs space-y-1">
-                            <span className="font-bold text-amber-400 uppercase text-[10px] tracking-wider block">Observação:</span>
-                            <p className="whitespace-pre-wrap leading-relaxed">{card.observacao}</p>
-                          </div>
-                        )}
-
                         {card.imagem_url && (
-                          <div className="rounded-xl overflow-hidden border border-zinc-800 max-h-60 bg-black flex items-center justify-center">
+                          <div className="rounded-2xl overflow-hidden border border-zinc-800 bg-black flex items-center justify-center p-2 shadow-inner">
                             <img 
                               src={card.imagem_url} 
                               alt={card.titulo} 
-                              className="max-h-60 object-contain w-full"
+                              className="max-h-[500px] object-contain w-full rounded-xl"
                               onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
                             />
                           </div>
                         )}
+
+                        {card.observacao && (
+                          <div className="bg-amber-950/20 border border-amber-400/30 rounded-2xl p-4 text-amber-200 text-xs sm:text-sm space-y-1">
+                            <span className="font-bold text-amber-400 uppercase text-[10px] tracking-wider block">Observação:</span>
+                            <p className="whitespace-pre-wrap leading-relaxed">{card.observacao}</p>
+                          </div>
+                        )}
                       </div>
                     ) : (
-                      <div className="space-y-3 bg-zinc-950 p-4 rounded-xl border border-amber-400/50">
-                        <div className="flex items-center justify-between">
+                      <div className="space-y-4 bg-zinc-950 p-6 rounded-2xl border border-amber-400/50">
+                        <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
                           <span className="text-xs font-bold text-amber-400">Modo de Edição</span>
                           <button 
                             onClick={() => setEditandoId(null)}
@@ -411,7 +413,7 @@ export default function AprendizadoPage() {
                         <select 
                           value={editDisciplina}
                           onChange={(e) => setEditDisciplina(e.target.value)}
-                          className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 text-xs rounded-lg px-2.5 py-2 outline-none font-semibold"
+                          className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 text-xs rounded-xl px-3 py-2.5 outline-none font-semibold"
                         >
                           {DISCIPLINAS_TJSP.map((disc) => (
                             <option key={disc} value={disc}>{disc}</option>
@@ -423,7 +425,7 @@ export default function AprendizadoPage() {
                           value={editAssunto}
                           onChange={(e) => setEditAssunto(e.target.value)}
                           placeholder="Assunto"
-                          className="w-full bg-zinc-900 border border-zinc-800 text-zinc-100 text-xs rounded-lg px-2.5 py-2 outline-none"
+                          className="w-full bg-zinc-900 border border-zinc-800 text-zinc-100 text-xs rounded-xl px-3 py-2.5 outline-none"
                         />
 
                         <input
@@ -431,35 +433,35 @@ export default function AprendizadoPage() {
                           value={editTitulo}
                           onChange={(e) => setEditTitulo(e.target.value)}
                           placeholder="Título"
-                          className="w-full bg-zinc-900 border border-zinc-800 text-zinc-100 text-xs rounded-lg px-2.5 py-2 outline-none font-bold"
+                          className="w-full bg-zinc-900 border border-zinc-800 text-zinc-100 text-xs rounded-xl px-3 py-2.5 outline-none font-bold"
+                        />
+
+                        <textarea
+                          rows={5}
+                          value={editConteudo}
+                          onChange={(e) => setEditConteudo(e.target.value)}
+                          placeholder="Enunciado / Descrição"
+                          className="w-full bg-zinc-900 border border-zinc-800 text-zinc-100 text-xs rounded-xl p-3 outline-none resize-none"
                         />
 
                         <textarea
                           rows={3}
-                          value={editConteudo}
-                          onChange={(e) => setEditConteudo(e.target.value)}
-                          placeholder="Descrição / Enunciado"
-                          className="w-full bg-zinc-900 border border-zinc-800 text-zinc-100 text-xs rounded-lg p-2.5 outline-none resize-none"
-                        />
-
-                        <textarea
-                          rows={2}
                           value={editObservacao}
                           onChange={(e) => setEditObservacao(e.target.value)}
                           placeholder="Observação (Opcional)"
-                          className="w-full bg-zinc-900 border border-zinc-800 text-zinc-100 text-xs rounded-lg p-2.5 outline-none resize-none"
+                          className="w-full bg-zinc-900 border border-zinc-800 text-zinc-100 text-xs rounded-xl p-3 outline-none resize-none"
                         />
 
                         <button
                           onClick={() => salvarEdicao(card.id)}
-                          className="w-full py-2 bg-amber-400 hover:bg-amber-300 text-zinc-950 font-bold text-xs rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md"
+                          className="w-full py-2.5 bg-amber-400 hover:bg-amber-300 text-zinc-950 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md"
                         >
-                          <Save className="w-3.5 h-3.5" /> Salvar Alterações
+                          <Save className="w-4 h-4" /> Salvar Alterações
                         </button>
                       </div>
                     )}
 
-                    <div className="pt-3 border-t border-zinc-800/80 flex items-center justify-between text-[10px] text-zinc-500">
+                    <div className="pt-3 border-t border-zinc-800/80 flex items-center justify-between text-[11px] text-zinc-500">
                       <span className="font-mono">ID: {card.id}</span>
                       <span>{new Date(card.created_at).toLocaleDateString('pt-BR')}</span>
                     </div>
@@ -535,13 +537,13 @@ export default function AprendizadoPage() {
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs font-bold text-zinc-300">Descrição Detalhada / Enunciado:</label>
+                <label className="text-xs font-bold text-zinc-300">Enunciado (Destaque Amarelo):</label>
                 <textarea
                   required
                   rows={4}
                   value={conteudoModal}
                   onChange={(e) => setConteudoModal(e.target.value)}
-                  placeholder="Explique detalhadamente o erro cometido..."
+                  placeholder="Cole ou digite o enunciado da questão..."
                   className="w-full bg-zinc-900 border border-zinc-800 text-zinc-100 text-xs rounded-xl p-3 outline-none focus:border-amber-400 resize-none"
                 />
               </div>

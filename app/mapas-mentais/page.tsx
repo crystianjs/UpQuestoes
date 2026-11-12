@@ -327,7 +327,7 @@ export default function MapaMentalPage() {
                 })
                 .map((r: any, idx: number) => {
                   if (!r) return null;
-                  const idSeguro = r.id || `ramo-${item.disciplina}-${idx}`;
+                  const idSeguro = r.id || `ramo-${item.disciplina}-${idx}-${Date.now()}`;
                   const assuntoDefinitivo = r.assunto && r.assunto.trim() !== ""
                     ? r.assunto
                     : (r.titulo ? r.titulo.replace(/^[📌📍🚩⚡0-9.\-\)]+\s*/, '').trim() : "Geral");
@@ -353,8 +353,8 @@ export default function MapaMentalPage() {
 
           mapaFormatado[item.disciplina] = {
             disciplina: item.disciplina,
-            titulo: item.titulo,
-            banca: item.banca,
+            titulo: item.titulo || `Revisão: ${item.disciplina}`,
+            banca: item.banca || 'VUNESP',
             ramos: ramosValidados
           };
         });
@@ -419,7 +419,7 @@ export default function MapaMentalPage() {
 
         parsed.ramos.forEach((r: any, idx: number) => {
           if (r) {
-            const idRamo = r.id || `ramo-${Date.now()}-${idx}`;
+            const idRamo = r.id || `ramo-json-${Date.now()}-${idx}`;
             const existente = mapaRamosUnificados.get(idRamo);
             if (existente) {
               const imagsAntigas = Array.isArray(existente.imagens) ? existente.imagens : [];
@@ -466,7 +466,6 @@ export default function MapaMentalPage() {
     }
   };
 
-  // Função para deletar um card individual de dentro de um ramo específico
   const handleDeletarCardInterno = async (ramoId: string, cardIndexParaRemover: number) => {
     if (!mapaAtual) return;
     if (confirm("Deseja remover este card/tópico interno?")) {
@@ -666,7 +665,7 @@ export default function MapaMentalPage() {
               <option value="Todas as Matérias">Todas as Matérias</option>
               {DISCIPLINAS_TJSP.map((disc) => (
                 <option key={disc} value={disc}>
-                  {disc} {mapasPorDisciplina[disc] ? "(com mapas)" : ""}
+                  {disc} {mapasPorDisciplina[disc] ? `(${mapasPorDisciplina[disc].ramos.length} tópicos)` : ""}
                 </option>
               ))}
             </select>

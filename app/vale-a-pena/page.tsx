@@ -242,9 +242,12 @@ export default function ValeAPenaPage() {
           
           mapaFormatado[item.disciplina] = {
             disciplina: item.disciplina,
-            titulo: item.titulo,
-            banca: item.banca,
-            ramos: Array.isArray(rawRamos) ? rawRamos.filter(Boolean) : []
+            titulo: item.titulo || `Revisão: ${item.disciplina}`,
+            banca: item.banca || 'VUNESP',
+            ramos: Array.isArray(rawRamos) ? rawRamos.filter(Boolean).map((r: any, idx: number) => ({
+              ...r,
+              id: r.id || `ramo-${item.disciplina}-${idx}-${Date.now()}`
+            })) : []
           };
         });
         setMapasPorDisciplina(mapaFormatado);
@@ -257,8 +260,9 @@ export default function ValeAPenaPage() {
     const mapaAtual = mapasPorDisciplina[disciplinaAlvo];
     if (!mapaAtual) return;
 
+    // Atualiza o estado local imediatamente
     const ramosAtualizados = mapaAtual.ramos.map((r: any) => {
-      if (r && (r.id === ramoId || (!r.id && ramoId.includes(r.titulo)))) {
+      if (r && r.id === ramoId) {
         return { ...r, [campo]: novoValor };
       }
       return r;
@@ -275,28 +279,34 @@ export default function ValeAPenaPage() {
     }));
 
     try {
-      await supabase.from('temp_mapas_mentais').upsert({
+      // 1. Tenta atualizar na tabela oficial 'mapas_mentais' especificando o onConflict correto para chave composta (user_id, disciplina)
+      const { error: erroOficial } = await supabase.from('mapas_mentais').upsert({
         user_id: userId,
         disciplina: disciplinaAlvo,
-        titulo: mapaAtual.titulo,
-        banca: mapaAtual.banca || 'VUNESP',
-        ramos: ramosAtualizados,
-        backed_up_at: new Date().toISOString()
-      }, { onConflict: 'user_id,disciplina' });
-
-      const { error } = await supabase.from('mapas_mentais').upsert({
-        user_id: userId,
-        disciplina: disciplinaAlvo,
-        titulo: mapaAtual.titulo,
+        titulo: mapaAtual.titulo || `Revisão: ${disciplinaAlvo}`,
         banca: mapaAtual.banca || 'VUNESP',
         ramos: ramosAtualizados,
         updated_at: new Date().toISOString()
       }, { onConflict: 'user_id,disciplina' });
 
-      if (error) throw error;
-    } catch (e) {
-      console.error("Erro ao sincronizar com mapas mentais:", e);
-      alert("Erro ao sincronizar alteração na nuvem.");
+      if (erroOficial) {
+        console.error("Erro na tabela mapas_mentais:", erroOficial.message);
+        throw erroOficial;
+      }
+
+      // 2. Atualiza também no espelho 'temp_mapas_mentais'
+      await supabase.from('temp_mapas_mentais').upsert({
+        user_id: userId,
+        disciplina: disciplinaAlvo,
+        titulo: mapaAtual.titulo || `Revisão: ${disciplinaAlvo}`,
+        banca: mapaAtual.banca || 'VUNESP',
+        ramos: ramosAtualizados,
+        backed_up_at: new Date().toISOString()
+      }, { onConflict: 'user_id,disciplina' });
+
+    } catch (e: any) {
+      console.error("Erro crítico ao persistir no Supabase:", e);
+      alert(`Erro ao salvar no banco de dados: ${e.message || 'Erro desconhecido'}`);
     }
   };
 
@@ -325,7 +335,7 @@ export default function ValeAPenaPage() {
         <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
-              <span className="bg-amber-500/20 text-amber-400 text-xs font-bold px-2.5 py-0.5 rounded-full border border-amber-500/30">TJSP - VUNESP</span>
+              <span className="bg-amber-500/20 text-amber-400 text-xs font-bold px-2.5 py-0.5 rounded-full border border-amber-500/35">TJSP - VUNESP</span>
               <span className="bg-yellow-500/20 text-yellow-300 font-bold text-xs px-2.5 py-0.5 rounded-full border border-yellow-500/30 flex items-center gap-1.5">
                 <Zap className="w-3.5 h-3.5" />
                 Central de Revisão Estratégica
@@ -430,7 +440,7 @@ export default function ValeAPenaPage() {
                             className={`text-xs font-extrabold px-3 py-1.5 rounded-lg border transition-all cursor-pointer shadow-md flex items-center gap-1.5 ${
                               ramo.revisar
                                 ? 'bg-amber-400 text-zinc-950 border-amber-300 ring-2 ring-amber-400/50'
-                                : 'bg-zinc-950 text-amber-400/70 border-amber-500/30 hover:text-amber-400'
+                                : 'bg-zinc-950 text-amber-400/70 border-zinc-500/30 hover:text-amber-400'
                             }`}
                           >
                             <Bookmark className="w-3.5 h-3.5" />

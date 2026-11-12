@@ -4,7 +4,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import Navbar from '../components/Navbar';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { Pencil, CheckCircle2, X } from 'lucide-react';
 
 const DISCIPLINAS_TJSP = [
   "Língua Portuguesa",
@@ -95,9 +94,7 @@ function TextoGrifavel({ children, idUnico }: { children: React.ReactNode; idUni
             <button onClick={() => aplicarGrifo('bg-emerald-400/40', 'text-emerald-100')} className="w-6 h-6 rounded-full bg-emerald-400 cursor-pointer font-bold text-[10px] text-zinc-950 flex items-center justify-center">A</button>
             <button onClick={() => aplicarGrifo('bg-rose-500/40', 'text-rose-100')} className="w-6 h-6 rounded-full bg-rose-500 cursor-pointer font-bold text-[10px] text-zinc-950 flex items-center justify-center">A</button>
             <div className="w-[1px] h-4 bg-zinc-700 mx-0.5" />
-            <button onClick={removerGrifoTrecho} className="w-6 h-6 rounded-full bg-zinc-800 text-zinc-400 font-bold text-[10px] flex items-center justify-center">
-              <X className="w-3 h-3" />
-            </button>
+            <button onClick={removerGrifoTrecho} className="w-6 h-6 rounded-full bg-zinc-800 text-zinc-400 font-bold text-[10px] flex items-center justify-center">✕</button>
           </div>
         </>
       )}
@@ -105,32 +102,30 @@ function TextoGrifavel({ children, idUnico }: { children: React.ReactNode; idUni
   );
 }
 
-// --- DIAGRAMA LÓGICO COM SUPORTE TOTAL A TODAS AS PROPRIEDADES DE CARDS ---
+// --- COMPONENTE DE DIAGRAMAS COM BOTÃO DE EXCLUIR CARD INDIVIDUAL ---
 function LogicalDiagram({ grafico, onDeletarCard }: { grafico: any; onDeletarCard?: (index: number) => void }) {
   if (!grafico) return null;
-  const listaItens = Array.isArray(grafico.cards) ? grafico.cards
-                   : Array.isArray(grafico.elementos) ? grafico.elementos
+  const listaItens = Array.isArray(grafico.elementos) ? grafico.elementos
                    : Array.isArray(grafico.conjuntos) ? grafico.conjuntos
                    : Array.isArray(grafico.grupos) ? grafico.grupos
+                   : Array.isArray(grafico.cards) ? grafico.cards
                    : Array.isArray(grafico.etapas) ? grafico.etapas
                    : Array.isArray(grafico.itens) ? grafico.itens
                    : [];
 
   return (
-    <div className="bg-zinc-950 border border-amber-400/30 rounded-2xl p-5 sm:p-6 space-y-4 shadow-inner my-3 font-sans">
+    <div className="bg-zinc-950 border border-amber-400/30 rounded-2xl p-5 space-y-4 shadow-inner my-3">
       {grafico.titulo && (
-        <div className="flex items-center gap-2 border-b border-zinc-800 pb-3">
-          {grafico.iconeUrl ? (
+        <div className="flex items-center gap-2 border-b border-zinc-800 pb-2">
+          {grafico.iconeUrl && (
             <img 
               src={grafico.iconeUrl} 
               alt="" 
-              className="w-4 h-4 object-contain shrink-0" 
+              className="w-4 h-4 object-contain" 
               style={{ filter: 'invert(80%) sepia(80%) saturate(1000%) hue-rotate(350deg) brightness(100%) contrast(100%)' }} 
             />
-          ) : (
-            <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0" />
           )}
-          <span className="text-sm sm:text-base font-black text-amber-300 tracking-tight">
+          <span className="text-xs font-bold uppercase tracking-wider text-amber-400">
             {grafico.titulo}
           </span>
         </div>
@@ -138,7 +133,6 @@ function LogicalDiagram({ grafico, onDeletarCard }: { grafico: any; onDeletarCar
 
       <div className={`grid gap-4 ${listaItens.length > 1 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
         {listaItens.map((card: any, idx: number) => {
-          if (!card) return null;
           const tituloCard = card.titulo || card.nome || `Item ${idx + 1}`;
           const subtituloCard = card.subtitulo || card.destaque || '';
           const conteudoCard = card.conteudo || card.descricao || '';
@@ -149,70 +143,63 @@ function LogicalDiagram({ grafico, onDeletarCard }: { grafico: any; onDeletarCar
           return (
             <div 
               key={idx}
-              className="rounded-2xl p-5 sm:p-6 border space-y-3 transition-all shadow-md relative group font-sans"
+              className="rounded-2xl p-4 border space-y-3 transition-all shadow-lg relative group"
               style={{
                 backgroundColor: card.corFundo || 'rgba(24, 24, 27, 0.9)',
                 borderColor: card.corBorda || '#3F3F46'
               }}
             >
-              <div className="flex items-center justify-between border-b border-white/10 pb-2.5 gap-2">
-                <h3 className="text-sm sm:text-base font-black flex items-center gap-2 leading-snug" style={{ color: card.corTitulo || '#FCD34D' }}>
+              <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                <span className="text-xs font-black uppercase tracking-wider flex items-center gap-2" style={{ color: card.corTitulo || '#F59E0B' }}>
                   {card.iconeUrl && (
                     <img 
                       src={card.iconeUrl} 
                       alt="" 
-                      className="w-4 h-4 object-contain inline-block shrink-0" 
+                      className="w-4 h-4 object-contain inline-block" 
                       style={{ filter: 'invert(80%) sepia(80%) saturate(1000%) hue-rotate(350deg) brightness(100%) contrast(100%)' }} 
                     />
                   )}
-                  <span>{tituloCard}</span>
-                </h3>
+                  {tituloCard}
+                </span>
 
+                {/* Botão de Excluir este card específico */}
                 {onDeletarCard && (
                   <button
                     onClick={() => onDeletarCard(idx)}
-                    className="text-zinc-400 hover:text-rose-400 bg-zinc-900/80 hover:bg-rose-950/50 w-6 h-6 rounded-lg flex items-center justify-center text-xs transition-all border border-zinc-700/50 cursor-pointer shrink-0"
+                    className="text-zinc-400 hover:text-rose-400 bg-zinc-900/80 hover:bg-rose-950/50 w-6 h-6 rounded-lg flex items-center justify-center text-xs transition-all border border-zinc-700/50 cursor-pointer"
                     title="Excluir este card"
                   >
-                    <X className="w-3.5 h-3.5" />
+                    ✕
                   </button>
                 )}
               </div>
 
-              {subtituloCard && (
-                <p className="text-xs sm:text-sm font-bold text-zinc-200 leading-relaxed">
-                  {subtituloCard}
-                </p>
-              )}
+              {subtituloCard && <p className="text-xs font-bold text-zinc-200">{subtituloCard}</p>}
               
-              {conteudoCard && (
-                <p className="text-xs sm:text-sm text-zinc-300 font-medium leading-relaxed">
-                  {conteudoCard}
-                </p>
-              )}
+              {conteudoCard && <p className="text-xs text-zinc-300 leading-relaxed">{conteudoCard}</p>}
 
               {topicosCard.length > 0 && (
-                <ul className="text-xs sm:text-sm text-zinc-200 space-y-2.5 pt-2 border-t border-white/10 font-medium">
+                <ul className="text-xs text-zinc-300 space-y-1.5 pt-1">
                   {topicosCard.map((tp: string, tIdx: number) => (
-                    <li key={tIdx} className="leading-relaxed flex items-start gap-2.5">
+                    <li key={tIdx} className="flex items-start gap-1.5 leading-snug">
                       <span className="text-amber-400 font-bold">•</span>
-                      <span className="flex-1">{tp}</span>
+                      <span>{tp}</span>
                     </li>
                   ))}
                 </ul>
               )}
 
               {exemploCard && (
-                <div className="bg-zinc-900/90 border border-sky-500/30 rounded-xl p-3.5 text-xs sm:text-sm space-y-1 mt-2">
+                <div className="bg-zinc-900/90 border border-sky-500/30 rounded-xl p-3 text-xs space-y-1 mt-2">
                   <span className="font-bold text-sky-400 uppercase tracking-wide text-[10px] block">Exemplo Prático:</span>
-                  <p className="text-zinc-300 font-medium leading-relaxed">{exemploCard}</p>
+                  <p className="text-zinc-300 leading-relaxed italic">{exemploCard}</p>
                 </div>
               )}
 
               {alertaCard && (
-                <div className="bg-rose-950/30 border border-rose-500/40 rounded-xl p-3.5 text-xs sm:text-sm space-y-1 mt-2">
+                <div className="bg-rose-950/30 border border-rose-500/40 rounded-xl p-3 text-xs space-y-1 mt-2">
                   <span className="font-bold text-rose-400 uppercase tracking-wide text-[10px] block">Atenção / Pegadinha VUNESP:</span>
-                  <p className="text-zinc-200 font-medium leading-relaxed">{alertaCard}</p>
+                  <p className="text-zinc-200 leading-relaxed">{alertaCard}</p>
                 </div>
               )}
             </div>
@@ -233,6 +220,38 @@ DIRETRIZES DE FORMATO E ESTILO (MUITO IMPORTANTE):
 4. CORES NOS CARDS: Cada objeto em "cards" DEVE conter "corFundo", "corBorda" e "corTitulo" (ex: tons de âmbar, azul ou verde) para dar ênfase visual profissional.
 5. PROIBIDO O USO DE EMOJIS.
 
+EXEMPLO EXATO DA ESTRUTURA FLEXÍVEL (TEXTO NORMAL + EXEMPLO + ALERTA):
+{
+  "ramos": [
+    {
+      "id": "tjsp-exemplo-01",
+      "titulo": "Tutela Provisória - Dispositivos e Regras",
+      "assunto": "Tutela Antecipada",
+      "iconeUrl": "https://cdn.jsdelivr.net/npm/lucide-static@0.321.0/icons/shield.svg",
+      "imagens": [],
+      "grafico": {
+        "tipo": "cards_flexiveis",
+        "titulo": "Visão Geral e Requisitos",
+        "iconeUrl": "https://cdn.jsdelivr.net/npm/lucide-static@0.321.0/icons/layout-grid.svg",
+        "cards": [
+          {
+            "titulo": "Requisitos Essenciais",
+            "iconeUrl": "https://cdn.jsdelivr.net/npm/lucide-static@0.321.0/icons/check-circle.svg",
+            "corFundo": "rgba(30, 58, 138, 0.4)",
+            "corBorda": "#3B82F6",
+            "corTitulo": "#60A5FA",
+            "subtitulo": "Probabilidade do direito e perigo de dano",
+            "conteudo": "A tutela provisória de urgência pode ser concedida em caráter antecedente ou incidental, exigindo a demonstração inequívoca da probabilidade do direito alegado somada ao perigo de dano ou ao risco de resultado útil ao processo.",
+            "exemplo": "Autor que tem contra si corte iminente de fornecimento de água essencial sem justificativa plausível.",
+            "alerta": "A VUNESP costuma cobrar que o perigo de dano deve ser contemporâneo à propositura da ação."
+          }
+        ]
+      },
+      "subnos": []
+    }
+  ]
+}
+
 Retorne EXCLUSIVAMENTE o JSON válido com base nesse modelo estruturado, sem blocos de texto corrido ou markdown antes/depois.`;
 
 export default function MapaMentalPage() {
@@ -251,12 +270,16 @@ export default function MapaMentalPage() {
 
   const [editandoRamoId, setEditandoRamoId] = useState<string | null>(null);
   const [novoAssuntoInput, setNovoAssuntoInput] = useState<string>('');
+
   const [modalImagensState, setModalImagensState] = useState<{ imagens: string[]; indexAtual: number } | null>(null);
 
   useEffect(() => {
     async function init() {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { router.push('/'); return; }
+      if (!session) {
+        router.push('/');
+        return;
+      }
       const uid = session.user.id;
       setUserId(uid);
       carregarDadosSupabase(uid);
@@ -282,28 +305,41 @@ export default function MapaMentalPage() {
           }
           
           const ramosValidados = Array.isArray(rawRamos) 
-            ? rawRamos.filter(Boolean).map((r: any, idx: number) => {
-                if (!r) return null;
-                const idSeguro = r.id || `ramo-${item.disciplina}-${idx}-${Date.now()}`;
-                const assuntoDefinitivo = r.assunto && r.assunto.trim() !== ""
-                  ? r.assunto
-                  : (r.titulo ? r.titulo.replace(/^[📌📍🚩⚡0-9.\-\)]+\s*/, '').trim() : "Geral");
+            ? rawRamos
+                .filter(Boolean)
+                .filter((r: any) => {
+                  const idCorrompido = r.id === 'rlm-regra-geral-completa-1';
+                  const tituloCorrompido = typeof r.titulo === 'string' && r.titulo.includes('Mapa Geral de Regras');
+                  return !idCorrompido && !tituloCorrompido;
+                })
+                .map((r: any) => {
+                  if (!r) return null;
+                  const assuntoDefinitivo = r.assunto && r.assunto.trim() !== ""
+                    ? r.assunto
+                    : (r.titulo ? r.titulo.replace(/^[📌📍🚩⚡0-9.\-\)]+\s*/, '').trim() : "Geral");
+                  
+                  const eraImportante = r.importante === true || r.revisar === true || r.revisarParaProva === true;
 
-                return { 
-                  ...r, 
-                  id: idSeguro,
-                  assunto: assuntoDefinitivo,
-                  revisar: r.revisar === true,
-                  revisarParaProva: r.revisarParaProva === true,
-                  imagens: Array.isArray(r.imagens) ? r.imagens : []
-                };
-              }) 
+                  let listaImagens = Array.isArray(r.imagens) ? r.imagens : [];
+                  if (r.imagemUrl && !listaImagens.includes(r.imagemUrl)) {
+                    listaImagens.unshift(r.imagemUrl);
+                  }
+
+                  return { 
+                    ...r, 
+                    assunto: assuntoDefinitivo,
+                    revisar: r.revisar !== undefined ? r.revisar : eraImportante,
+                    revisarParaProva: r.revisarParaProva !== undefined ? r.revisarParaProva : eraImportante,
+                    imagens: listaImagens,
+                    importante: undefined 
+                  };
+                }) 
             : [];
 
           mapaFormatado[item.disciplina] = {
             disciplina: item.disciplina,
-            titulo: item.titulo || `Revisão: ${item.disciplina}`,
-            banca: item.banca || 'VUNESP',
+            titulo: item.titulo,
+            banca: item.banca,
             ramos: ramosValidados
           };
         });
@@ -318,27 +354,32 @@ export default function MapaMentalPage() {
 
   const salvarNoSupabaseComBackup = async (disciplinaAlvo: string, payloadMapa: any) => {
     if (!userId) return;
-    try {
-      await supabase.from('temp_mapas_mentais').upsert({
-        user_id: userId,
-        disciplina: disciplinaAlvo,
-        titulo: payloadMapa.titulo,
-        banca: payloadMapa.banca || 'VUNESP',
-        ramos: payloadMapa.ramos,
-        backed_up_at: new Date().toISOString()
-      }, { onConflict: 'user_id,disciplina' });
+    setTimeout(async () => {
+      try {
+        const { data: dadosAtuais } = await supabase.from('mapas_mentais').select('*').eq('disciplina', disciplinaAlvo).eq('user_id', userId).maybeSingle();
+        if (dadosAtuais) {
+          await supabase.from('temp_mapas_mentais').upsert({
+            user_id: userId,
+            disciplina: dadosAtuais.disciplina,
+            titulo: dadosAtuais.titulo,
+            banca: dadosAtuais.banca,
+            ramos: dadosAtuais.ramos,
+            backed_up_at: new Date().toISOString()
+          }, { onConflict: 'user_id,disciplina' });
+        }
 
-      await supabase.from('mapas_mentais').upsert({
-        user_id: userId,
-        disciplina: disciplinaAlvo,
-        titulo: payloadMapa.titulo,
-        banca: payloadMapa.banca || 'VUNESP',
-        ramos: payloadMapa.ramos,
-        updated_at: new Date().toISOString()
-      }, { onConflict: 'user_id,disciplina' });
-    } catch (e) {
-      console.error("Erro no salvamento:", e);
-    }
+        await supabase.from('mapas_mentais').upsert({
+          user_id: userId,
+          disciplina: disciplinaAlvo,
+          titulo: payloadMapa.titulo,
+          banca: payloadMapa.banca || 'VUNESP',
+          ramos: payloadMapa.ramos,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'user_id,disciplina' });
+      } catch (e) {
+        console.error("Erro no salvamento em segundo plano:", e);
+      }
+    }, 10);
   };
 
   const handleCarregarJson = async () => {
@@ -348,34 +389,38 @@ export default function MapaMentalPage() {
       if (textoLimpo.startsWith('```')) {
         textoLimpo = textoLimpo.replace(/^```(json)?/i, '').replace(/```$/, '').trim();
       }
+      textoLimpo = textoLimpo.replace(/\r?\n/g, ' ');
       let parsed = JSON.parse(textoLimpo);
 
       if (parsed && parsed.ramos && Array.isArray(parsed.ramos)) {
         const registroAtual = mapasPorDisciplina[modalDisciplinaAlvo];
-        const ramosExistentes = registroAtual?.ramos || [];
+
+        let ramosExistentes = [];
+        if (registroAtual && registroAtual.ramos) {
+          ramosExistentes = registroAtual.ramos;
+        }
 
         const mapaRamosUnificados = new Map();
-        ramosExistentes.forEach((r: any) => { if (r && r.id) mapaRamosUnificados.set(r.id, r); });
+        if (Array.isArray(ramosExistentes)) {
+          ramosExistentes.forEach((r: any) => { if (r && r.id) mapaRamosUnificados.set(r.id, r); });
+        }
 
-        parsed.ramos.forEach((r: any, idx: number) => {
-          if (r) {
-            const idRamo = r.id || `ramo-json-${Date.now()}-${idx}`;
-            const existente = mapaRamosUnificados.get(idRamo);
+        parsed.ramos.forEach((r: any) => {
+          if (r && r.id) {
+            const existente = mapaRamosUnificados.get(r.id);
             if (existente) {
-              mapaRamosUnificados.set(idRamo, {
+              const imagsAntigas = Array.isArray(existente.imagens) ? existente.imagens : [];
+              const imagsNovas = Array.isArray(r.imagens) ? r.imagens : [];
+              const combinadas = Array.from(new Set([...imagsAntigas, ...imagsNovas]));
+
+              mapaRamosUnificados.set(r.id, {
                 ...r,
-                id: idRamo,
-                revisar: existente.revisar || r.revisar || false,
-                revisarParaProva: existente.revisarParaProva || r.revisarParaProva || false,
-                imagens: Array.from(new Set([...(existente.imagens || []), ...(r.imagens || [])]))
+                revisar: existente.revisar || r.revisar,
+                revisarParaProva: existente.revisarParaProva || r.revisarParaProva,
+                imagens: combinadas
               });
             } else {
-              mapaRamosUnificados.set(idRamo, {
-                ...r,
-                id: idRamo,
-                revisar: r.revisar || false,
-                revisarParaProva: r.revisarParaProva || false
-              });
+              mapaRamosUnificados.set(r.id, r);
             }
           }
         });
@@ -393,7 +438,7 @@ export default function MapaMentalPage() {
         setJsonInputText('');
         setSelectedDisciplina(modalDisciplinaAlvo);
 
-        await salvarNoSupabaseComBackup(modalDisciplinaAlvo, payloadFinal);
+        salvarNoSupabaseComBackup(modalDisciplinaAlvo, payloadFinal);
       } else {
         alert('O JSON precisa conter a chave "ramos".');
       }
@@ -402,16 +447,30 @@ export default function MapaMentalPage() {
     }
   };
 
+  // Função para deletar um card individual de dentro de um ramo específico
   const handleDeletarCardInterno = async (ramoId: string, cardIndexParaRemover: number) => {
     if (!mapaAtual) return;
     if (confirm("Deseja remover este card/tópico interno?")) {
       const ramosAtualizados = mapaAtual.ramos.map((r: any) => {
         if (r && r.id === ramoId && r.grafico) {
-          const campoLista = Array.isArray(r.grafico.cards) ? 'cards' : Array.isArray(r.grafico.elementos) ? 'elementos' : Array.isArray(r.grafico.conjuntos) ? 'conjuntos' : Array.isArray(r.grafico.grupos) ? 'grupos' : Array.isArray(r.grafico.etapas) ? 'etapas' : Array.isArray(r.grafico.itens) ? 'itens' : null;
+          const campoLista = Array.isArray(r.grafico.cards) ? 'cards'
+                           : Array.isArray(r.grafico.elementos) ? 'elementos'
+                           : Array.isArray(r.grafico.conjuntos) ? 'conjuntos'
+                           : Array.isArray(r.grafico.grupos) ? 'grupos'
+                           : Array.isArray(r.grafico.etapas) ? 'etapas'
+                           : Array.isArray(r.grafico.itens) ? 'itens'
+                           : null;
+
           if (campoLista && Array.isArray(r.grafico[campoLista])) {
             const novaLista = [...r.grafico[campoLista]];
             novaLista.splice(cardIndexParaRemover, 1);
-            return { ...r, grafico: { ...r.grafico, [campoLista]: novaLista } };
+            return {
+              ...r,
+              grafico: {
+                ...r.grafico,
+                [campoLista]: novaLista
+              }
+            };
           }
         }
         return r;
@@ -419,7 +478,7 @@ export default function MapaMentalPage() {
 
       const mapaAtualizadoFinal = { ...mapaAtual, ramos: ramosAtualizados };
       setMapasPorDisciplina(prev => ({ ...prev, [selectedDisciplina]: mapaAtualizadoFinal }));
-      await salvarNoSupabaseComBackup(selectedDisciplina, mapaAtualizadoFinal);
+      salvarNoSupabaseComBackup(selectedDisciplina, mapaAtualizadoFinal);
     }
   };
 
@@ -427,23 +486,32 @@ export default function MapaMentalPage() {
     const arquivos = e.target.files;
     if (!arquivos || arquivos.length === 0 || !mapaAtual) return;
 
-    const promessasLeitura = Array.from(arquivos).map(file => new Promise<string>((resolve) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result as string);
-      reader.readAsDataURL(file);
-    }));
+    const promessasLeitura = Array.from(arquivos).map(file => {
+      return new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.readAsDataURL(file);
+      });
+    });
 
     const novasBase64 = await Promise.all(promessasLeitura);
+
     const ramosAtualizados = mapaAtual.ramos.map((r: any) => {
       if (r && r.id === ramoId) {
-        return { ...r, imagens: [...(r.imagens || []), ...novasBase64] };
+        const listaAtual = Array.isArray(r.imagens) ? r.imagens : [];
+        return { ...r, imagens: [...listaAtual, ...novasBase64] };
       }
       return r;
     });
 
     const mapaAtualizadoFinal = { ...mapaAtual, ramos: ramosAtualizados };
-    setMapasPorDisciplina(prev => ({ ...prev, [selectedDisciplina]: mapaAtualizadoFinal }));
-    await salvarNoSupabaseComBackup(selectedDisciplina, mapaAtualizadoFinal);
+
+    setMapasPorDisciplina(prev => ({
+      ...prev,
+      [selectedDisciplina]: mapaAtualizadoFinal
+    }));
+
+    salvarNoSupabaseComBackup(selectedDisciplina, mapaAtualizadoFinal);
   };
 
   const removerImagemUnica = async (ramoId: string, indexParaRemover: number) => {
@@ -451,42 +519,43 @@ export default function MapaMentalPage() {
     if (confirm("Deseja apagar esta imagem?")) {
       const ramosAtualizados = mapaAtual.ramos.map((r: any) => {
         if (r && r.id === ramoId) {
-          const listaAtual = [...(r.imagens || [])];
+          const listaAtual = Array.isArray(r.imagens) ? [...r.imagens] : [];
           listaAtual.splice(indexParaRemover, 1);
           return { ...r, imagens: listaAtual };
         }
         return r;
       });
       const mapaAtualizadoFinal = { ...mapaAtual, ramos: ramosAtualizados };
-      setMapasPorDisciplina(prev => ({ ...prev, [selectedDisciplina]: mapaAtualizadoFinal }));
-      await salvarNoSupabaseComBackup(selectedDisciplina, mapaAtualizadoFinal);
+      
+      setMapasPorDisciplina(prev => ({
+        ...prev,
+        [selectedDisciplina]: mapaAtualizadoFinal
+      }));
+
+      salvarNoSupabaseComBackup(selectedDisciplina, mapaAtualizadoFinal);
     }
   };
 
   const toggleRevisar = async (ramoId: string) => {
     if (!mapaAtual) return;
     const ramosAtualizados = mapaAtual.ramos.map((r: any) => {
-      if (r && (r.id === ramoId || r.titulo === ramoId)) {
-        return { ...r, revisar: !r.revisar };
-      }
+      if (r && r.id === ramoId) return { ...r, revisar: !r.revisar };
       return r;
     });
     const mapaAtualizadoFinal = { ...mapaAtual, ramos: ramosAtualizados };
     setMapasPorDisciplina(prev => ({ ...prev, [selectedDisciplina]: mapaAtualizadoFinal }));
-    await salvarNoSupabaseComBackup(selectedDisciplina, mapaAtualizadoFinal);
+    salvarNoSupabaseComBackup(selectedDisciplina, mapaAtualizadoFinal);
   };
 
   const toggleRevisarParaProva = async (ramoId: string) => {
     if (!mapaAtual) return;
     const ramosAtualizados = mapaAtual.ramos.map((r: any) => {
-      if (r && (r.id === ramoId || r.titulo === ramoId)) {
-        return { ...r, revisarParaProva: !r.revisarParaProva };
-      }
+      if (r && r.id === ramoId) return { ...r, revisarParaProva: !r.revisarParaProva };
       return r;
     });
     const mapaAtualizadoFinal = { ...mapaAtual, ramos: ramosAtualizados };
     setMapasPorDisciplina(prev => ({ ...prev, [selectedDisciplina]: mapaAtualizadoFinal }));
-    await salvarNoSupabaseComBackup(selectedDisciplina, mapaAtualizadoFinal);
+    salvarNoSupabaseComBackup(selectedDisciplina, mapaAtualizadoFinal);
   };
 
   const salvarAssuntoEditado = async (ramoId: string) => {
@@ -497,7 +566,7 @@ export default function MapaMentalPage() {
     });
     const mapaAtualizadoFinal = { ...mapaAtual, ramos: ramosAtualizados };
     setMapasPorDisciplina(prev => ({ ...prev, [selectedDisciplina]: mapaAtualizadoFinal }));
-    await salvarNoSupabaseComBackup(selectedDisciplina, mapaAtualizadoFinal);
+    salvarNoSupabaseComBackup(selectedDisciplina, mapaAtualizadoFinal);
     setEditandoRamoId(null);
   };
 
@@ -506,7 +575,6 @@ export default function MapaMentalPage() {
     if (confirm("Deseja apagar este tópico?")) {
       const novosRamos = mapaAtual.ramos.filter((r: any) => r && r.id !== ramoId);
       if (novosRamos.length === 0) {
-        await supabase.from('temp_mapas_mentais').delete().eq('disciplina', selectedDisciplina).eq('user_id', userId);
         await supabase.from('mapas_mentais').delete().eq('disciplina', selectedDisciplina).eq('user_id', userId);
         const novoEstado = { ...mapasPorDisciplina };
         delete novoEstado[selectedDisciplina];
@@ -514,7 +582,7 @@ export default function MapaMentalPage() {
       } else {
         const mapaAtualizadoFinal = { ...mapaAtual, ramos: novosRamos };
         setMapasPorDisciplina(prev => ({ ...prev, [selectedDisciplina]: mapaAtualizadoFinal }));
-        await salvarNoSupabaseComBackup(selectedDisciplina, mapaAtualizadoFinal);
+        salvarNoSupabaseComBackup(selectedDisciplina, mapaAtualizadoFinal);
       }
     }
   };
@@ -526,37 +594,76 @@ export default function MapaMentalPage() {
   };
 
   const mapaAtual = selectedDisciplina !== "Todas as Matérias" ? mapasPorDisciplina[selectedDisciplina] : null;
-  const assuntosUnicos = mapaAtual?.ramos && Array.isArray(mapaAtual.ramos) ? Array.from(new Set(mapaAtual.ramos.filter(Boolean).map((r: any) => r.assunto || "Geral"))) : [];
-  const ramosExibir = mapaAtual?.ramos && Array.isArray(mapaAtual.ramos) ? mapaAtual.ramos.filter((r: any) => r && (selectedAssunto === 'all' || (r.assunto || "Geral") === selectedAssunto)) : [];
+
+  const assuntosUnicos = mapaAtual?.ramos && Array.isArray(mapaAtual.ramos)
+    ? Array.from(new Set(mapaAtual.ramos.filter(Boolean).map((r: any) => r.assunto || "Geral")))
+    : [];
+
+  const ramosExibir = mapaAtual?.ramos && Array.isArray(mapaAtual.ramos) 
+    ? mapaAtual.ramos.filter((r: any) => {
+        if (!r) return false;
+        if (selectedAssunto === 'all') return true;
+        return (r.assunto || "Geral") === selectedAssunto;
+      }) 
+    : [];
 
   return (
     <div className="min-h-screen bg-black text-zinc-100 font-sans selection:bg-amber-400 selection:text-zinc-950">
       <Navbar />
+
       <main className="w-full px-4 sm:px-8 py-6 space-y-6">
+        
         <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
               <span className="bg-blue-500/20 text-blue-400 text-xs font-bold px-2.5 py-0.5 rounded-full border border-blue-500/30">TJSP - VUNESP</span>
               <span className="bg-emerald-500/20 text-emerald-400 font-bold text-xs px-2.5 py-0.5 rounded-full border border-emerald-500/30">Backup Automático Ativo</span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-black text-white mt-1">{mapaAtual ? mapaAtual.titulo : "Painel de Revisão Estratégica"}</h1>
+            <h1 className="text-2xl sm:text-3xl font-black text-white mt-1">
+              {mapaAtual ? mapaAtual.titulo : "Painel de Revisão Estratégica"}
+            </h1>
           </div>
-          <button onClick={() => { setModalDisciplinaAlvo(selectedDisciplina !== "Todas as Matérias" ? selectedDisciplina : DISCIPLINAS_TJSP[0]); setShowJsonModal(true); }} className="text-xs font-bold px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-500 text-zinc-950 transition-all shadow-md cursor-pointer">Novo Mapa</button>
+
+          <button
+            onClick={() => {
+              setModalDisciplinaAlvo(selectedDisciplina !== "Todas as Matérias" ? selectedDisciplina : DISCIPLINAS_TJSP[0]);
+              setShowJsonModal(true);
+            }}
+            className="text-xs font-bold px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-500 text-zinc-950 transition-all shadow-md cursor-pointer"
+          >
+            Novo Mapa
+          </button>
         </div>
 
         <div className="bg-zinc-950 border border-zinc-800 p-4 rounded-2xl shadow-lg flex flex-col md:flex-row items-center gap-4">
           <div className="w-full md:w-1/2 flex items-center gap-2">
             <span className="text-xs font-bold text-zinc-400 whitespace-nowrap">Matéria:</span>
-            <select value={selectedDisciplina} onChange={(e) => { setSelectedDisciplina(e.target.value); setSelectedAssunto('all'); }} className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 text-xs rounded-xl px-3 py-2.5 outline-none focus:border-amber-400 font-semibold cursor-pointer">
+            <select 
+              value={selectedDisciplina}
+              onChange={(e) => { setSelectedDisciplina(e.target.value); setSelectedAssunto('all'); }}
+              className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 text-xs rounded-xl px-3 py-2.5 outline-none focus:border-amber-400 font-semibold cursor-pointer"
+            >
               <option value="Todas as Matérias">Todas as Matérias</option>
-              {DISCIPLINAS_TJSP.map((disc) => (<option key={disc} value={disc}>{disc} {mapasPorDisciplina[disc] ? `(${mapasPorDisciplina[disc].ramos.length} tópicos)` : ""}</option>))}
+              {DISCIPLINAS_TJSP.map((disc) => (
+                <option key={disc} value={disc}>
+                  {disc} {mapasPorDisciplina[disc] ? "(com mapas)" : ""}
+                </option>
+              ))}
             </select>
           </div>
+
           <div className="w-full md:w-1/2 flex items-center gap-2">
             <span className="text-xs font-bold text-zinc-400 whitespace-nowrap">Assunto:</span>
-            <select value={selectedAssunto} onChange={(e) => setSelectedAssunto(e.target.value)} disabled={selectedDisciplina === "Todas as Matérias" || !mapaAtual} className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 text-xs rounded-xl px-3 py-2.5 outline-none focus:border-amber-400 font-semibold disabled:opacity-40 cursor-pointer">
+            <select
+              value={selectedAssunto}
+              onChange={(e) => setSelectedAssunto(e.target.value)}
+              disabled={selectedDisciplina === "Todas as Matérias" || !mapaAtual}
+              className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 text-xs rounded-xl px-3 py-2.5 outline-none focus:border-amber-400 font-semibold disabled:opacity-40 cursor-pointer"
+            >
               <option value="all">Todos os Assuntos</option>
-              {assuntosUnicos.map((assunto: any, idx: number) => (<option key={idx} value={assunto}>{assunto}</option>))}
+              {assuntosUnicos.map((assunto: any, idx: number) => (
+                <option key={idx} value={assunto}>{assunto}</option>
+              ))}
             </select>
           </div>
         </div>
@@ -578,22 +685,33 @@ export default function MapaMentalPage() {
               {ramosExibir.map((ramo: any) => {
                 if (!ramo) return null;
                 const estaEditando = editandoRamoId === ramo.id;
+                const ehRevisarParaProva = ramo.revisarParaProva === true;
+                const ehRevisarGeral = ramo.revisar === true;
                 const listaImagensRamo = Array.isArray(ramo.imagens) ? ramo.imagens : [];
 
                 return (
                   <TextoGrifavel key={ramo.id} idUnico={ramo.id}>
-                    <div className={`rounded-2xl p-6 sm:p-8 shadow-xl space-y-6 relative border transition-all ${ramo.revisarParaProva ? 'bg-rose-950/20 border-rose-500/60' : ramo.revisar ? 'bg-amber-950/20 border-amber-500/60' : 'bg-zinc-900/60 border-zinc-800/80'}`}>
+                    <div className={`rounded-2xl p-6 sm:p-8 shadow-xl space-y-6 relative border transition-all ${
+                      ehRevisarParaProva ? 'bg-rose-950/20 border-rose-500/60' : ehRevisarGeral ? 'bg-amber-950/20 border-amber-500/60' : 'bg-zinc-900/60 border-zinc-800/80'
+                    }`}>
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-zinc-800 gap-3">
                         <div className="space-y-1 w-full">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="text-xs font-bold uppercase tracking-wider px-2.5 py-1 rounded-md border text-amber-400 bg-amber-400/10 border-amber-400/20 flex items-center gap-1.5">
-                              {ramo.iconeUrl && <img src={ramo.iconeUrl} alt="" className="w-3.5 h-3.5 object-contain" style={{ filter: 'invert(80%) sepia(80%) saturate(1000%) hue-rotate(350deg) brightness(100%) contrast(100%)' }} />}
+                              {ramo.iconeUrl && (
+                                <img 
+                                  src={ramo.iconeUrl} 
+                                  alt="" 
+                                  className="w-3.5 h-3.5 object-contain" 
+                                  style={{ filter: 'invert(80%) sepia(80%) saturate(1000%) hue-rotate(350deg) brightness(100%) contrast(100%)' }} 
+                                />
+                              )}
                               {selectedDisciplina}
                             </span>
                             {!estaEditando ? (
                               <div className="flex items-center gap-2">
                                 <span className="text-xs font-semibold text-zinc-300">• {ramo.assunto || "Geral"}</span>
-                                <button onClick={() => { setEditandoRamoId(ramo.id); setNovoAssuntoInput(ramo.assunto || ''); }} className="text-[10px] text-amber-400 hover:underline bg-zinc-900 px-2 py-0.5 rounded border border-amber-400/20 cursor-pointer flex items-center gap-1"><Pencil className="w-2.5 h-2.5" /> Editar</button>
+                                <button onClick={() => { setEditandoRamoId(ramo.id); setNovoAssuntoInput(ramo.assunto || ''); }} className="text-[10px] text-amber-400 hover:underline bg-zinc-900 px-2 py-0.5 rounded border border-amber-400/20 cursor-pointer">✏️ Editar</button>
                               </div>
                             ) : (
                               <div className="flex items-center gap-2 mt-1">
@@ -602,35 +720,116 @@ export default function MapaMentalPage() {
                               </div>
                             )}
                           </div>
-                          <h2 className="text-lg sm:text-xl font-extrabold text-white tracking-tight pt-2">{ramo.titulo}</h2>
+                          <h2 className="text-lg sm:text-xl font-extrabold text-white tracking-tight pt-2 flex items-center gap-2">
+                            {ramo.titulo}
+                          </h2>
                         </div>
 
                         <div className="flex items-center gap-2 self-start sm:self-center shrink-0 flex-wrap">
                           <label className="text-xs font-bold px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-amber-400 border border-zinc-700 transition-all cursor-pointer shadow-md flex items-center gap-1.5">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                             Enviar Imagens
-                            <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => handleUploadMultiplasImagens(ramo.id, e)} />
+                            <input 
+                              type="file" 
+                              accept="image/*" 
+                              multiple 
+                              className="hidden" 
+                              onChange={(e) => handleUploadMultiplasImagens(ramo.id, e)} 
+                            />
                           </label>
-                          <button onClick={() => toggleRevisarParaProva(ramo.id)} className={`text-xs font-extrabold px-3 py-1.5 rounded-lg border transition-all cursor-pointer shadow-md ${ramo.revisarParaProva ? 'bg-rose-600 text-white border-rose-400 ring-2 ring-rose-500/50' : 'bg-zinc-950 text-rose-400/70 border-rose-500/30 hover:text-rose-400'}`}>Revisar p/ Prova</button>
-                          <button onClick={() => toggleRevisar(ramo.id)} className={`text-xs font-extrabold px-3 py-1.5 rounded-lg border transition-all cursor-pointer shadow-md ${ramo.revisar ? 'bg-amber-400 text-zinc-950 border-amber-300 ring-2 ring-amber-400/50' : 'bg-zinc-950 text-amber-400/70 border-zinc-500/30 hover:text-amber-400'}`}>Revisar Geral</button>
-                          <button onClick={() => excluirRamo(ramo.id)} className="text-zinc-500 hover:text-rose-400 bg-zinc-950 p-2 rounded-lg border border-zinc-800 transition-all text-xs cursor-pointer" title="Apagar Ramo"><X className="w-3.5 h-3.5" /></button>
+
+                          <button
+                            onClick={() => toggleRevisarParaProva(ramo.id)}
+                            className={`text-xs font-extrabold px-3 py-1.5 rounded-lg border transition-all cursor-pointer shadow-md flex items-center gap-1.5 ${
+                              ramo.revisarParaProva ? 'bg-rose-600 text-white border-rose-400 ring-2 ring-rose-500/50' : 'bg-zinc-950 text-rose-400/70 border-rose-500/30 hover:text-rose-400'
+                            }`}
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                            Revisar p/ Prova
+                          </button>
+
+                          <button
+                            onClick={() => toggleRevisar(ramo.id)}
+                            className={`text-xs font-extrabold px-3 py-1.5 rounded-lg border transition-all cursor-pointer shadow-md flex items-center gap-1.5 ${
+                              ramo.revisar ? 'bg-amber-400 text-zinc-950 border-amber-300 ring-2 ring-amber-400/50' : 'bg-zinc-950 text-amber-400/70 border-zinc-500/30 hover:text-amber-400'
+                            }`}
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
+                            Revisar Geral
+                          </button>
+
+                          <button onClick={() => excluirRamo(ramo.id)} className="text-zinc-500 hover:text-rose-400 bg-zinc-950 p-2 rounded-lg border border-zinc-800 transition-all text-xs cursor-pointer" title="Apagar Ramo">✕</button>
                         </div>
                       </div>
 
-                      {ramo.grafico && <LogicalDiagram grafico={ramo.grafico} onDeletarCard={(cardIdx) => handleDeletarCardInterno(ramo.id, cardIdx)} />}
+                      {/* Diagrama Flexível com a função de remoção de card interno passada por parâmetro */}
+                      {ramo.grafico && (
+                        <LogicalDiagram 
+                          grafico={ramo.grafico} 
+                          onDeletarCard={(cardIdx) => handleDeletarCardInterno(ramo.id, cardIdx)} 
+                        />
+                      )}
 
                       {listaImagensRamo.length > 0 && (
                         <div className="mt-4 p-4 bg-zinc-950 border border-zinc-800 rounded-2xl space-y-3">
-                          <div className="flex items-center justify-between"><span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Imagens Anexadas ({listaImagensRamo.length})</span></div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-2">
+                              <svg className="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                              Imagens e Esquemas Anexados ({listaImagensRamo.length})
+                            </span>
+                            <span className="text-[10px] text-zinc-500">Clique em qualquer imagem para abrir em tela cheia</span>
+                          </div>
+
                           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                             {listaImagensRamo.map((imgUrl: string, imgIdx: number) => (
                               <div key={imgIdx} className="relative group rounded-xl overflow-hidden border border-zinc-800 bg-zinc-900 aspect-video flex items-center justify-center cursor-pointer" onClick={() => setModalImagensState({ imagens: listaImagensRamo, indexAtual: imgIdx })}>
-                                <img src={imgUrl} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                                <button onClick={(e) => { e.stopPropagation(); removerImagemUnica(ramo.id, imgIdx); }} className="absolute top-2 right-2 bg-rose-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity shadow-md">✕</button>
+                                <img src={imgUrl} alt={`Anexo ${imgIdx + 1}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                  <span className="text-xs font-bold bg-amber-400 text-zinc-950 px-2.5 py-1 rounded-lg shadow-lg flex items-center gap-1">
+                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7"/></svg>
+                                    Ampliar
+                                  </span>
+                                </div>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); removerImagemUnica(ramo.id, imgIdx); }}
+                                  className="absolute top-2 right-2 bg-rose-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
+                                  title="Remover imagem"
+                                >
+                                  ✕
+                                </button>
                               </div>
                             ))}
                           </div>
                         </div>
                       )}
+
+                      <div className="space-y-6">
+                        {ramo.subnos && ramo.subnos.map((sub: any, idx: number) => (
+                          <div key={idx} className="p-5 sm:p-6 rounded-xl border-l-4 border-amber-400 shadow-md space-y-3 bg-zinc-950 border-t border-r border-b border-zinc-800/80">
+                            {sub.titulo && (
+                              <h3 className="text-sm font-bold text-amber-300 flex items-center gap-2">
+                                {sub.iconeUrl && (
+                                  <img 
+                                    src={sub.iconeUrl} 
+                                    alt="" 
+                                    className="w-4 h-4 object-contain" 
+                                    style={{ filter: 'invert(80%) sepia(80%) saturate(1000%) hue-rotate(350deg) brightness(100%) contrast(100%)' }} 
+                                  />
+                                )}
+                                {sub.titulo}
+                              </h3>
+                            )}
+                            {sub.descricao && <p className="text-zinc-300 text-xs sm:text-sm">{sub.descricao}</p>}
+                            {sub.itens && (
+                              <ul className="text-xs sm:text-sm text-zinc-200 space-y-2 pt-2 border-t border-zinc-900">
+                                {sub.itens.map((item: string, i: number) => (
+                                  <li key={i} className="flex items-start gap-2"><span className="text-amber-400">•</span><span>{item}</span></li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </TextoGrifavel>
                 );
@@ -639,17 +838,72 @@ export default function MapaMentalPage() {
           )}
         </div>
 
-        <div className="bg-zinc-950 p-6 rounded-2xl border border-zinc-800 shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
-          <div><h2 className="text-sm font-bold text-white">Prompt Mestre Estruturado</h2></div>
-          <button onClick={copiarPromptMestre} className={`px-4 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center gap-2 cursor-pointer ${copiadoPrompt ? 'bg-emerald-600 text-white' : 'bg-amber-400 hover:bg-amber-500 text-zinc-950'}`}>{copiadoPrompt ? 'Prompt Copiado!' : 'Copiar Prompt Mestre'}</button>
+        <div className="bg-zinc-950 p-6 rounded-2xl border border-zinc-800 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="bg-amber-400 text-zinc-950 font-bold text-xs px-2.5 py-0.5 rounded-full">Mentor VUNESP</span>
+              <h2 className="text-sm font-bold text-white">Prompt Mestre Estruturado (Texto Explicativo, Exemplos e Alertas Amarelos)</h2>
+            </div>
+            <p className="text-xs text-zinc-400">
+              Gera conteúdos em texto fluido com exemplos práticos, blocos de alerta e ícones amarelos.
+            </p>
+          </div>
+
+          <button
+            onClick={copiarPromptMestre}
+            className={`px-4 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center gap-2 whitespace-nowrap shadow-md cursor-pointer ${
+              copiadoPrompt 
+                ? 'bg-emerald-600 text-white border border-emerald-500' 
+                : 'bg-amber-400 hover:bg-amber-500 text-zinc-950 border border-amber-500'
+            }`}
+          >
+            {copiadoPrompt ? 'Prompt Copiado!' : 'Copiar Prompt Mestre'}
+          </button>
         </div>
+
       </main>
 
       {modalImagensState && (
-        <div className="fixed inset-0 bg-black/95 backdrop-blur-md z-50 flex items-center justify-center p-4" onClick={() => setModalImagensState(null)}>
+        <div 
+          className="fixed inset-0 bg-black/95 backdrop-blur-md z-50 flex items-center justify-center p-4 sm:p-8 animate-in fade-in duration-200"
+          onClick={() => setModalImagensState(null)}
+        >
           <div className="relative max-w-7xl max-h-[90vh] w-full flex flex-col items-center justify-center gap-4" onClick={(e) => e.stopPropagation()}>
-            <button onClick={() => setModalImagensState(null)} className="absolute -top-12 right-0 bg-zinc-800 text-white w-10 h-10 rounded-full flex items-center justify-center font-bold">✕</button>
-            <img src={modalImagensState.imagens[modalImagensState.indexAtual]} alt="" className="max-w-full max-h-[80vh] object-contain rounded-2xl border border-zinc-800" />
+            <button 
+              onClick={() => setModalImagensState(null)}
+              className="absolute -top-12 right-0 bg-zinc-800 hover:bg-rose-600 text-white w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shadow-2xl transition-all cursor-pointer border border-zinc-700 z-10"
+            >
+              ✕
+            </button>
+
+            <div className="relative w-full flex items-center justify-center">
+              <img 
+                src={modalImagensState.imagens[modalImagensState.indexAtual]} 
+                alt="Visualização em Tela Cheia" 
+                className="max-w-full max-h-[80vh] object-contain rounded-2xl border border-zinc-800 shadow-2xl"
+              />
+
+              {modalImagensState.imagens.length > 1 && (
+                <>
+                  <button 
+                    onClick={() => setModalImagensState(prev => prev ? { ...prev, indexAtual: (prev.indexAtual - 1 + prev.imagens.length) % prev.imagens.length } : null)}
+                    className="absolute left-2 sm:left-4 bg-zinc-900/80 hover:bg-amber-400 hover:text-zinc-950 text-white w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg shadow-xl transition-all cursor-pointer border border-zinc-700"
+                  >
+                    ❮
+                  </button>
+                  <button 
+                    onClick={() => setModalImagensState(prev => prev ? { ...prev, indexAtual: (prev.indexAtual + 1) % prev.imagens.length } : null)}
+                    className="absolute right-2 sm:right-4 bg-zinc-900/80 hover:bg-amber-400 hover:text-zinc-950 text-white w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg shadow-xl transition-all cursor-pointer border border-zinc-700"
+                  >
+                    ❯
+                  </button>
+                </>
+              )}
+            </div>
+
+            <span className="text-xs font-bold text-zinc-400 bg-zinc-900 px-4 py-2 rounded-xl border border-zinc-800">
+              Imagem {modalImagensState.indexAtual + 1} de {modalImagensState.imagens.length}
+            </span>
           </div>
         </div>
       )}
@@ -658,7 +912,7 @@ export default function MapaMentalPage() {
         <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="bg-zinc-950 border border-zinc-800 rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl relative space-y-4">
             <button onClick={() => setShowJsonModal(false)} className="absolute top-4 right-4 text-red-400 bg-zinc-900 w-9 h-9 flex items-center justify-center rounded-full cursor-pointer">✕</button>
-            <h2 className="text-lg font-bold text-white">Adicionar novo mapa / tópico via JSON</h2>
+            <h2 className="text-lg font-bold text-white">Adicionar novo mapa / tópico</h2>
             <select value={modalDisciplinaAlvo} onChange={(e) => setModalDisciplinaAlvo(e.target.value)} className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 text-xs rounded-xl px-3 py-2.5">
               {DISCIPLINAS_TJSP.map((disc) => <option key={disc} value={disc}>{disc}</option>)}
             </select>

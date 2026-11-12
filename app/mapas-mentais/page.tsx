@@ -102,20 +102,35 @@ function TextoGrifavel({ children, idUnico }: { children: React.ReactNode; idUni
   );
 }
 
-// --- COMPONENTE DE DIAGRAMAS COM BOTÃO DE EXCLUIR CARD INDIVIDUAL ---
+// --- DIAGRAMA LÓGICO COM FALLBACK BLINDADO PARA EVITAR SUMIÇO DE TEXTO ---
 function LogicalDiagram({ grafico, onDeletarCard }: { grafico: any; onDeletarCard?: (index: number) => void }) {
   if (!grafico) return null;
-  const listaItens = Array.isArray(grafico.elementos) ? grafico.elementos
+
+  // Varredura abrangente em todas as propriedades possíveis de listas e cards
+  const listaItens = Array.isArray(grafico.cards) ? grafico.cards
+                   : Array.isArray(grafico.elementos) ? grafico.elementos
                    : Array.isArray(grafico.conjuntos) ? grafico.conjuntos
                    : Array.isArray(grafico.grupos) ? grafico.grupos
-                   : Array.isArray(grafico.cards) ? grafico.cards
                    : Array.isArray(grafico.etapas) ? grafico.etapas
                    : Array.isArray(grafico.itens) ? grafico.itens
                    : [];
 
+  // Se o gráfico não tiver cards na lista mas possuir conteúdo direto, cria um card virtual para exibir
+  const itensExibir = listaItens.length > 0 ? listaItens : (grafico.conteudo || grafico.descricao || grafico.subtitulo ? [{
+    titulo: grafico.titulo || "Detalhes do Tópico",
+    conteudo: grafico.conteudo || grafico.descricao || grafico.subtitulo,
+    exemplo: grafico.exemplo,
+    alerta: grafico.alerta,
+    corFundo: 'rgba(24, 24, 27, 0.9)',
+    corBorda: '#3F3F46',
+    corTitulo: '#F59E0B'
+  }] : []);
+
+  if (itensExibir.length === 0) return null;
+
   return (
     <div className="bg-zinc-950 border border-amber-400/30 rounded-2xl p-5 space-y-4 shadow-inner my-3">
-      {grafico.titulo && (
+      {grafico.titulo && listaItens.length > 0 && (
         <div className="flex items-center gap-2 border-b border-zinc-800 pb-2">
           {grafico.iconeUrl && (
             <img 
@@ -131,8 +146,9 @@ function LogicalDiagram({ grafico, onDeletarCard }: { grafico: any; onDeletarCar
         </div>
       )}
 
-      <div className={`grid gap-4 ${listaItens.length > 1 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
-        {listaItens.map((card: any, idx: number) => {
+      <div className={`grid gap-4 ${itensExibir.length > 1 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
+        {itensExibir.map((card: any, idx: number) => {
+          if (!card) return null;
           const tituloCard = card.titulo || card.nome || `Item ${idx + 1}`;
           const subtituloCard = card.subtitulo || card.destaque || '';
           const conteudoCard = card.conteudo || card.descricao || '';
@@ -162,8 +178,7 @@ function LogicalDiagram({ grafico, onDeletarCard }: { grafico: any; onDeletarCar
                   {tituloCard}
                 </span>
 
-                {/* Botão de Excluir este card específico */}
-                {onDeletarCard && (
+                {onDeletarCard && listaItens.length > 0 && (
                   <button
                     onClick={() => onDeletarCard(idx)}
                     className="text-zinc-400 hover:text-rose-400 bg-zinc-900/80 hover:bg-rose-950/50 w-6 h-6 rounded-lg flex items-center justify-center text-xs transition-all border border-zinc-700/50 cursor-pointer"
@@ -447,7 +462,6 @@ export default function MapaMentalPage() {
     }
   };
 
-  // Função para deletar um card individual de dentro de um ramo específico
   const handleDeletarCardInterno = async (ramoId: string, cardIndexParaRemover: number) => {
     if (!mapaAtual) return;
     if (confirm("Deseja remover este card/tópico interno?")) {
@@ -762,7 +776,7 @@ export default function MapaMentalPage() {
                         </div>
                       </div>
 
-                      {/* Diagrama Flexível com a função de remoção de card interno passada por parâmetro */}
+                      {/* Renderização do diagrama com suporte total a múltiplos formatos */}
                       {ramo.grafico && (
                         <LogicalDiagram 
                           grafico={ramo.grafico} 

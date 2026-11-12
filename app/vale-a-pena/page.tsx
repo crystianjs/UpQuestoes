@@ -21,6 +21,7 @@ const DISCIPLINAS_TJSP = [
   "Estatuto da Pessoa com Deficiência"
 ];
 
+// --- COMPONENTE DE SELEÇÃO E MARCA-TEXTO ---
 function TextoGrifavel({ children, idUnico }: { children: React.ReactNode; idUnico: string }) {
   const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -102,26 +103,41 @@ function TextoGrifavel({ children, idUnico }: { children: React.ReactNode; idUni
   );
 }
 
+// --- RENDERIZADOR DE DIAGRAMA / CARDS INTERNOS RESTAURADO ---
 function LogicalDiagram({ grafico }: { grafico: any }) {
   if (!grafico) return null;
-  const listaItens = Array.isArray(grafico.elementos) ? grafico.elementos
+  const listaItens = Array.isArray(grafico.cards) ? grafico.cards
+                   : Array.isArray(grafico.elementos) ? grafico.elementos
                    : Array.isArray(grafico.conjuntos) ? grafico.conjuntos
                    : Array.isArray(grafico.grupos) ? grafico.grupos
-                   : Array.isArray(grafico.cards) ? grafico.cards
                    : Array.isArray(grafico.etapas) ? grafico.etapas
                    : Array.isArray(grafico.itens) ? grafico.itens
                    : [];
 
+  const itensExibir = listaItens.length > 0 ? listaItens : (grafico.conteudo || grafico.descricao || grafico.subtitulo ? [{
+    titulo: grafico.titulo || "Detalhes",
+    conteudo: grafico.conteudo || grafico.descricao || grafico.subtitulo,
+    exemplo: grafico.exemplo,
+    alerta: grafico.alerta,
+    corFundo: 'rgba(24, 24, 27, 0.9)',
+    corBorda: '#3F3F46',
+    corTitulo: '#F59E0B'
+  }] : []);
+
+  if (itensExibir.length === 0) return null;
+
   return (
     <div className="bg-zinc-950 border border-amber-400/30 rounded-2xl p-5 space-y-4 shadow-inner my-3">
-      {grafico.titulo && (
+      {grafico.titulo && listaItens.length > 0 && (
         <div className="flex items-center gap-2 border-b border-zinc-800 pb-2">
           {grafico.iconeUrl ? <img src={grafico.iconeUrl} alt="" className="w-4 h-4 object-contain" style={{ filter: 'invert(80%) sepia(80%) saturate(1000%) hue-rotate(350deg) brightness(100%) contrast(100%)' }} /> : <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0" />}
           <span className="text-xs font-bold uppercase tracking-wider text-amber-400">{grafico.titulo}</span>
         </div>
       )}
-      <div className={`grid gap-4 ${listaItens.length > 1 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
-        {listaItens.map((card: any, idx: number) => {
+
+      <div className={`grid gap-4 ${itensExibir.length > 1 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
+        {itensExibir.map((card: any, idx: number) => {
+          if (!card) return null;
           const tituloCard = card.titulo || card.nome || `Item ${idx + 1}`;
           const subtituloCard = card.subtitulo || card.destaque || '';
           const conteudoCard = card.conteudo || card.descricao || '';
@@ -204,7 +220,12 @@ export default function ValeAPenaPage() {
             disciplina: item.disciplina,
             titulo: item.titulo || `Revisão: ${item.disciplina}`,
             banca: item.banca || 'VUNESP',
-            ramos: Array.isArray(rawRamos) ? rawRamos.filter(Boolean) : []
+            ramos: Array.isArray(rawRamos) ? rawRamos.filter(Boolean).map((r: any) => ({
+              ...r,
+              assunto: r.assunto && r.assunto.trim() !== "" ? r.assunto : (r.titulo ? r.titulo.replace(/^[📌📍🚩⚡0-9.\-\)]+\s*/, '').trim() : "Geral"),
+              revisar: r.revisar === true,
+              revisarParaProva: r.revisarParaProva === true
+            })) : []
           };
         });
         setMapasPorDisciplina(mapaFormatado);
@@ -226,7 +247,6 @@ export default function ValeAPenaPage() {
     }
 
     const payloadAtualizado = { ...mapaAtual, ramos: ramosAtualizados };
-
     setMapasPorDisciplina(prev => ({ ...prev, [disciplinaAlvo]: payloadAtualizado }));
 
     try {
@@ -320,9 +340,11 @@ export default function ValeAPenaPage() {
                         </div>
                         <div className="flex items-center gap-2 self-start sm:self-center shrink-0 flex-wrap">
                           <button onClick={() => atualizarRamoPorIndice(disciplina, indexOriginal, 'revisarParaProva', !ramo.revisarParaProva)} className={`text-xs font-extrabold px-3 py-1.5 rounded-lg border transition-all cursor-pointer shadow-md flex items-center gap-1.5 ${ramo.revisarParaProva ? 'bg-rose-600 text-white border-rose-400 ring-2 ring-rose-500/50' : 'bg-zinc-950 text-rose-400/70 border-rose-500/30 hover:text-rose-400'}`}><Flame className="w-3.5 h-3.5" /> Revisar p/ Prova</button>
-                          <button onClick={() => atualizarRamoPorIndice(disciplina, indexOriginal, 'revisar', !ramo.revisar)} className={`text-xs font-extrabold px-3 py-1.5 rounded-lg border transition-all cursor-pointer shadow-md flex items-center gap-1.5 ${ramo.revisar ? 'bg-amber-400 text-zinc-950 border-amber-300 ring-2 ring-amber-400/50' : 'bg-zinc-950 text-amber-400/70 border-zinc-500/30 hover:text-amber-400'}`}><Bookmark className="w-3.5 h-3.5" /> Revisar Geral</button>
+                          <button onClick={() => atualizarRamoPorIndice(disciplina, indexOriginal, 'revisar', !ramo.revisar)} className={`text-xs font-extrabold px-3 py-1.5 rounded-lg border transition-all cursor-pointer shadow-md flex items-center gap-1.5 ${ramo.revisar ? 'bg-amber-400 text-zinc-950 border-amber-300 ring-2 ring-amber-400/50' : 'bg-zinc-950 text-amber-400/70 border-amber-500/30 hover:text-amber-400'}`}><Bookmark className="w-3.5 h-3.5" /> Revisar Geral</button>
                         </div>
                       </div>
+
+                      {/* AQUI ESTAVA O PROBLEMA: AGORA O DIAGRAMA É RENDERIZADO CORRETAMENTE NO VALE A PENA */}
                       {ramo.grafico && <LogicalDiagram grafico={ramo.grafico} />}
                     </div>
                   </TextoGrifavel>

@@ -105,13 +105,13 @@ function TextoGrifavel({ children, idUnico }: { children: React.ReactNode; idUni
   );
 }
 
-// --- COMPONENTE DE DIAGRAMAS COM TIPOGRAFIA PADRONIZADA AOS CARDS NORMAIS ---
+// --- DIAGRAMA LÓGICO COM SUPORTE TOTAL A TODAS AS PROPRIEDADES DE CARDS ---
 function LogicalDiagram({ grafico, onDeletarCard }: { grafico: any; onDeletarCard?: (index: number) => void }) {
   if (!grafico) return null;
-  const listaItens = Array.isArray(grafico.elementos) ? grafico.elementos
+  const listaItens = Array.isArray(grafico.cards) ? grafico.cards
+                   : Array.isArray(grafico.elementos) ? grafico.elementos
                    : Array.isArray(grafico.conjuntos) ? grafico.conjuntos
                    : Array.isArray(grafico.grupos) ? grafico.grupos
-                   : Array.isArray(grafico.cards) ? grafico.cards
                    : Array.isArray(grafico.etapas) ? grafico.etapas
                    : Array.isArray(grafico.itens) ? grafico.itens
                    : [];
@@ -138,6 +138,7 @@ function LogicalDiagram({ grafico, onDeletarCard }: { grafico: any; onDeletarCar
 
       <div className={`grid gap-4 ${listaItens.length > 1 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
         {listaItens.map((card: any, idx: number) => {
+          if (!card) return null;
           const tituloCard = card.titulo || card.nome || `Item ${idx + 1}`;
           const subtituloCard = card.subtitulo || card.destaque || '';
           const conteudoCard = card.conteudo || card.descricao || '';
@@ -462,7 +463,6 @@ export default function MapaMentalPage() {
     }
   };
 
-  // CORREÇÃO ROBUSTA: COMPARAÇÃO FLEXÍVEL POR ID OU TÍTULO CASO O ID DIVERGIQUE
   const toggleRevisar = async (ramoId: string) => {
     if (!mapaAtual) return;
     const ramosAtualizados = mapaAtual.ramos.map((r: any) => {

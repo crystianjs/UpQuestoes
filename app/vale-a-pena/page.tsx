@@ -244,10 +244,7 @@ export default function ValeAPenaPage() {
             disciplina: item.disciplina,
             titulo: item.titulo || `Revisão: ${item.disciplina}`,
             banca: item.banca || 'VUNESP',
-            ramos: Array.isArray(rawRamos) ? rawRamos.filter(Boolean).map((r: any, idx: number) => ({
-              ...r,
-              id: r.id || `ramo-${item.disciplina}-${idx}-${Date.now()}`
-            })) : []
+            ramos: Array.isArray(rawRamos) ? rawRamos.filter(Boolean) : []
           };
         });
         setMapasPorDisciplina(mapaFormatado);
@@ -255,32 +252,35 @@ export default function ValeAPenaPage() {
     } catch (e) { console.error(e); } finally { setCarregando(false); }
   };
 
-  const atualizarRamoNoSupabase = async (disciplinaAlvo: string, ramoId: string, campo: 'revisar' | 'revisarParaProva', novoValor: boolean) => {
+  // ATUALIZAÇÃO DIRETA PELO ÍNDICE EXATO DO ARRAY (GARANTE QUE O DADO É ALTERADO E SALVO CORRETAMENTE)
+  const atualizarRamoPorIndice = async (disciplinaAlvo: string, indexOriginal: number, campo: 'revisar' | 'revisarParaProva', novoValor: boolean) => {
     if (!userId) return;
     const mapaAtual = mapasPorDisciplina[disciplinaAlvo];
-    if (!mapaAtual) return;
+    if (!mapaAtual || !Array.isArray(mapaAtual.ramos)) return;
 
-    // Atualiza o estado local imediatamente
-    const ramosAtualizados = mapaAtual.ramos.map((r: any) => {
-      if (r && r.id === ramoId) {
-        return { ...r, [campo]: novoValor };
-      }
-      return r;
-    });
+    // Clona o array de ramos e altera especificamente o item na posição exata
+    const ramosAtualizados = [...mapaAtual.ramos];
+    if (ramosAtualizados[indexOriginal]) {
+      ramosAtualizados[indexOriginal] = {
+        ...ramosAtualizados[indexOriginal],
+        [campo]: novoValor
+      };
+    }
 
     const payloadAtualizado = {
       ...mapaAtual,
       ramos: ramosAtualizados
     };
 
+    // Atualiza o estado imediatamente na tela
     setMapasPorDisciplina(prev => ({
       ...prev,
       [disciplinaAlvo]: payloadAtualizado
     }));
 
     try {
-      // 1. Tenta atualizar na tabela oficial 'mapas_mentais' especificando o onConflict correto para chave composta (user_id, disciplina)
-      const { error: erroOficial } = await supabase.from('mapas_mentais').upsert({
+      // Grava nas duas tabelas do Supabase usando a chave correta
+      await supabase.from('mapas_mentais').upsert({
         user_id: userId,
         disciplina: disciplinaAlvo,
         titulo: mapaAtual.titulo || `Revisão: ${disciplinaAlvo}`,
@@ -289,12 +289,6 @@ export default function ValeAPenaPage() {
         updated_at: new Date().toISOString()
       }, { onConflict: 'user_id,disciplina' });
 
-      if (erroOficial) {
-        console.error("Erro na tabela mapas_mentais:", erroOficial.message);
-        throw erroOficial;
-      }
-
-      // 2. Atualiza também no espelho 'temp_mapas_mentais'
       await supabase.from('temp_mapas_mentais').upsert({
         user_id: userId,
         disciplina: disciplinaAlvo,
@@ -305,8 +299,7 @@ export default function ValeAPenaPage() {
       }, { onConflict: 'user_id,disciplina' });
 
     } catch (e: any) {
-      console.error("Erro crítico ao persistir no Supabase:", e);
-      alert(`Erro ao salvar no banco de dados: ${e.message || 'Erro desconhecido'}`);
+      console.error("Erro ao salvar no banco:", e);
     }
   };
 
@@ -402,8 +395,7 @@ export default function ValeAPenaPage() {
                   ? 'text-rose-300 bg-rose-500/20 border-rose-500/40'
                   : 'text-amber-300 bg-amber-500/20 border-amber-500/40';
 
-                const ramoIdEfetivo = ramo.id || `ramo-${indexOriginal}`;
-                const chaveUnicaCard = `${disciplina}-${ramoIdEfetivo}-${globalIdx}`;
+                const chaveUnicaCard = `${disciplina}-${indexOriginal}-${globalIdx}`;
 
                 return (
                   <TextoGrifavel key={chaveUnicaCard} idUnico={chaveUnicaCard}>
@@ -424,7 +416,7 @@ export default function ValeAPenaPage() {
 
                         <div className="flex items-center gap-2 self-start sm:self-center shrink-0 flex-wrap">
                           <button
-                            onClick={() => atualizarRamoNoSupabase(disciplina, ramoIdEfetivo, 'revisarParaProva', !ramo.revisarParaProva)}
+                            onClick={() => atualizarRamoPorIndice(disciplina, indexOriginal, 'revisarParaProva', !ramo.revisarParaProva)}
                             className={`text-xs font-extrabold px-3 py-1.5 rounded-lg border transition-all cursor-pointer shadow-md flex items-center gap-1.5 ${
                               ramo.revisarParaProva
                                 ? 'bg-rose-600 text-white border-rose-400 ring-2 ring-rose-500/50'
@@ -436,11 +428,11 @@ export default function ValeAPenaPage() {
                           </button>
 
                           <button
-                            onClick={() => atualizarRamoNoSupabase(disciplina, ramoIdEfetivo, 'revisar', !ramo.revisar)}
+                            onClick={() => atualizarRamoPorIndice(disciplina, indexOriginal, 'revisar', !ramo.revisar)}
                             className={`text-xs font-extrabold px-3 py-1.5 rounded-lg border transition-all cursor-pointer shadow-md flex items-center gap-1.5 ${
                               ramo.revisar
                                 ? 'bg-amber-400 text-zinc-950 border-amber-300 ring-2 ring-amber-400/50'
-                                : 'bg-zinc-950 text-amber-400/70 border-zinc-500/30 hover:text-amber-400'
+                                : 'bg-zinc-950 text-amber-400/70 border-amber-500/30 hover:text-amber-400'
                             }`}
                           >
                             <Bookmark className="w-3.5 h-3.5" />

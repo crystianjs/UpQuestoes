@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Navbar from '../components/Navbar';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { Pencil, CheckCircle2, X } from 'lucide-react';
 
 const DISCIPLINAS_TJSP = [
   "Língua Portuguesa",
@@ -94,7 +95,9 @@ function TextoGrifavel({ children, idUnico }: { children: React.ReactNode; idUni
             <button onClick={() => aplicarGrifo('bg-emerald-400/40', 'text-emerald-100')} className="w-6 h-6 rounded-full bg-emerald-400 cursor-pointer font-bold text-[10px] text-zinc-950 flex items-center justify-center">A</button>
             <button onClick={() => aplicarGrifo('bg-rose-500/40', 'text-rose-100')} className="w-6 h-6 rounded-full bg-rose-500 cursor-pointer font-bold text-[10px] text-zinc-950 flex items-center justify-center">A</button>
             <div className="w-[1px] h-4 bg-zinc-700 mx-0.5" />
-            <button onClick={removerGrifoTrecho} className="w-6 h-6 rounded-full bg-zinc-800 text-zinc-400 font-bold text-[10px] flex items-center justify-center">✕</button>
+            <button onClick={removerGrifoTrecho} className="w-6 h-6 rounded-full bg-zinc-800 text-zinc-400 font-bold text-[10px] flex items-center justify-center">
+              <X className="w-3 h-3" />
+            </button>
           </div>
         </>
       )}
@@ -102,7 +105,7 @@ function TextoGrifavel({ children, idUnico }: { children: React.ReactNode; idUni
   );
 }
 
-// --- COMPONENTE DE DIAGRAMAS COM BOTÃO DE EXCLUIR CARD INDIVIDUAL ---
+// --- COMPONENTE DE DIAGRAMAS COM TIPOGRAFIA PADRONIZADA AOS CARDS NORMAIS ---
 function LogicalDiagram({ grafico, onDeletarCard }: { grafico: any; onDeletarCard?: (index: number) => void }) {
   if (!grafico) return null;
   const listaItens = Array.isArray(grafico.elementos) ? grafico.elementos
@@ -114,18 +117,20 @@ function LogicalDiagram({ grafico, onDeletarCard }: { grafico: any; onDeletarCar
                    : [];
 
   return (
-    <div className="bg-zinc-950 border border-amber-400/30 rounded-2xl p-5 space-y-4 shadow-inner my-3">
+    <div className="bg-zinc-950 border border-amber-400/30 rounded-2xl p-5 sm:p-6 space-y-4 shadow-inner my-3 font-sans">
       {grafico.titulo && (
-        <div className="flex items-center gap-2 border-b border-zinc-800 pb-2">
-          {grafico.iconeUrl && (
+        <div className="flex items-center gap-2 border-b border-zinc-800 pb-3">
+          {grafico.iconeUrl ? (
             <img 
               src={grafico.iconeUrl} 
               alt="" 
-              className="w-4 h-4 object-contain" 
+              className="w-4 h-4 object-contain shrink-0" 
               style={{ filter: 'invert(80%) sepia(80%) saturate(1000%) hue-rotate(350deg) brightness(100%) contrast(100%)' }} 
             />
+          ) : (
+            <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0" />
           )}
-          <span className="text-xs font-bold uppercase tracking-wider text-amber-400">
+          <span className="text-sm sm:text-base font-black text-amber-300 tracking-tight">
             {grafico.titulo}
           </span>
         </div>
@@ -143,63 +148,71 @@ function LogicalDiagram({ grafico, onDeletarCard }: { grafico: any; onDeletarCar
           return (
             <div 
               key={idx}
-              className="rounded-2xl p-4 border space-y-3 transition-all shadow-lg relative group"
+              className="rounded-2xl p-5 sm:p-6 border space-y-3 transition-all shadow-md relative group font-sans"
               style={{
                 backgroundColor: card.corFundo || 'rgba(24, 24, 27, 0.9)',
                 borderColor: card.corBorda || '#3F3F46'
               }}
             >
-              <div className="flex items-center justify-between border-b border-white/10 pb-2">
-                <span className="text-xs font-black uppercase tracking-wider flex items-center gap-2" style={{ color: card.corTitulo || '#F59E0B' }}>
+              <div className="flex items-center justify-between border-b border-white/10 pb-2.5 gap-2">
+                <h3 className="text-sm sm:text-base font-black flex items-center gap-2 leading-snug" style={{ color: card.corTitulo || '#FCD34D' }}>
                   {card.iconeUrl && (
                     <img 
                       src={card.iconeUrl} 
                       alt="" 
-                      className="w-4 h-4 object-contain inline-block" 
+                      className="w-4 h-4 object-contain inline-block shrink-0" 
                       style={{ filter: 'invert(80%) sepia(80%) saturate(1000%) hue-rotate(350deg) brightness(100%) contrast(100%)' }} 
                     />
                   )}
-                  {tituloCard}
-                </span>
+                  <span>{tituloCard}</span>
+                </h3>
 
                 {/* Botão de Excluir este card específico */}
                 {onDeletarCard && (
                   <button
                     onClick={() => onDeletarCard(idx)}
-                    className="text-zinc-400 hover:text-rose-400 bg-zinc-900/80 hover:bg-rose-950/50 w-6 h-6 rounded-lg flex items-center justify-center text-xs transition-all border border-zinc-700/50 cursor-pointer"
+                    className="text-zinc-400 hover:text-rose-400 bg-zinc-900/80 hover:bg-rose-950/50 w-6 h-6 rounded-lg flex items-center justify-center text-xs transition-all border border-zinc-700/50 cursor-pointer shrink-0"
                     title="Excluir este card"
                   >
-                    ✕
+                    <X className="w-3.5 h-3.5" />
                   </button>
                 )}
               </div>
 
-              {subtituloCard && <p className="text-xs font-bold text-zinc-200">{subtituloCard}</p>}
+              {subtituloCard && (
+                <p className="text-xs sm:text-sm font-bold text-zinc-200 leading-relaxed">
+                  {subtituloCard}
+                </p>
+              )}
               
-              {conteudoCard && <p className="text-xs text-zinc-300 leading-relaxed">{conteudoCard}</p>}
+              {conteudoCard && (
+                <p className="text-xs sm:text-sm text-zinc-300 font-medium leading-relaxed">
+                  {conteudoCard}
+                </p>
+              )}
 
               {topicosCard.length > 0 && (
-                <ul className="text-xs text-zinc-300 space-y-1.5 pt-1">
+                <ul className="text-xs sm:text-sm text-zinc-200 space-y-2.5 pt-2 border-t border-white/10 font-medium">
                   {topicosCard.map((tp: string, tIdx: number) => (
-                    <li key={tIdx} className="flex items-start gap-1.5 leading-snug">
+                    <li key={tIdx} className="leading-relaxed flex items-start gap-2.5">
                       <span className="text-amber-400 font-bold">•</span>
-                      <span>{tp}</span>
+                      <span className="flex-1">{tp}</span>
                     </li>
                   ))}
                 </ul>
               )}
 
               {exemploCard && (
-                <div className="bg-zinc-900/90 border border-sky-500/30 rounded-xl p-3 text-xs space-y-1 mt-2">
+                <div className="bg-zinc-900/90 border border-sky-500/30 rounded-xl p-3.5 text-xs sm:text-sm space-y-1 mt-2">
                   <span className="font-bold text-sky-400 uppercase tracking-wide text-[10px] block">Exemplo Prático:</span>
-                  <p className="text-zinc-300 leading-relaxed italic">{exemploCard}</p>
+                  <p className="text-zinc-300 font-medium leading-relaxed">{exemploCard}</p>
                 </div>
               )}
 
               {alertaCard && (
-                <div className="bg-rose-950/30 border border-rose-500/40 rounded-xl p-3 text-xs space-y-1 mt-2">
+                <div className="bg-rose-950/30 border border-rose-500/40 rounded-xl p-3.5 text-xs sm:text-sm space-y-1 mt-2">
                   <span className="font-bold text-rose-400 uppercase tracking-wide text-[10px] block">Atenção / Pegadinha VUNESP:</span>
-                  <p className="text-zinc-200 leading-relaxed">{alertaCard}</p>
+                  <p className="text-zinc-200 font-medium leading-relaxed">{alertaCard}</p>
                 </div>
               )}
             </div>
@@ -312,8 +325,9 @@ export default function MapaMentalPage() {
                   const tituloCorrompido = typeof r.titulo === 'string' && r.titulo.includes('Mapa Geral de Regras');
                   return !idCorrompido && !tituloCorrompido;
                 })
-                .map((r: any) => {
+                .map((r: any, idx: number) => {
                   if (!r) return null;
+                  const idSeguro = r.id || `ramo-${item.disciplina}-${idx}`;
                   const assuntoDefinitivo = r.assunto && r.assunto.trim() !== ""
                     ? r.assunto
                     : (r.titulo ? r.titulo.replace(/^[📌📍🚩⚡0-9.\-\)]+\s*/, '').trim() : "Geral");
@@ -327,6 +341,7 @@ export default function MapaMentalPage() {
 
                   return { 
                     ...r, 
+                    id: idSeguro,
                     assunto: assuntoDefinitivo,
                     revisar: r.revisar !== undefined ? r.revisar : eraImportante,
                     revisarParaProva: r.revisarParaProva !== undefined ? r.revisarParaProva : eraImportante,
@@ -354,32 +369,29 @@ export default function MapaMentalPage() {
 
   const salvarNoSupabaseComBackup = async (disciplinaAlvo: string, payloadMapa: any) => {
     if (!userId) return;
-    setTimeout(async () => {
-      try {
-        const { data: dadosAtuais } = await supabase.from('mapas_mentais').select('*').eq('disciplina', disciplinaAlvo).eq('user_id', userId).maybeSingle();
-        if (dadosAtuais) {
-          await supabase.from('temp_mapas_mentais').upsert({
-            user_id: userId,
-            disciplina: dadosAtuais.disciplina,
-            titulo: dadosAtuais.titulo,
-            banca: dadosAtuais.banca,
-            ramos: dadosAtuais.ramos,
-            backed_up_at: new Date().toISOString()
-          }, { onConflict: 'user_id,disciplina' });
-        }
+    try {
+      await supabase.from('temp_mapas_mentais').upsert({
+        user_id: userId,
+        disciplina: disciplinaAlvo,
+        titulo: payloadMapa.titulo,
+        banca: payloadMapa.banca || 'VUNESP',
+        ramos: payloadMapa.ramos,
+        backed_up_at: new Date().toISOString()
+      }, { onConflict: 'user_id,disciplina' });
 
-        await supabase.from('mapas_mentais').upsert({
-          user_id: userId,
-          disciplina: disciplinaAlvo,
-          titulo: payloadMapa.titulo,
-          banca: payloadMapa.banca || 'VUNESP',
-          ramos: payloadMapa.ramos,
-          updated_at: new Date().toISOString()
-        }, { onConflict: 'user_id,disciplina' });
-      } catch (e) {
-        console.error("Erro no salvamento em segundo plano:", e);
-      }
-    }, 10);
+      const { error } = await supabase.from('mapas_mentais').upsert({
+        user_id: userId,
+        disciplina: disciplinaAlvo,
+        titulo: payloadMapa.titulo,
+        banca: payloadMapa.banca || 'VUNESP',
+        ramos: payloadMapa.ramos,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'user_id,disciplina' });
+
+      if (error) throw error;
+    } catch (e) {
+      console.error("Erro no salvamento em segundo plano:", e);
+    }
   };
 
   const handleCarregarJson = async () => {
@@ -405,22 +417,29 @@ export default function MapaMentalPage() {
           ramosExistentes.forEach((r: any) => { if (r && r.id) mapaRamosUnificados.set(r.id, r); });
         }
 
-        parsed.ramos.forEach((r: any) => {
-          if (r && r.id) {
-            const existente = mapaRamosUnificados.get(r.id);
+        parsed.ramos.forEach((r: any, idx: number) => {
+          if (r) {
+            const idRamo = r.id || `ramo-${Date.now()}-${idx}`;
+            const existente = mapaRamosUnificados.get(idRamo);
             if (existente) {
               const imagsAntigas = Array.isArray(existente.imagens) ? existente.imagens : [];
               const imagsNovas = Array.isArray(r.imagens) ? r.imagens : [];
               const combinadas = Array.from(new Set([...imagsAntigas, ...imagsNovas]));
 
-              mapaRamosUnificados.set(r.id, {
+              mapaRamosUnificados.set(idRamo, {
                 ...r,
-                revisar: existente.revisar || r.revisar,
-                revisarParaProva: existente.revisarParaProva || r.revisarParaProva,
+                id: idRamo,
+                revisar: existente.revisar || r.revisar || false,
+                revisarParaProva: existente.revisarParaProva || r.revisarParaProva || false,
                 imagens: combinadas
               });
             } else {
-              mapaRamosUnificados.set(r.id, r);
+              mapaRamosUnificados.set(idRamo, {
+                ...r,
+                id: idRamo,
+                revisar: r.revisar || false,
+                revisarParaProva: r.revisarParaProva || false
+              });
             }
           }
         });
@@ -438,7 +457,7 @@ export default function MapaMentalPage() {
         setJsonInputText('');
         setSelectedDisciplina(modalDisciplinaAlvo);
 
-        salvarNoSupabaseComBackup(modalDisciplinaAlvo, payloadFinal);
+        await salvarNoSupabaseComBackup(modalDisciplinaAlvo, payloadFinal);
       } else {
         alert('O JSON precisa conter a chave "ramos".');
       }
@@ -478,7 +497,7 @@ export default function MapaMentalPage() {
 
       const mapaAtualizadoFinal = { ...mapaAtual, ramos: ramosAtualizados };
       setMapasPorDisciplina(prev => ({ ...prev, [selectedDisciplina]: mapaAtualizadoFinal }));
-      salvarNoSupabaseComBackup(selectedDisciplina, mapaAtualizadoFinal);
+      await salvarNoSupabaseComBackup(selectedDisciplina, mapaAtualizadoFinal);
     }
   };
 
@@ -511,7 +530,7 @@ export default function MapaMentalPage() {
       [selectedDisciplina]: mapaAtualizadoFinal
     }));
 
-    salvarNoSupabaseComBackup(selectedDisciplina, mapaAtualizadoFinal);
+    await salvarNoSupabaseComBackup(selectedDisciplina, mapaAtualizadoFinal);
   };
 
   const removerImagemUnica = async (ramoId: string, indexParaRemover: number) => {
@@ -532,7 +551,7 @@ export default function MapaMentalPage() {
         [selectedDisciplina]: mapaAtualizadoFinal
       }));
 
-      salvarNoSupabaseComBackup(selectedDisciplina, mapaAtualizadoFinal);
+      await salvarNoSupabaseComBackup(selectedDisciplina, mapaAtualizadoFinal);
     }
   };
 
@@ -544,7 +563,7 @@ export default function MapaMentalPage() {
     });
     const mapaAtualizadoFinal = { ...mapaAtual, ramos: ramosAtualizados };
     setMapasPorDisciplina(prev => ({ ...prev, [selectedDisciplina]: mapaAtualizadoFinal }));
-    salvarNoSupabaseComBackup(selectedDisciplina, mapaAtualizadoFinal);
+    await salvarNoSupabaseComBackup(selectedDisciplina, mapaAtualizadoFinal);
   };
 
   const toggleRevisarParaProva = async (ramoId: string) => {
@@ -555,7 +574,7 @@ export default function MapaMentalPage() {
     });
     const mapaAtualizadoFinal = { ...mapaAtual, ramos: ramosAtualizados };
     setMapasPorDisciplina(prev => ({ ...prev, [selectedDisciplina]: mapaAtualizadoFinal }));
-    salvarNoSupabaseComBackup(selectedDisciplina, mapaAtualizadoFinal);
+    await salvarNoSupabaseComBackup(selectedDisciplina, mapaAtualizadoFinal);
   };
 
   const salvarAssuntoEditado = async (ramoId: string) => {
@@ -566,7 +585,7 @@ export default function MapaMentalPage() {
     });
     const mapaAtualizadoFinal = { ...mapaAtual, ramos: ramosAtualizados };
     setMapasPorDisciplina(prev => ({ ...prev, [selectedDisciplina]: mapaAtualizadoFinal }));
-    salvarNoSupabaseComBackup(selectedDisciplina, mapaAtualizadoFinal);
+    await salvarNoSupabaseComBackup(selectedDisciplina, mapaAtualizadoFinal);
     setEditandoRamoId(null);
   };
 
@@ -575,6 +594,7 @@ export default function MapaMentalPage() {
     if (confirm("Deseja apagar este tópico?")) {
       const novosRamos = mapaAtual.ramos.filter((r: any) => r && r.id !== ramoId);
       if (novosRamos.length === 0) {
+        await supabase.from('temp_mapas_mentais').delete().eq('disciplina', selectedDisciplina).eq('user_id', userId);
         await supabase.from('mapas_mentais').delete().eq('disciplina', selectedDisciplina).eq('user_id', userId);
         const novoEstado = { ...mapasPorDisciplina };
         delete novoEstado[selectedDisciplina];
@@ -582,7 +602,7 @@ export default function MapaMentalPage() {
       } else {
         const mapaAtualizadoFinal = { ...mapaAtual, ramos: novosRamos };
         setMapasPorDisciplina(prev => ({ ...prev, [selectedDisciplina]: mapaAtualizadoFinal }));
-        salvarNoSupabaseComBackup(selectedDisciplina, mapaAtualizadoFinal);
+        await salvarNoSupabaseComBackup(selectedDisciplina, mapaAtualizadoFinal);
       }
     }
   };
@@ -711,7 +731,10 @@ export default function MapaMentalPage() {
                             {!estaEditando ? (
                               <div className="flex items-center gap-2">
                                 <span className="text-xs font-semibold text-zinc-300">• {ramo.assunto || "Geral"}</span>
-                                <button onClick={() => { setEditandoRamoId(ramo.id); setNovoAssuntoInput(ramo.assunto || ''); }} className="text-[10px] text-amber-400 hover:underline bg-zinc-900 px-2 py-0.5 rounded border border-amber-400/20 cursor-pointer">✏️ Editar</button>
+                                <button onClick={() => { setEditandoRamoId(ramo.id); setNovoAssuntoInput(ramo.assunto || ''); }} className="text-[10px] text-amber-400 hover:underline bg-zinc-900 px-2 py-0.5 rounded border border-amber-400/20 cursor-pointer flex items-center gap-1">
+                                  <Pencil className="w-2.5 h-2.5" />
+                                  <span>Editar</span>
+                                </button>
                               </div>
                             ) : (
                               <div className="flex items-center gap-2 mt-1">
@@ -758,11 +781,13 @@ export default function MapaMentalPage() {
                             Revisar Geral
                           </button>
 
-                          <button onClick={() => excluirRamo(ramo.id)} className="text-zinc-500 hover:text-rose-400 bg-zinc-950 p-2 rounded-lg border border-zinc-800 transition-all text-xs cursor-pointer" title="Apagar Ramo">✕</button>
+                          <button onClick={() => excluirRamo(ramo.id)} className="text-zinc-500 hover:text-rose-400 bg-zinc-950 p-2 rounded-lg border border-zinc-800 transition-all text-xs cursor-pointer" title="Apagar Ramo">
+                            <X className="w-3.5 h-3.5" />
+                          </button>
                         </div>
                       </div>
 
-                      {/* Diagrama Flexível com a função de remoção de card interno passada por parâmetro */}
+                      {/* Diagrama Flexível com tipografia padronizada */}
                       {ramo.grafico && (
                         <LogicalDiagram 
                           grafico={ramo.grafico} 
@@ -795,7 +820,7 @@ export default function MapaMentalPage() {
                                   className="absolute top-2 right-2 bg-rose-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
                                   title="Remover imagem"
                                 >
-                                  ✕
+                                  <X className="w-3 h-3" />
                                 </button>
                               </div>
                             ))}
@@ -805,9 +830,9 @@ export default function MapaMentalPage() {
 
                       <div className="space-y-6">
                         {ramo.subnos && ramo.subnos.map((sub: any, idx: number) => (
-                          <div key={idx} className="p-5 sm:p-6 rounded-xl border-l-4 border-amber-400 shadow-md space-y-3 bg-zinc-950 border-t border-r border-b border-zinc-800/80">
+                          <div key={idx} className="p-5 sm:p-6 rounded-2xl border-l-4 border-amber-400 shadow-md space-y-3 bg-zinc-950 border-t border-r border-b border-zinc-800/80">
                             {sub.titulo && (
-                              <h3 className="text-sm font-bold text-amber-300 flex items-center gap-2">
+                              <h3 className="text-sm sm:text-base font-black text-amber-300 flex items-center gap-2">
                                 {sub.iconeUrl && (
                                   <img 
                                     src={sub.iconeUrl} 
@@ -819,11 +844,14 @@ export default function MapaMentalPage() {
                                 {sub.titulo}
                               </h3>
                             )}
-                            {sub.descricao && <p className="text-zinc-300 text-xs sm:text-sm">{sub.descricao}</p>}
+                            {sub.descricao && <p className="text-zinc-300 text-xs sm:text-sm font-medium leading-relaxed">{sub.descricao}</p>}
                             {sub.itens && (
-                              <ul className="text-xs sm:text-sm text-zinc-200 space-y-2 pt-2 border-t border-zinc-900">
+                              <ul className="text-xs sm:text-sm text-zinc-200 space-y-2.5 pt-2 border-t border-zinc-900 font-medium">
                                 {sub.itens.map((item: string, i: number) => (
-                                  <li key={i} className="flex items-start gap-2"><span className="text-amber-400">•</span><span>{item}</span></li>
+                                  <li key={i} className="leading-relaxed flex items-start gap-2.5">
+                                    <span className="font-bold text-amber-400">•</span>
+                                    <span className="flex-1">{item}</span>
+                                  </li>
                                 ))}
                               </ul>
                             )}
@@ -873,7 +901,7 @@ export default function MapaMentalPage() {
               onClick={() => setModalImagensState(null)}
               className="absolute -top-12 right-0 bg-zinc-800 hover:bg-rose-600 text-white w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shadow-2xl transition-all cursor-pointer border border-zinc-700 z-10"
             >
-              ✕
+              <X className="w-4 h-4" />
             </button>
 
             <div className="relative w-full flex items-center justify-center">
@@ -911,7 +939,9 @@ export default function MapaMentalPage() {
       {showJsonModal && (
         <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="bg-zinc-950 border border-zinc-800 rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl relative space-y-4">
-            <button onClick={() => setShowJsonModal(false)} className="absolute top-4 right-4 text-red-400 bg-zinc-900 w-9 h-9 flex items-center justify-center rounded-full cursor-pointer">✕</button>
+            <button onClick={() => setShowJsonModal(false)} className="absolute top-4 right-4 text-red-400 bg-zinc-900 w-9 h-9 flex items-center justify-center rounded-full cursor-pointer">
+              <X className="w-4 h-4" />
+            </button>
             <h2 className="text-lg font-bold text-white">Adicionar novo mapa / tópico</h2>
             <select value={modalDisciplinaAlvo} onChange={(e) => setModalDisciplinaAlvo(e.target.value)} className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 text-xs rounded-xl px-3 py-2.5">
               {DISCIPLINAS_TJSP.map((disc) => <option key={disc} value={disc}>{disc}</option>)}

@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Navbar from '../components/Navbar';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { Zap, Flame, Bookmark, Filter, CheckCircle2 } from 'lucide-react';
 
 const DISCIPLINAS_TJSP = [
   "Língua Portuguesa",
@@ -102,7 +103,7 @@ function TextoGrifavel({ children, idUnico }: { children: React.ReactNode; idUni
   );
 }
 
-// --- DIAGRAMA LÓGICO ---
+// --- DIAGRAMA LÓGICO COM FONTES PADRONIZADAS E SEM EMOJIS ---
 function LogicalDiagram({ grafico }: { grafico: any }) {
   if (!grafico) return null;
   const listaItens = Array.isArray(grafico.elementos) ? grafico.elementos
@@ -110,18 +111,92 @@ function LogicalDiagram({ grafico }: { grafico: any }) {
                    : Array.isArray(grafico.grupos) ? grafico.grupos
                    : Array.isArray(grafico.cards) ? grafico.cards
                    : Array.isArray(grafico.etapas) ? grafico.etapas
+                   : Array.isArray(grafico.itens) ? grafico.itens
                    : [];
 
   return (
-    <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-5 space-y-4 shadow-inner my-3">
-      {grafico.titulo && <p className="text-xs font-bold text-amber-400 uppercase">📌 {grafico.titulo}</p>}
-      <div className="grid gap-4 sm:grid-cols-2">
-        {listaItens.map((card: any, idx: number) => (
-          <div key={idx} className="rounded-xl p-4 border space-y-2 bg-zinc-900 border-zinc-800 text-zinc-200">
-            <p className="text-xs font-black uppercase text-amber-400">{card.titulo || card.nome || `Item ${idx + 1}`}</p>
-            {card.descricao && <p className="text-xs text-zinc-300">{card.descricao}</p>}
-          </div>
-        ))}
+    <div className="bg-zinc-950 border border-amber-400/30 rounded-2xl p-5 space-y-4 shadow-inner my-3">
+      {grafico.titulo && (
+        <div className="flex items-center gap-2 border-b border-zinc-800 pb-2">
+          {grafico.iconeUrl ? (
+            <img 
+              src={grafico.iconeUrl} 
+              alt="" 
+              className="w-4 h-4 object-contain" 
+              style={{ filter: 'invert(80%) sepia(80%) saturate(1000%) hue-rotate(350deg) brightness(100%) contrast(100%)' }} 
+            />
+          ) : (
+            <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0" />
+          )}
+          <span className="text-xs font-bold uppercase tracking-wider text-amber-400">
+            {grafico.titulo}
+          </span>
+        </div>
+      )}
+
+      <div className={`grid gap-4 ${listaItens.length > 1 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
+        {listaItens.map((card: any, idx: number) => {
+          const tituloCard = card.titulo || card.nome || `Item ${idx + 1}`;
+          const subtituloCard = card.subtitulo || card.destaque || '';
+          const conteudoCard = card.conteudo || card.descricao || '';
+          const topicosCard = Array.isArray(card.topicos) ? card.topicos : Array.isArray(card.itens) ? card.itens : [];
+          const exemploCard = card.exemplo || '';
+          const alertaCard = card.alerta || '';
+
+          return (
+            <div 
+              key={idx}
+              className="rounded-2xl p-4 border space-y-3 transition-all shadow-lg"
+              style={{
+                backgroundColor: card.corFundo || 'rgba(24, 24, 27, 0.9)',
+                borderColor: card.corBorda || '#3F3F46'
+              }}
+            >
+              <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                <span className="text-xs font-black uppercase tracking-wider flex items-center gap-2" style={{ color: card.corTitulo || '#F59E0B' }}>
+                  {card.iconeUrl && (
+                    <img 
+                      src={card.iconeUrl} 
+                      alt="" 
+                      className="w-4 h-4 object-contain inline-block" 
+                      style={{ filter: 'invert(80%) sepia(80%) saturate(1000%) hue-rotate(350deg) brightness(100%) contrast(100%)' }} 
+                    />
+                  )}
+                  {tituloCard}
+                </span>
+              </div>
+
+              {subtituloCard && <p className="text-xs font-bold text-zinc-200">{subtituloCard}</p>}
+              
+              {conteudoCard && <p className="text-xs sm:text-sm text-zinc-300 font-medium leading-relaxed">{conteudoCard}</p>}
+
+              {topicosCard.length > 0 && (
+                <ul className="text-xs sm:text-sm text-zinc-200 space-y-1.5 pt-1 font-medium">
+                  {topicosCard.map((tp: string, tIdx: number) => (
+                    <li key={tIdx} className="flex items-start gap-2 leading-relaxed">
+                      <span className="text-amber-400 font-bold">•</span>
+                      <span>{tp}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {exemploCard && (
+                <div className="bg-zinc-900/90 border border-sky-500/30 rounded-xl p-3 text-xs space-y-1 mt-2">
+                  <span className="font-bold text-sky-400 uppercase tracking-wide text-[10px] block">Exemplo Prático:</span>
+                  <p className="text-zinc-300 leading-relaxed italic">{exemploCard}</p>
+                </div>
+              )}
+
+              {alertaCard && (
+                <div className="bg-rose-950/30 border border-rose-500/40 rounded-xl p-3 text-xs space-y-1 mt-2">
+                  <span className="font-bold text-rose-400 uppercase tracking-wide text-[10px] block">Atenção / Pegadinha VUNESP:</span>
+                  <p className="text-zinc-200 leading-relaxed">{alertaCard}</p>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -183,7 +258,7 @@ export default function ValeAPenaPage() {
     if (!mapaAtual) return;
 
     const ramosAtualizados = mapaAtual.ramos.map((r: any) => {
-      if (r && r.id === ramoId) {
+      if (r && (r.id === ramoId || (!r.id && ramoId.includes(r.titulo)))) {
         return { ...r, [campo]: novoValor };
       }
       return r;
@@ -200,6 +275,15 @@ export default function ValeAPenaPage() {
     }));
 
     try {
+      await supabase.from('temp_mapas_mentais').upsert({
+        user_id: userId,
+        disciplina: disciplinaAlvo,
+        titulo: mapaAtual.titulo,
+        banca: mapaAtual.banca || 'VUNESP',
+        ramos: ramosAtualizados,
+        backed_up_at: new Date().toISOString()
+      }, { onConflict: 'user_id,disciplina' });
+
       const { error } = await supabase.from('mapas_mentais').upsert({
         user_id: userId,
         disciplina: disciplinaAlvo,
@@ -242,7 +326,10 @@ export default function ValeAPenaPage() {
           <div>
             <div className="flex items-center gap-2">
               <span className="bg-amber-500/20 text-amber-400 text-xs font-bold px-2.5 py-0.5 rounded-full border border-amber-500/30">TJSP - VUNESP</span>
-              <span className="bg-yellow-500/20 text-yellow-300 font-bold text-xs px-2.5 py-0.5 rounded-full border border-yellow-500/30">⚡ Central de Revisão Estratégica</span>
+              <span className="bg-yellow-500/20 text-yellow-300 font-bold text-xs px-2.5 py-0.5 rounded-full border border-yellow-500/30 flex items-center gap-1.5">
+                <Zap className="w-3.5 h-3.5" />
+                Central de Revisão Estratégica
+              </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black text-white mt-1">Vale a Pena Ver de Novo</h1>
           </div>
@@ -250,29 +337,34 @@ export default function ValeAPenaPage() {
           <div className="flex items-center gap-2 bg-zinc-900 p-1.5 rounded-xl border border-zinc-800">
             <button
               onClick={() => setAbaSelecionada('revisarParaProva')}
-              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                 abaSelecionada === 'revisarParaProva'
                   ? 'bg-rose-600 text-white shadow-md'
                   : 'text-zinc-400 hover:text-white'
               }`}
             >
-              🔥 Revisar para Prova
+              <Flame className="w-3.5 h-3.5" />
+              Revisar para Prova
             </button>
             <button
               onClick={() => setAbaSelecionada('revisar')}
-              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                 abaSelecionada === 'revisar'
                   ? 'bg-amber-400 text-zinc-950 shadow-md'
                   : 'text-zinc-400 hover:text-white'
               }`}
             >
-              📌 Revisar Geral
+              <Bookmark className="w-3.5 h-3.5" />
+              Revisar Geral
             </button>
           </div>
         </div>
 
         <div className="bg-zinc-950 border border-zinc-800 p-4 rounded-2xl shadow-lg flex items-center gap-4">
-          <span className="text-xs font-bold text-zinc-400 whitespace-nowrap">Filtrar Matéria:</span>
+          <div className="flex items-center gap-2">
+            <Filter className="w-4 h-4 text-amber-400 shrink-0" />
+            <span className="text-xs font-bold text-zinc-400 whitespace-nowrap">Filtrar Matéria:</span>
+          </div>
           <select 
             value={selectedDisciplina}
             onChange={(e) => setSelectedDisciplina(e.target.value)}
@@ -300,7 +392,8 @@ export default function ValeAPenaPage() {
                   ? 'text-rose-300 bg-rose-500/20 border-rose-500/40'
                   : 'text-amber-300 bg-amber-500/20 border-amber-500/40';
 
-                const chaveUnicaCard = `${disciplina}-${ramo.id || 'id'}-${indexOriginal}-${globalIdx}`;
+                const ramoIdEfetivo = ramo.id || `ramo-${indexOriginal}`;
+                const chaveUnicaCard = `${disciplina}-${ramoIdEfetivo}-${globalIdx}`;
 
                 return (
                   <TextoGrifavel key={chaveUnicaCard} idUnico={chaveUnicaCard}>
@@ -321,25 +414,27 @@ export default function ValeAPenaPage() {
 
                         <div className="flex items-center gap-2 self-start sm:self-center shrink-0 flex-wrap">
                           <button
-                            onClick={() => atualizarRamoNoSupabase(disciplina, ramo.id, 'revisarParaProva', !ramo.revisarParaProva)}
-                            className={`text-xs font-extrabold px-3 py-1.5 rounded-lg border transition-all cursor-pointer shadow-md ${
+                            onClick={() => atualizarRamoNoSupabase(disciplina, ramoIdEfetivo, 'revisarParaProva', !ramo.revisarParaProva)}
+                            className={`text-xs font-extrabold px-3 py-1.5 rounded-lg border transition-all cursor-pointer shadow-md flex items-center gap-1.5 ${
                               ramo.revisarParaProva
                                 ? 'bg-rose-600 text-white border-rose-400 ring-2 ring-rose-500/50'
                                 : 'bg-zinc-950 text-rose-400/70 border-rose-500/30 hover:text-rose-400'
                             }`}
                           >
-                            🔥 Revisar p/ Prova
+                            <Flame className="w-3.5 h-3.5" />
+                            Revisar p/ Prova
                           </button>
 
                           <button
-                            onClick={() => atualizarRamoNoSupabase(disciplina, ramo.id, 'revisar', !ramo.revisar)}
-                            className={`text-xs font-extrabold px-3 py-1.5 rounded-lg border transition-all cursor-pointer shadow-md ${
+                            onClick={() => atualizarRamoNoSupabase(disciplina, ramoIdEfetivo, 'revisar', !ramo.revisar)}
+                            className={`text-xs font-extrabold px-3 py-1.5 rounded-lg border transition-all cursor-pointer shadow-md flex items-center gap-1.5 ${
                               ramo.revisar
                                 ? 'bg-amber-400 text-zinc-950 border-amber-300 ring-2 ring-amber-400/50'
                                 : 'bg-zinc-950 text-amber-400/70 border-amber-500/30 hover:text-amber-400'
                             }`}
                           >
-                            📌 Revisar Geral
+                            <Bookmark className="w-3.5 h-3.5" />
+                            Revisar Geral
                           </button>
                         </div>
                       </div>

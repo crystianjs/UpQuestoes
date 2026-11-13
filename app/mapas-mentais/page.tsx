@@ -219,15 +219,13 @@ export default function MapaMentalPage() {
   const carregarDadosSupabase = async (uid: string) => {
     try {
       setCarregando(true);
-      const { data: dadosEspelho } = await supabase.from('temp_mapas_mentais').select('*').eq('user_id', uid);
-      const { data: dadosPrincipal, error } = await supabase.from('mapas_mentais').select('*').eq('user_id', uid);
+      // Busca direto da tabela principal para garantir dados reais atualizados
+      const { data, error } = await supabase.from('mapas_mentais').select('*').eq('user_id', uid);
       if (error) throw error;
 
-      const dadosParaUsar = (dadosEspelho && dadosEspelho.length > 0) ? dadosEspelho : dadosPrincipal;
-
-      if (dadosParaUsar) {
+      if (data) {
         const mapaFormatado: Record<string, any> = {};
-        dadosParaUsar.forEach((item: any) => {
+        data.forEach((item: any) => {
           let rawRamos = item.ramos;
           if (typeof rawRamos === 'string') { try { rawRamos = JSON.parse(rawRamos); } catch (e) { rawRamos = []; } }
           
@@ -237,12 +235,11 @@ export default function MapaMentalPage() {
             banca: item.banca || 'VUNESP',
             ramos: Array.isArray(rawRamos) ? rawRamos.filter(Boolean).map((r: any, idx: number) => ({
               ...r,
-              // Garante ID estável
               id: r.id || `ramo-${item.disciplina}-${idx}-${r.titulo ? r.titulo.substring(0, 20).replace(/[^a-zA-Z0-9]/g, '') : idx}`,
               assunto: r.assunto && r.assunto.trim() !== "" ? r.assunto : (r.titulo ? r.titulo.replace(/^[📌📍🚩⚡0-9.\-\)]+\s*/, '').trim() : "Geral"),
-              // BLINDAGEM: Se o campo não existir no banco, assume explicitamente false como padrão
-              revisar: r.revisar === true,
-              revisarParaProva: r.revisarParaProva === true,
+              // BLINDAGEM DE BOOLEANO: Garante que lê corretamente mesmo se viesse nulo ou string
+              revisar: r.revisar === true || r.revisar === 'true',
+              revisarParaProva: r.revisarParaProva === true || r.revisarParaProva === 'true',
               imagens: Array.isArray(r.imagens) ? r.imagens : [],
               grafico: r.grafico || null,
               subnos: r.subnos || []
@@ -251,7 +248,7 @@ export default function MapaMentalPage() {
         });
         setMapasPorDisciplina(mapaFormatado);
       }
-    } catch (e) { console.error(e); } finally { setCarregando(false); }
+    } catch (e) { console.error("Erro ao carregar do Supabase:", e); } finally { setCarregando(false); }
   };
 
   const salvarNoSupabaseComBackup = async (disciplinaAlvo: string, payloadMapa: any) => {

@@ -237,9 +237,10 @@ export default function MapaMentalPage() {
             banca: item.banca || 'VUNESP',
             ramos: Array.isArray(rawRamos) ? rawRamos.filter(Boolean).map((r: any, idx: number) => ({
               ...r,
-              // Garante ID estável baseado no ID original, no título ou no índice
-              id: r.id || `ramo-${item.disciplina}-${idx}-${r.titulo ? r.titulo.substring(0, 15).replace(/\s+/g, '-') : 'geral'}`,
+              // Garante ID estável
+              id: r.id || `ramo-${item.disciplina}-${idx}-${r.titulo ? r.titulo.substring(0, 20).replace(/[^a-zA-Z0-9]/g, '') : idx}`,
               assunto: r.assunto && r.assunto.trim() !== "" ? r.assunto : (r.titulo ? r.titulo.replace(/^[📌📍🚩⚡0-9.\-\)]+\s*/, '').trim() : "Geral"),
+              // BLINDAGEM: Se o campo não existir no banco, assume explicitamente false como padrão
               revisar: r.revisar === true,
               revisarParaProva: r.revisarParaProva === true,
               imagens: Array.isArray(r.imagens) ? r.imagens : [],
@@ -291,7 +292,7 @@ export default function MapaMentalPage() {
 
         parsed.ramos.forEach((r: any, idx: number) => {
           if (r) {
-            const idRamo = r.id || `ramo-json-${Date.now()}-${idx}`;
+            const idRamo = r.id || `ramo-json-${idx}-${r.titulo ? r.titulo.substring(0, 10) : idx}`;
             const existente = mapaRamosUnificados.get(idRamo);
             const assuntoDefinitivo = r.assunto && r.assunto.trim() !== "" ? r.assunto : (r.titulo ? r.titulo.replace(/^[📌📍🚩⚡0-9.\-\)]+\s*/, '').trim() : "Geral");
 
@@ -305,7 +306,14 @@ export default function MapaMentalPage() {
                 imagens: Array.from(new Set([...(existente.imagens || []), ...(r.imagens || [])]))
               });
             } else {
-              mapaRamosUnificados.set(idRamo, { ...r, id: idRamo, assunto: assuntoDefinitivo, revisar: false, revisarParaProva: false, imagens: r.imagens || [] });
+              mapaRamosUnificados.set(idRamo, { 
+                ...r, 
+                id: idRamo, 
+                assunto: assuntoDefinitivo, 
+                revisar: r.revisar === true, 
+                revisarParaProva: r.revisarParaProva === true, 
+                imagens: r.imagens || [] 
+              });
             }
           }
         });
@@ -339,7 +347,7 @@ export default function MapaMentalPage() {
     }));
     const novasBase64 = await Promise.all(promessasLeitura);
     const ramosAtualizados = mapaAtual.ramos.map((r: any) => {
-      if (r && r.id === ramoId) {
+      if (r && (r.id === ramoId || r.titulo === ramoId)) {
         const listaAtual = Array.isArray(r.imagens) ? r.imagens : [];
         return { ...r, imagens: [...listaAtual, ...novasBase64] };
       }
@@ -354,7 +362,7 @@ export default function MapaMentalPage() {
     if (!mapaAtual) return;
     if (confirm("Deseja apagar esta imagem?")) {
       const ramosAtualizados = mapaAtual.ramos.map((r: any) => {
-        if (r && r.id === ramoId) {
+        if (r && (r.id === ramoId || r.titulo === ramoId)) {
           const listaAtual = Array.isArray(r.imagens) ? [...r.imagens] : [];
           listaAtual.splice(indexParaRemover, 1);
           return { ...r, imagens: listaAtual };
@@ -367,27 +375,33 @@ export default function MapaMentalPage() {
     }
   };
 
-  const toggleRevisar = async (ramoId: string) => {
+  // --- TOGGLE REVISAR GERAL BLINDADO ---
+  const toggleRevisar = async (targetId: string, targetTitulo: string) => {
     if (!mapaAtual) return;
     const ramosAtualizados = mapaAtual.ramos.map((r: any) => {
-      if (r && (r.id === ramoId || r.titulo === ramoId)) {
+      const match = (r.id && r.id === targetId) || (r.titulo && r.titulo === targetTitulo);
+      if (match) {
         return { ...r, revisar: !r.revisar };
       }
       return r;
     });
+
     const mapaAtualizadoFinal = { ...mapaAtual, ramos: ramosAtualizados };
     setMapasPorDisciplina(prev => ({ ...prev, [selectedDisciplina]: mapaAtualizadoFinal }));
     await salvarNoSupabaseComBackup(selectedDisciplina, mapaAtualizadoFinal);
   };
 
-  const toggleRevisarParaProva = async (ramoId: string) => {
+  // --- TOGGLE REVISAR PARA PROVA BLINDADO ---
+  const toggleRevisarParaProva = async (targetId: string, targetTitulo: string) => {
     if (!mapaAtual) return;
     const ramosAtualizados = mapaAtual.ramos.map((r: any) => {
-      if (r && (r.id === ramoId || r.titulo === ramoId)) {
+      const match = (r.id && r.id === targetId) || (r.titulo && r.titulo === targetTitulo);
+      if (match) {
         return { ...r, revisarParaProva: !r.revisarParaProva };
       }
       return r;
     });
+
     const mapaAtualizadoFinal = { ...mapaAtual, ramos: ramosAtualizados };
     setMapasPorDisciplina(prev => ({ ...prev, [selectedDisciplina]: mapaAtualizadoFinal }));
     await salvarNoSupabaseComBackup(selectedDisciplina, mapaAtualizadoFinal);
@@ -527,10 +541,10 @@ export default function MapaMentalPage() {
                             <ImageIcon className="w-3.5 h-3.5" /> Enviar Imagens
                             <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => handleUploadMultiplasImagens(ramo.id, e)} />
                           </label>
-                          <button onClick={() => toggleRevisarParaProva(ramo.id)} className={`text-xs font-extrabold px-3 py-1.5 rounded-lg border transition-all cursor-pointer shadow-md flex items-center gap-1.5 ${ramo.revisarParaProva ? 'bg-rose-600 text-white border-rose-400 ring-2 ring-rose-500/50' : 'bg-zinc-950 text-rose-400/70 border-rose-500/30 hover:text-rose-400'}`}>
+                          <button onClick={() => toggleRevisarParaProva(ramo.id, ramo.titulo)} className={`text-xs font-extrabold px-3 py-1.5 rounded-lg border transition-all cursor-pointer shadow-md flex items-center gap-1.5 ${ramo.revisarParaProva ? 'bg-rose-600 text-white border-rose-400 ring-2 ring-rose-500/50' : 'bg-zinc-950 text-rose-400/70 border-rose-500/30 hover:text-rose-400'}`}>
                             <Flame className="w-3.5 h-3.5" /> Revisar p/ Prova
                           </button>
-                          <button onClick={() => toggleRevisar(ramo.id)} className={`text-xs font-extrabold px-3 py-1.5 rounded-lg border transition-all cursor-pointer shadow-md flex items-center gap-1.5 ${ramo.revisar ? 'bg-amber-400 text-zinc-950 border-amber-300 ring-2 ring-amber-400/50' : 'bg-zinc-950 text-amber-400/70 border-zinc-500/30 hover:text-amber-400'}`}>
+                          <button onClick={() => toggleRevisar(ramo.id, ramo.titulo)} className={`text-xs font-extrabold px-3 py-1.5 rounded-lg border transition-all cursor-pointer shadow-md flex items-center gap-1.5 ${ramo.revisar ? 'bg-amber-400 text-zinc-950 border-amber-300 ring-2 ring-amber-400/50' : 'bg-zinc-950 text-amber-400/70 border-zinc-500/30 hover:text-amber-400'}`}>
                             <Bookmark className="w-3.5 h-3.5" /> Revisar Geral
                           </button>
                           <button onClick={() => excluirRamo(ramo.id)} className="text-zinc-500 hover:text-rose-400 bg-zinc-950 p-2 rounded-lg border border-zinc-800 transition-all text-xs cursor-pointer" title="Apagar Ramo"><X className="w-3.5 h-3.5" /></button>

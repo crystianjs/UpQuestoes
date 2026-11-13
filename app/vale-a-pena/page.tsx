@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Navbar from '../components/Navbar';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { Zap, Flame, Bookmark, Filter, CheckCircle2 } from 'lucide-react';
+import { Zap, Flame, Bookmark, Filter, CheckCircle2, X, Image as ImageIcon } from 'lucide-react';
 
 const DISCIPLINAS_TJSP = [
   "Língua Portuguesa",
@@ -95,7 +95,7 @@ function TextoGrifavel({ children, idUnico }: { children: React.ReactNode; idUni
             <button onClick={() => aplicarGrifo('bg-emerald-400/40', 'text-emerald-100')} className="w-6 h-6 rounded-full bg-emerald-400 cursor-pointer font-bold text-[10px] text-zinc-950 flex items-center justify-center">A</button>
             <button onClick={() => aplicarGrifo('bg-rose-500/40', 'text-rose-100')} className="w-6 h-6 rounded-full bg-rose-500 cursor-pointer font-bold text-[10px] text-zinc-950 flex items-center justify-center">A</button>
             <div className="w-[1px] h-4 bg-zinc-700 mx-0.5" />
-            <button onClick={removerGrifoTrecho} className="w-6 h-6 rounded-full bg-zinc-800 text-zinc-400 font-bold text-[10px] flex items-center justify-center">✕</button>
+            <button onClick={removerGrifoTrecho} className="w-6 h-6 rounded-full bg-zinc-800 text-zinc-400 font-bold text-[10px] flex items-center justify-center"><X className="w-3 h-3" /></button>
           </div>
         </>
       )}
@@ -103,7 +103,7 @@ function TextoGrifavel({ children, idUnico }: { children: React.ReactNode; idUni
   );
 }
 
-// --- RENDERIZADOR DE DIAGRAMA / CARDS INTERNOS RESTAURADO ---
+// --- RENDERIZADOR DE DIAGRAMA BLINDADO ---
 function LogicalDiagram({ grafico }: { grafico: any }) {
   if (!grafico) return null;
   const listaItens = Array.isArray(grafico.cards) ? grafico.cards
@@ -189,6 +189,7 @@ export default function ValeAPenaPage() {
   const [abaSelecionada, setAbaSelecionada] = useState<'revisar' | 'revisarParaProva'>('revisarParaProva');
   const [selectedDisciplina, setSelectedDisciplina] = useState<string>("Todas as Matérias");
   const [carregando, setCarregando] = useState<boolean>(true);
+  const [modalImagensState, setModalImagensState] = useState<{ imagens: string[]; indexAtual: number } | null>(null);
 
   useEffect(() => {
     async function init() {
@@ -204,15 +205,12 @@ export default function ValeAPenaPage() {
   const carregarDados = async (uid: string) => {
     try {
       setCarregando(true);
-      const { data: dadosEspelho } = await supabase.from('temp_mapas_mentais').select('*').eq('user_id', uid);
       const { data, error } = await supabase.from('mapas_mentais').select('*').eq('user_id', uid);
       if (error) throw error;
 
-      const fonteDados = (dadosEspelho && dadosEspelho.length > 0) ? dadosEspelho : data;
-
-      if (fonteDados) {
+      if (data) {
         const mapaFormatado: Record<string, any> = {};
-        fonteDados.forEach((item: any) => {
+        data.forEach((item: any) => {
           let rawRamos = item.ramos;
           if (typeof rawRamos === 'string') { try { rawRamos = JSON.parse(rawRamos); } catch (e) { rawRamos = []; } }
           
@@ -220,11 +218,15 @@ export default function ValeAPenaPage() {
             disciplina: item.disciplina,
             titulo: item.titulo || `Revisão: ${item.disciplina}`,
             banca: item.banca || 'VUNESP',
-            ramos: Array.isArray(rawRamos) ? rawRamos.filter(Boolean).map((r: any) => ({
+            ramos: Array.isArray(rawRamos) ? rawRamos.filter(Boolean).map((r: any, idx: number) => ({
               ...r,
+              id: r.id || `ramo-${item.disciplina}-${idx}`,
               assunto: r.assunto && r.assunto.trim() !== "" ? r.assunto : (r.titulo ? r.titulo.replace(/^[📌📍🚩⚡0-9.\-\)]+\s*/, '').trim() : "Geral"),
-              revisar: r.revisar === true,
-              revisarParaProva: r.revisarParaProva === true
+              revisar: r.revisar === true || r.revisar === 'true',
+              revisarParaProva: r.revisarParaProva === true || r.revisarParaProva === 'true',
+              imagens: Array.isArray(r.imagens) ? r.imagens : [],
+              grafico: r.grafico || null,
+              subnos: r.subnos || []
             })) : []
           };
         });
@@ -233,18 +235,17 @@ export default function ValeAPenaPage() {
     } catch (e) { console.error(e); } finally { setCarregando(false); }
   };
 
-  const atualizarRamoPorIndice = async (disciplinaAlvo: string, indexOriginal: number, campo: 'revisar' | 'revisarParaProva', novoValor: boolean) => {
+  const atualizarRamoPorId = async (disciplinaAlvo: string, ramoId: string, campo: 'revisar' | 'revisarParaProva', novoValor: boolean) => {
     if (!userId) return;
     const mapaAtual = mapasPorDisciplina[disciplinaAlvo];
     if (!mapaAtual || !Array.isArray(mapaAtual.ramos)) return;
 
-    const ramosAtualizados = [...mapaAtual.ramos];
-    if (ramosAtualizados[indexOriginal]) {
-      ramosAtualizados[indexOriginal] = {
-        ...ramosAtualizados[indexOriginal],
-        [campo]: novoValor
-      };
-    }
+    const ramosAtualizados = mapaAtual.ramos.map((r: any) => {
+      if (r && (r.id === ramoId)) {
+        return { ...r, [campo]: novoValor };
+      }
+      return r;
+    });
 
     const payloadAtualizado = { ...mapaAtual, ramos: ramosAtualizados };
     setMapasPorDisciplina(prev => ({ ...prev, [disciplinaAlvo]: payloadAtualizado }));
@@ -270,17 +271,17 @@ export default function ValeAPenaPage() {
     } catch (e: any) { console.error(e); }
   };
 
-  const itensFiltrados: { disciplina: string; ramo: any; indexOriginal: number }[] = [];
+  const itensFiltrados: { disciplina: string; ramo: any }[] = [];
   Object.keys(mapasPorDisciplina).forEach(disc => {
     if (selectedDisciplina === "Todas as Matérias" || selectedDisciplina === disc) {
       const mapa = mapasPorDisciplina[disc];
       if (mapa && Array.isArray(mapa.ramos)) {
-        mapa.ramos.forEach((r: any, idx: number) => {
+        mapa.ramos.forEach((r: any) => {
           if (!r) return;
           if (abaSelecionada === 'revisar' && r.revisar === true) {
-            itensFiltrados.push({ disciplina: disc, ramo: r, indexOriginal: idx });
+            itensFiltrados.push({ disciplina: disc, ramo: r });
           } else if (abaSelecionada === 'revisarParaProva' && r.revisarParaProva === true) {
-            itensFiltrados.push({ disciplina: disc, ramo: r, indexOriginal: idx });
+            itensFiltrados.push({ disciplina: disc, ramo: r });
           }
         });
       }
@@ -323,29 +324,67 @@ export default function ValeAPenaPage() {
             </div>
           ) : (
             <div className="space-y-12">
-              {itensFiltrados.map(({ disciplina, ramo, indexOriginal }, globalIdx) => {
+              {itensFiltrados.map(({ disciplina, ramo }, globalIdx) => {
                 const estiloTagBadge = abaSelecionada === 'revisarParaProva' ? 'text-rose-300 bg-rose-500/20 border-rose-500/40' : 'text-amber-300 bg-amber-500/20 border-amber-500/40';
-                const chaveUnicaCard = `${disciplina}-${indexOriginal}-${globalIdx}`;
+                const listaImagensRamo = Array.isArray(ramo.imagens) ? ramo.imagens : [];
 
                 return (
-                  <TextoGrifavel key={chaveUnicaCard} idUnico={chaveUnicaCard}>
-                    <div className="rounded-2xl p-6 sm:p-8 shadow-xl space-y-6 relative border bg-zinc-900/60 border-zinc-800">
+                  <TextoGrifavel key={ramo.id || globalIdx} idUnico={ramo.id || `ramo-vale-${globalIdx}`}>
+                    <div className={`rounded-2xl p-6 sm:p-8 shadow-xl space-y-6 relative border transition-all ${ramo.revisarParaProva ? 'bg-rose-950/20 border-rose-500/60' : ramo.revisar ? 'bg-amber-950/20 border-amber-500/60' : 'bg-zinc-900/60 border-zinc-800/80'}`}>
+                      
+                      {/* CABEÇALHO DO CARD */}
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-zinc-800 gap-3">
-                        <div className="space-y-1">
+                        <div className="space-y-1 w-full">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className={`text-xs font-bold uppercase tracking-wider px-2.5 py-1 rounded-md border ${estiloTagBadge}`}>{disciplina}</span>
-                            <span className="text-xs font-semibold text-zinc-300">• {ramo.assunto || "Revisão"}</span>
+                            <span className="text-xs font-semibold text-zinc-300">• {ramo.assunto || "Geral"}</span>
                           </div>
-                          <h2 className="text-lg sm:text-xl font-extrabold text-white tracking-tight pt-2">{ramo.titulo ? ramo.titulo.replace(/^[📌📍🚩⚡]\s*/, '') : "Tópico"}</h2>
+                          <h2 className="text-lg sm:text-xl font-extrabold text-white tracking-tight pt-2">{ramo.titulo}</h2>
                         </div>
+
+                        {/* BOTÕES DE TOGGLE */}
                         <div className="flex items-center gap-2 self-start sm:self-center shrink-0 flex-wrap">
-                          <button onClick={() => atualizarRamoPorIndice(disciplina, indexOriginal, 'revisarParaProva', !ramo.revisarParaProva)} className={`text-xs font-extrabold px-3 py-1.5 rounded-lg border transition-all cursor-pointer shadow-md flex items-center gap-1.5 ${ramo.revisarParaProva ? 'bg-rose-600 text-white border-rose-400 ring-2 ring-rose-500/50' : 'bg-zinc-950 text-rose-400/70 border-rose-500/30 hover:text-rose-400'}`}><Flame className="w-3.5 h-3.5" /> Revisar p/ Prova</button>
-                          <button onClick={() => atualizarRamoPorIndice(disciplina, indexOriginal, 'revisar', !ramo.revisar)} className={`text-xs font-extrabold px-3 py-1.5 rounded-lg border transition-all cursor-pointer shadow-md flex items-center gap-1.5 ${ramo.revisar ? 'bg-amber-400 text-zinc-950 border-amber-300 ring-2 ring-amber-400/50' : 'bg-zinc-950 text-amber-400/70 border-amber-500/30 hover:text-amber-400'}`}><Bookmark className="w-3.5 h-3.5" /> Revisar Geral</button>
+                          <button onClick={() => atualizarRamoPorId(disciplina, ramo.id, 'revisarParaProva', !ramo.revisarParaProva)} className={`text-xs font-extrabold px-3 py-1.5 rounded-lg border transition-all cursor-pointer shadow-md flex items-center gap-1.5 ${ramo.revisarParaProva ? 'bg-rose-600 text-white border-rose-400 ring-2 ring-rose-500/50' : 'bg-zinc-950 text-rose-400/70 border-rose-500/30 hover:text-rose-400'}`}>
+                            <Flame className="w-3.5 h-3.5" /> Revisar p/ Prova
+                          </button>
+                          <button onClick={() => atualizarRamoPorId(disciplina, ramo.id, 'revisar', !ramo.revisar)} className={`text-xs font-extrabold px-3 py-1.5 rounded-lg border transition-all cursor-pointer shadow-md flex items-center gap-1.5 ${ramo.revisar ? 'bg-amber-400 text-zinc-950 border-amber-300 ring-2 ring-amber-400/50' : 'bg-zinc-950 text-amber-400/70 border-zinc-500/30 hover:text-amber-400'}`}>
+                            <Bookmark className="w-3.5 h-3.5" /> Revisar Geral
+                          </button>
                         </div>
                       </div>
 
-                      {/* AQUI ESTAVA O PROBLEMA: AGORA O DIAGRAMA É RENDERIZADO CORRETAMENTE NO VALE A PENA */}
+                      {/* DIAGRAMA / CARDS LÓGICOS */}
                       {ramo.grafico && <LogicalDiagram grafico={ramo.grafico} />}
+
+                      {/* IMAGENS ANEXADAS */}
+                      {listaImagensRamo.length > 0 && (
+                        <div className="mt-4 p-4 bg-zinc-950 border border-zinc-800 rounded-2xl space-y-3">
+                          <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5"><ImageIcon className="w-4 h-4 text-amber-400" /> Imagens Anexadas ({listaImagensRamo.length})</span>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                            {listaImagensRamo.map((imgUrl: string, imgIdx: number) => (
+                              <div key={imgIdx} className="relative group rounded-xl overflow-hidden border border-zinc-800 bg-zinc-900 aspect-video flex items-center justify-center cursor-pointer" onClick={() => setModalImagensState({ imagens: listaImagensRamo, indexAtual: imgIdx })}>
+                                <img src={imgUrl} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* SUBTÓPICOS (SUBNOS) */}
+                      <div className="space-y-6">
+                        {ramo.subnos && ramo.subnos.map((sub: any, sIdx: number) => (
+                          <div key={sIdx} className="p-5 sm:p-6 rounded-xl border-l-4 border-amber-400 shadow-md space-y-3 bg-zinc-950 border border-zinc-800/80">
+                            {sub.titulo && <h3 className="text-sm font-bold text-amber-300">{sub.titulo}</h3>}
+                            {sub.descricao && <p className="text-zinc-300 text-xs sm:text-sm">{sub.descricao}</p>}
+                            {sub.itens && (
+                              <ul className="text-xs sm:text-sm text-zinc-200 space-y-2 pt-2 border-t border-zinc-900">
+                                {sub.itens.map((item: string, i: number) => (<li key={i} className="flex items-start gap-2"><span className="text-amber-400">•</span><span>{item}</span></li>))}
+                              </ul>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+
                     </div>
                   </TextoGrifavel>
                 );
@@ -354,6 +393,16 @@ export default function ValeAPenaPage() {
           )}
         </div>
       </main>
+
+      {/* MODAL DE IMAGENS */}
+      {modalImagensState && (
+        <div className="fixed inset-0 bg-black/95 backdrop-blur-md z-50 flex items-center justify-center p-4" onClick={() => setModalImagensState(null)}>
+          <div className="relative max-w-7xl max-h-[90vh] w-full flex flex-col items-center justify-center gap-4" onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => setModalImagensState(null)} className="absolute -top-12 right-0 bg-zinc-800 text-white w-10 h-10 rounded-full font-bold flex items-center justify-center"><X className="w-5 h-5" /></button>
+            <img src={modalImagensState.imagens[modalImagensState.indexAtual]} alt="" className="max-w-full max-h-[80vh] object-contain rounded-2xl border border-zinc-800 shadow-2xl" />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

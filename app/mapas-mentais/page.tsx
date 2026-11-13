@@ -219,7 +219,6 @@ export default function MapaMentalPage() {
   const carregarDadosSupabase = async (uid: string) => {
     try {
       setCarregando(true);
-      // Busca direto da tabela principal para garantir dados reais atualizados
       const { data, error } = await supabase.from('mapas_mentais').select('*').eq('user_id', uid);
       if (error) throw error;
 
@@ -237,7 +236,6 @@ export default function MapaMentalPage() {
               ...r,
               id: r.id || `ramo-${item.disciplina}-${idx}-${r.titulo ? r.titulo.substring(0, 20).replace(/[^a-zA-Z0-9]/g, '') : idx}`,
               assunto: r.assunto && r.assunto.trim() !== "" ? r.assunto : (r.titulo ? r.titulo.replace(/^[📌📍🚩⚡0-9.\-\)]+\s*/, '').trim() : "Geral"),
-              // BLINDAGEM DE BOOLEANO: Garante que lê corretamente mesmo se viesse nulo ou string
               revisar: r.revisar === true || r.revisar === 'true',
               revisarParaProva: r.revisarParaProva === true || r.revisarParaProva === 'true',
               imagens: Array.isArray(r.imagens) ? r.imagens : [],
@@ -254,7 +252,7 @@ export default function MapaMentalPage() {
   const salvarNoSupabaseComBackup = async (disciplinaAlvo: string, payloadMapa: any) => {
     if (!userId) return;
     try {
-      await supabase.from('mapas_mentais').upsert({
+      const { error: erroPrincipal } = await supabase.from('mapas_mentais').upsert({
         user_id: userId,
         disciplina: disciplinaAlvo,
         titulo: payloadMapa.titulo,
@@ -262,6 +260,10 @@ export default function MapaMentalPage() {
         ramos: payloadMapa.ramos,
         updated_at: new Date().toISOString()
       }, { onConflict: 'user_id,disciplina' });
+
+      if (erroPrincipal) {
+        console.error("Erro no upsert principal:", erroPrincipal.message);
+      }
 
       await supabase.from('temp_mapas_mentais').upsert({
         user_id: userId,
@@ -271,7 +273,10 @@ export default function MapaMentalPage() {
         ramos: payloadMapa.ramos,
         backed_up_at: new Date().toISOString()
       }, { onConflict: 'user_id,disciplina' });
-    } catch (e) { console.error(e); }
+
+    } catch (e) { 
+      console.error("Erro crítico ao salvar:", e); 
+    }
   };
 
   const handleCarregarJson = async () => {
@@ -372,7 +377,6 @@ export default function MapaMentalPage() {
     }
   };
 
-  // --- TOGGLE REVISAR GERAL BLINDADO ---
   const toggleRevisar = async (targetId: string, targetTitulo: string) => {
     if (!mapaAtual) return;
     const ramosAtualizados = mapaAtual.ramos.map((r: any) => {
@@ -388,7 +392,6 @@ export default function MapaMentalPage() {
     await salvarNoSupabaseComBackup(selectedDisciplina, mapaAtualizadoFinal);
   };
 
-  // --- TOGGLE REVISAR PARA PROVA BLINDADO ---
   const toggleRevisarParaProva = async (targetId: string, targetTitulo: string) => {
     if (!mapaAtual) return;
     const ramosAtualizados = mapaAtual.ramos.map((r: any) => {

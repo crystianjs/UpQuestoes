@@ -249,9 +249,13 @@ export default function MapaMentalPage() {
     } catch (e) { console.error("Erro ao carregar do Supabase:", e); } finally { setCarregando(false); }
   };
 
+  // --- SALVAMENTO BLINDADO DIRETO ---
   const salvarNoSupabaseComBackup = async (disciplinaAlvo: string, payloadMapa: any) => {
     if (!userId) return;
     try {
+      console.log("Salvando dados para:", disciplinaAlvo);
+
+      // Tenta atualizar/inserir direto na tabela principal
       const { error: erroPrincipal } = await supabase.from('mapas_mentais').upsert({
         user_id: userId,
         disciplina: disciplinaAlvo,
@@ -265,6 +269,7 @@ export default function MapaMentalPage() {
         console.error("Erro no upsert principal:", erroPrincipal.message);
       }
 
+      // Tenta atualizar/inserir na tabela de backup
       await supabase.from('temp_mapas_mentais').upsert({
         user_id: userId,
         disciplina: disciplinaAlvo,

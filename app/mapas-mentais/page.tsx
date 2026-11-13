@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Navbar from '../components/Navbar';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { Filter, Flame, Bookmark, CheckCircle2, X } from 'lucide-react';
+import { Filter, Flame, Bookmark, CheckCircle2, X, Edit3, Image as ImageIcon } from 'lucide-react';
 
 const DISCIPLINAS_TJSP = [
   "Língua Portuguesa",
@@ -158,7 +158,7 @@ function LogicalDiagram({ grafico, onDeletarCard }: { grafico: any; onDeletarCar
                   {tituloCard}
                 </span>
                 {onDeletarCard && listaItens.length > 0 && (
-                  <button onClick={() => onDeletarCard(idx)} className="text-zinc-400 hover:text-rose-400 bg-zinc-900/80 w-6 h-6 rounded-lg flex items-center justify-center text-xs transition-all border border-zinc-700/50 cursor-pointer">✕</button>
+                  <button onClick={() => onDeletarCard(idx)} className="text-zinc-400 hover:text-rose-400 bg-zinc-900/80 w-6 h-6 rounded-lg flex items-center justify-center text-xs transition-all border border-zinc-700/50 cursor-pointer"><X className="w-3 h-3" /></button>
                 )}
               </div>
               {subtituloCard && <p className="text-xs font-bold text-zinc-200">{subtituloCard}</p>}
@@ -196,7 +196,7 @@ export default function MapaMentalPage() {
   const [mapasPorDisciplina, setMapasPorDisciplina] = useState<Record<string, any>>({});
   const [selectedDisciplina, setSelectedDisciplina] = useState<string>("Todas as Matérias");
   const [selectedAssunto, setSelectedAssunto] = useState<string>("all");
-  const [filtroRevisao, setFiltroRevisao] = useState<string>("todos"); // "todos" | "revisarParaProva" | "revisarGeral"
+  const [filtroRevisao, setFiltroRevisao] = useState<string>("todos");
   const [showJsonModal, setShowJsonModal] = useState<boolean>(false);
   const [modalDisciplinaAlvo, setModalDisciplinaAlvo] = useState<string>("Raciocínio Lógico");
   const [jsonInputText, setJsonInputText] = useState<string>('');
@@ -237,7 +237,8 @@ export default function MapaMentalPage() {
             banca: item.banca || 'VUNESP',
             ramos: Array.isArray(rawRamos) ? rawRamos.filter(Boolean).map((r: any, idx: number) => ({
               ...r,
-              id: r.id || `ramo-${item.disciplina}-${idx}-${Date.now()}`,
+              // Garante ID estável baseado no ID original, no título ou no índice
+              id: r.id || `ramo-${item.disciplina}-${idx}-${r.titulo ? r.titulo.substring(0, 15).replace(/\s+/g, '-') : 'geral'}`,
               assunto: r.assunto && r.assunto.trim() !== "" ? r.assunto : (r.titulo ? r.titulo.replace(/^[📌📍🚩⚡0-9.\-\)]+\s*/, '').trim() : "Geral"),
               revisar: r.revisar === true,
               revisarParaProva: r.revisarParaProva === true,
@@ -369,7 +370,9 @@ export default function MapaMentalPage() {
   const toggleRevisar = async (ramoId: string) => {
     if (!mapaAtual) return;
     const ramosAtualizados = mapaAtual.ramos.map((r: any) => {
-      if (r && (r.id === ramoId || r.titulo === ramoId)) return { ...r, revisar: !r.revisar };
+      if (r && (r.id === ramoId || r.titulo === ramoId)) {
+        return { ...r, revisar: !r.revisar };
+      }
       return r;
     });
     const mapaAtualizadoFinal = { ...mapaAtual, ramos: ramosAtualizados };
@@ -380,7 +383,9 @@ export default function MapaMentalPage() {
   const toggleRevisarParaProva = async (ramoId: string) => {
     if (!mapaAtual) return;
     const ramosAtualizados = mapaAtual.ramos.map((r: any) => {
-      if (r && (r.id === ramoId || r.titulo === ramoId)) return { ...r, revisarParaProva: !r.revisarParaProva };
+      if (r && (r.id === ramoId || r.titulo === ramoId)) {
+        return { ...r, revisarParaProva: !r.revisarParaProva };
+      }
       return r;
     });
     const mapaAtualizadoFinal = { ...mapaAtual, ramos: ramosAtualizados };
@@ -421,7 +426,6 @@ export default function MapaMentalPage() {
   const mapaAtual = selectedDisciplina !== "Todas as Matérias" ? mapasPorDisciplina[selectedDisciplina] : null;
   const assuntosUnicos = mapaAtual?.ramos ? Array.from(new Set(mapaAtual.ramos.filter(Boolean).map((r: any) => r.assunto || "Geral"))) : [];
   
-  // FILTRAGEM DOS RAMOS (MATÉRIA + ASSUNTO + FILTRO DE REVISÃO)
   const ramosExibir = mapaAtual?.ramos ? mapaAtual.ramos.filter((r: any) => {
     if (!r) return false;
     const matchAssunto = selectedAssunto === 'all' || (r.assunto || "Geral") === selectedAssunto;
@@ -448,7 +452,7 @@ export default function MapaMentalPage() {
           <button onClick={() => { setModalDisciplinaAlvo(selectedDisciplina !== "Todas as Matérias" ? selectedDisciplina : DISCIPLINAS_TJSP[0]); setShowJsonModal(true); }} className="text-xs font-bold px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-500 text-zinc-950 transition-all shadow-md cursor-pointer">Novo Mapa</button>
         </div>
 
-        {/* BARRA DE FILTROS (MATÉRIA, ASSUNTO E FILTRO DE REVISÃO) */}
+        {/* BARRA DE FILTROS */}
         <div className="bg-zinc-950 border border-zinc-800 p-4 rounded-2xl shadow-lg grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold text-zinc-400 whitespace-nowrap">Matéria:</span>
@@ -471,8 +475,8 @@ export default function MapaMentalPage() {
             <span className="text-xs font-bold text-zinc-400 whitespace-nowrap">Filtro:</span>
             <select value={filtroRevisao} onChange={(e) => setFiltroRevisao(e.target.value)} className="w-full bg-zinc-900 border border-zinc-800 text-amber-400 text-xs rounded-xl px-3 py-2.5 outline-none focus:border-amber-400 font-bold cursor-pointer">
               <option value="todos">Todos os Tópicos</option>
-              <option value="revisarParaProva">🔥 Revisar para Prova</option>
-              <option value="revisarGeral">🔖 Revisar Geral</option>
+              <option value="revisarParaProva">Revisar para Prova</option>
+              <option value="revisarGeral">Revisar Geral</option>
             </select>
           </div>
         </div>
@@ -506,7 +510,7 @@ export default function MapaMentalPage() {
                             {!estaEditando ? (
                               <div className="flex items-center gap-2">
                                 <span className="text-xs font-semibold text-zinc-300">• {ramo.assunto || "Geral"}</span>
-                                <button onClick={() => { setEditandoRamoId(ramo.id); setNovoAssuntoInput(ramo.assunto || ''); }} className="text-[10px] text-amber-400 hover:underline bg-zinc-900 px-2 py-0.5 rounded border border-amber-400/20 cursor-pointer">✏️ Editar</button>
+                                <button onClick={() => { setEditandoRamoId(ramo.id); setNovoAssuntoInput(ramo.assunto || ''); }} className="text-[10px] text-amber-400 hover:underline bg-zinc-900 px-2 py-0.5 rounded border border-amber-400/20 cursor-pointer flex items-center gap-1"><Edit3 className="w-3 h-3" /> Editar</button>
                               </div>
                             ) : (
                               <div className="flex items-center gap-2 mt-1">
@@ -520,16 +524,16 @@ export default function MapaMentalPage() {
 
                         <div className="flex items-center gap-2 self-start sm:self-center shrink-0 flex-wrap">
                           <label className="text-xs font-bold px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-amber-400 border border-zinc-700 transition-all cursor-pointer shadow-md flex items-center gap-1.5">
-                            Enviar Imagens
+                            <ImageIcon className="w-3.5 h-3.5" /> Enviar Imagens
                             <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => handleUploadMultiplasImagens(ramo.id, e)} />
                           </label>
-                          <button onClick={() => toggleRevisarParaProva(ramo.id)} className={`text-xs font-extrabold px-3 py-1.5 rounded-lg border transition-all cursor-pointer shadow-md ${ramo.revisarParaProva ? 'bg-rose-600 text-white border-rose-400 ring-2 ring-rose-500/50' : 'bg-zinc-950 text-rose-400/70 border-rose-500/30 hover:text-rose-400'}`}>
+                          <button onClick={() => toggleRevisarParaProva(ramo.id)} className={`text-xs font-extrabold px-3 py-1.5 rounded-lg border transition-all cursor-pointer shadow-md flex items-center gap-1.5 ${ramo.revisarParaProva ? 'bg-rose-600 text-white border-rose-400 ring-2 ring-rose-500/50' : 'bg-zinc-950 text-rose-400/70 border-rose-500/30 hover:text-rose-400'}`}>
                             <Flame className="w-3.5 h-3.5" /> Revisar p/ Prova
                           </button>
-                          <button onClick={() => toggleRevisar(ramo.id)} className={`text-xs font-extrabold px-3 py-1.5 rounded-lg border transition-all cursor-pointer shadow-md ${ramo.revisar ? 'bg-amber-400 text-zinc-950 border-amber-300 ring-2 ring-amber-400/50' : 'bg-zinc-950 text-amber-400/70 border-zinc-500/30 hover:text-amber-400'}`}>
+                          <button onClick={() => toggleRevisar(ramo.id)} className={`text-xs font-extrabold px-3 py-1.5 rounded-lg border transition-all cursor-pointer shadow-md flex items-center gap-1.5 ${ramo.revisar ? 'bg-amber-400 text-zinc-950 border-amber-300 ring-2 ring-amber-400/50' : 'bg-zinc-950 text-amber-400/70 border-zinc-500/30 hover:text-amber-400'}`}>
                             <Bookmark className="w-3.5 h-3.5" /> Revisar Geral
                           </button>
-                          <button onClick={() => excluirRamo(ramo.id)} className="text-zinc-500 hover:text-rose-400 bg-zinc-950 p-2 rounded-lg border border-zinc-800 transition-all text-xs cursor-pointer" title="Apagar Ramo">✕</button>
+                          <button onClick={() => excluirRamo(ramo.id)} className="text-zinc-500 hover:text-rose-400 bg-zinc-950 p-2 rounded-lg border border-zinc-800 transition-all text-xs cursor-pointer" title="Apagar Ramo"><X className="w-3.5 h-3.5" /></button>
                         </div>
                       </div>
 
@@ -543,7 +547,7 @@ export default function MapaMentalPage() {
                             {listaImagensRamo.map((imgUrl: string, imgIdx: number) => (
                               <div key={imgIdx} className="relative group rounded-xl overflow-hidden border border-zinc-800 bg-zinc-900 aspect-video flex items-center justify-center cursor-pointer" onClick={() => setModalImagensState({ imagens: listaImagensRamo, indexAtual: imgIdx })}>
                                 <img src={imgUrl} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                                <button onClick={(e) => { e.stopPropagation(); removerImagemUnica(ramo.id, imgIdx); }} className="absolute top-2 right-2 bg-rose-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity shadow-md">✕</button>
+                                <button onClick={(e) => { e.stopPropagation(); removerImagemUnica(ramo.id, imgIdx); }} className="absolute top-2 right-2 bg-rose-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity shadow-md"><X className="w-3.5 h-3.5" /></button>
                               </div>
                             ))}
                           </div>
@@ -575,7 +579,7 @@ export default function MapaMentalPage() {
       {modalImagensState && (
         <div className="fixed inset-0 bg-black/95 backdrop-blur-md z-50 flex items-center justify-center p-4" onClick={() => setModalImagensState(null)}>
           <div className="relative max-w-7xl max-h-[90vh] w-full flex flex-col items-center justify-center gap-4" onClick={(e) => e.stopPropagation()}>
-            <button onClick={() => setModalImagensState(null)} className="absolute -top-12 right-0 bg-zinc-800 text-white w-10 h-10 rounded-full font-bold">✕</button>
+            <button onClick={() => setModalImagensState(null)} className="absolute -top-12 right-0 bg-zinc-800 text-white w-10 h-10 rounded-full font-bold flex items-center justify-center"><X className="w-5 h-5" /></button>
             <img src={modalImagensState.imagens[modalImagensState.indexAtual]} alt="" className="max-w-full max-h-[80vh] object-contain rounded-2xl border border-zinc-800 shadow-2xl" />
           </div>
         </div>
@@ -584,7 +588,7 @@ export default function MapaMentalPage() {
       {showJsonModal && (
         <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="bg-zinc-950 border border-zinc-800 rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl relative space-y-4">
-            <button onClick={() => setShowJsonModal(false)} className="absolute top-4 right-4 text-red-400 bg-zinc-900 w-9 h-9 flex items-center justify-center rounded-full cursor-pointer">✕</button>
+            <button onClick={() => setShowJsonModal(false)} className="absolute top-4 right-4 text-red-400 bg-zinc-900 w-9 h-9 flex items-center justify-center rounded-full cursor-pointer"><X className="w-4 h-4" /></button>
             <h2 className="text-lg font-bold text-white">Adicionar novo mapa / tópico via JSON</h2>
             <select value={modalDisciplinaAlvo} onChange={(e) => setModalDisciplinaAlvo(e.target.value)} className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 text-xs rounded-xl px-3 py-2.5">
               {DISCIPLINAS_TJSP.map((disc) => <option key={disc} value={disc}>{disc}</option>)}

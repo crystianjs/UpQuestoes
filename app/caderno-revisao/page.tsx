@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Navbar from '../components/Navbar';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { Lightbulb, Tag, X, Edit3, Plus, Trash2, BookOpen } from 'lucide-react';
+import { Lightbulb, Tag, X, Edit3, Plus, Trash2, BookOpen, ExternalLink, AlertTriangle } from 'lucide-react';
 
 const DISCIPLINAS_TJSP = [
   "Língua Portuguesa",
@@ -26,23 +26,6 @@ const revisaoInicialExemplo = {
       detalhes: "PEGADINHA VUNESP: A banca costuma tentar incluir interjeições e artigos como variáveis em graus compostos.",
       pergunta: "Quais são as 10 classes gramaticais da Língua Portuguesa?",
       respostaResumida: "Substantivo, Artigo, Adjetivo, Pronome, Numeral, Verbo, Advérbio, Preposição, Conjunção e Interjeição.",
-      statusAvaliacao: null
-    }
-  ]
-};
-
-const cardAvisoDireitoAtualidades = {
-  disciplina: "Direito e Atualidades",
-  titulo: "Aviso: Estudo pelo Circuito Loop",
-  banca: "VUNESP",
-  cards: [
-    {
-      id: "fc-aviso-circuito-loop-01",
-      tag: "Aviso",
-      assunto: "Circuito Loop",
-      detalhes: "Os flashcards de Direito, Atualidades e Estatuto da Pessoa com Deficiência (PCD) já estão disponíveis e organizados diretamente na plataforma Circuito Loop.",
-      pergunta: "‼️ Flashcard no Circuito Loop sobre Atualidade e Direito",
-      respostaResumida: "Acesse a plataforma Circuito Loop para revisar as questões e flashcards de Atualidades, PCD e disciplinas de Direito.",
       statusAvaliacao: null
     }
   ]
@@ -137,17 +120,6 @@ export default function CadernoRevisaoPage() {
           cards: revisaoInicialExemplo.cards
         }, { onConflict: 'user_id,disciplina' });
         formatado[revisaoInicialExemplo.disciplina] = revisaoInicialExemplo;
-      }
-
-      if (!formatado["Direito e Atualidades"]) {
-        await supabase.from('caderno_revisao').upsert({
-          user_id: uid,
-          disciplina: cardAvisoDireitoAtualidades.disciplina,
-          titulo: cardAvisoDireitoAtualidades.titulo,
-          banca: cardAvisoDireitoAtualidades.banca,
-          cards: cardAvisoDireitoAtualidades.cards
-        }, { onConflict: 'user_id,disciplina' });
-        formatado["Direito e Atualidades"] = cardAvisoDireitoAtualidades;
       }
 
       setRevisoesPorDisciplina(formatado);
@@ -317,22 +289,24 @@ export default function CadernoRevisaoPage() {
               <span className="bg-emerald-500/20 text-emerald-400 font-bold text-xs px-2.5 py-0.5 rounded-full border border-emerald-500/30">Segurança Ativa</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black text-white mt-1 tracking-tight">
-              {revisaoAtual ? revisaoAtual.titulo : "Painel de Flashcards"}
+              {selectedDisciplina === "Direito e Atualidades" ? "Aviso: Estudo pelo Circuito Loop" : (revisaoAtual ? revisaoAtual.titulo : "Painel de Flashcards")}
             </h1>
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => {
-                setModalDisciplinaAlvo(selectedDisciplina !== "Todas as Matérias" ? selectedDisciplina : DISCIPLINAS_TJSP[0]);
-                setJsonInputText(JSON.stringify(revisaoInicialExemplo, null, 2));
-                setShowJsonModal(true);
-              }}
-              className="text-xs font-bold px-4 py-2.5 rounded-xl border border-amber-400/50 bg-amber-400 hover:bg-amber-500 text-zinc-950 transition-all flex items-center gap-1.5 shadow-md cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              Novo Flashcard
-            </button>
+            {selectedDisciplina !== "Direito e Atualidades" && (
+              <button
+                onClick={() => {
+                  setModalDisciplinaAlvo(selectedDisciplina !== "Todas as Matérias" ? selectedDisciplina : DISCIPLINAS_TJSP[0]);
+                  setJsonInputText(JSON.stringify(revisaoInicialExemplo, null, 2));
+                  setShowJsonModal(true);
+                }}
+                className="text-xs font-bold px-4 py-2.5 rounded-xl border border-amber-400/50 bg-amber-400 hover:bg-amber-500 text-zinc-950 transition-all flex items-center gap-1.5 shadow-md cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                Novo Flashcard
+              </button>
+            )}
           </div>
         </div>
 
@@ -361,7 +335,7 @@ export default function CadernoRevisaoPage() {
             <select
               value={selectedAssunto}
               onChange={(e) => setSelectedAssunto(e.target.value)}
-              disabled={selectedDisciplina === "Todas as Matérias" || !revisaoAtual}
+              disabled={selectedDisciplina === "Todas as Matérias" || selectedDisciplina === "Direito e Atualidades" || !revisaoAtual}
               className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 text-xs rounded-xl px-3 py-2.5 outline-none focus:border-amber-400 font-semibold disabled:opacity-40 cursor-pointer"
             >
               <option value="all">Todos os Assuntos</option>
@@ -383,6 +357,29 @@ export default function CadernoRevisaoPage() {
           ) : selectedDisciplina === "Todas as Matérias" ? (
             <div className="flex flex-col items-center justify-center text-center p-20 space-y-3">
               <p className="text-base text-zinc-400 font-medium">Selecione uma disciplina para visualizar os flashcards em tela cheia.</p>
+            </div>
+          ) : selectedDisciplina === "Direito e Atualidades" ? (
+            <div className="flex flex-col items-center justify-center text-center p-16 sm:p-24 space-y-6 max-w-2xl mx-auto">
+              <div className="w-16 h-16 rounded-3xl bg-amber-400/10 border border-amber-400/30 flex items-center justify-center text-amber-400 shadow-lg">
+                <AlertTriangle className="w-8 h-8" />
+              </div>
+              <div className="space-y-3">
+                <h2 className="text-xl sm:text-2xl font-extrabold text-white">
+                  ‼️ Flashcard no Circuito Loop sobre Atualidade e Direito
+                </h2>
+                <p className="text-xs sm:text-sm text-zinc-300 leading-relaxed">
+                  Os flashcards, questões e materiais de Direito, Atualidades e Estatuto da Pessoa com Deficiência (PCD) encontram-se centralizados e disponíveis na plataforma dedicada Circuito Loop.
+                </p>
+              </div>
+              <a
+                href="https://app.circuitoloop.com.br/dashboard"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-6 py-3.5 bg-amber-400 hover:bg-amber-500 text-zinc-950 font-black text-xs sm:text-sm rounded-2xl transition-all shadow-xl flex items-center gap-2 cursor-pointer"
+              >
+                <span>Abrir Circuito Loop</span>
+                <ExternalLink className="w-4 h-4" />
+              </a>
             </div>
           ) : !revisaoAtual ? (
             <div className="flex flex-col items-center justify-center text-center p-20 space-y-3">
@@ -554,28 +551,30 @@ export default function CadernoRevisaoPage() {
           )}
         </div>
 
-        <div className="bg-zinc-950 p-6 rounded-2xl border border-zinc-800 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <span className="bg-amber-400 text-zinc-950 font-bold text-xs px-2.5 py-0.5 rounded-full">Mentor VUNESP</span>
-              <h2 className="text-sm font-bold text-white">Prompt Mestre para Flashcards</h2>
+        {selectedDisciplina !== "Direito e Atualidades" && (
+          <div className="bg-zinc-950 p-6 rounded-2xl border border-zinc-800 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="bg-amber-400 text-zinc-950 font-bold text-xs px-2.5 py-0.5 rounded-full">Mentor VUNESP</span>
+                <h2 className="text-sm font-bold text-white">Prompt Mestre para Flashcards</h2>
+              </div>
+              <p className="text-xs text-zinc-400">
+                Gera os cards limpos e com IDs seguros em formato timestamp para proteger o seu histórico.
+              </p>
             </div>
-            <p className="text-xs text-zinc-400">
-              Gera os cards limpos e com IDs seguros em formato timestamp para proteger o seu histórico.
-            </p>
-          </div>
 
-          <button
-            onClick={copiarPromptMestre}
-            className={`px-4 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center gap-2 whitespace-nowrap shadow-md cursor-pointer ${
-              copiadoPrompt 
-                ? 'bg-emerald-600 text-white border border-emerald-500' 
-                : 'bg-amber-400 hover:bg-amber-500 text-zinc-950 border border-amber-500'
-            }`}
-          >
-            {copiadoPrompt ? 'Prompt Copiado!' : 'Copiar Prompt Mestre'}
-          </button>
-        </div>
+            <button
+              onClick={copiarPromptMestre}
+              className={`px-4 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center gap-2 whitespace-nowrap shadow-md cursor-pointer ${
+                copiadoPrompt 
+                  ? 'bg-emerald-600 text-white border border-emerald-500' 
+                  : 'bg-amber-400 hover:bg-amber-500 text-zinc-950 border border-amber-500'
+              }`}
+            >
+              {copiadoPrompt ? 'Prompt Copiado!' : 'Copiar Prompt Mestre'}
+            </button>
+          </div>
+        )}
 
       </main>
 

@@ -75,7 +75,7 @@ export default function Navbar() {
           Vale a Pena ver de novo
         </Link>
                 {/* Novo Link de Cronograma */}
-        <Link 
+        {/* <Link 
           href="/cronograma" 
           className={`px-3 py-2 rounded-xl transition-all flex items-center gap-1.5 ${
             isActive('/cronograma') 
@@ -85,7 +85,7 @@ export default function Navbar() {
         >
           <CalendarDays className="w-3.5 h-3.5" />
           Cronograma
-        </Link>
+        </Link> */}
         <Link 
           href="/redacao" 
           className={`px-3 py-2 rounded-xl transition-all ${isActive('/redacao') ? 'bg-red-600 text-white font-bold shadow-lg shadow-red-600/20' : 'text-zinc-400 hover:text-white hover:bg-zinc-900'}`}

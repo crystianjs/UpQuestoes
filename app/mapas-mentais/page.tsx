@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Navbar from '../components/Navbar';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { Filter, Flame, Bookmark, CheckCircle2, X, Edit3, Image as ImageIcon } from 'lucide-react';
+import { Filter, Flame, Bookmark, CheckCircle2, X, Edit3, Image as ImageIcon, Copy, Check } from 'lucide-react';
 
 const DISCIPLINAS_TJSP = [
   "Língua Portuguesa",
@@ -20,6 +20,57 @@ const DISCIPLINAS_TJSP = [
   "Atualidades",
   "Estatuto da Pessoa com Deficiência"
 ];
+
+const PROMPT_MESTRE_JSON = `Atue como Especialista, Mentor e Autoridade máxima para o concurso do TJSP (Banca VUNESP). 
+Gere um JSON estruturado estrito para a matéria [INSERIR MATÉRIA E TÓPICO] contendo obrigatoriamente a raiz com "titulo", "disciplina", "banca": "VUNESP" e o array "ramos".
+
+O JSON deve seguir RIGOROSAMENTE esta especificação técnica e estrutural:
+
+1. RAIZ DO OBJETO:
+- "disciplina": string exata (ex: "Direito Constitucional", "Língua Portuguesa", etc.)
+- "titulo": string descritiva da revisão.
+- "banca": "VUNESP"
+- "ramos": Array contendo os tópicos principais abordados.
+
+2. CADA ITEM DENTRO DO ARRAY "ramos" DEVE CONTER:
+- "id": string única e estável (ex: "nome-do-topico-vunesp-2026-001")
+- "assunto": string com o tema central (ex: "Nacionalidade Brasileira")
+- "titulo": string com o título do ramo/tópico.
+- "tag": string de identificação da área (ex: "Constitucional")
+- "tipo": string (ex: "conceito", "fluxograma", "memorizacao")
+- "artigos": string citando a legislação correspondente (ex: "CF/88, Art. 12")
+- "revisar": false (OBRIGATÓRIO ser booleano false, pois quem marca é o usuário na interface)
+- "revisarParaProva": false (OBRIGATÓRIO ser booleano false, para marcação exclusiva de alto risco)
+- "imagens": [] (array vazio por padrão para futuras inserções do usuário)
+
+3. ESTRUTURA DE "subnos" (Detalhamento do conteúdo):
+- Array de objetos contendo:
+  - "titulo": string com o subtítulo da explicação.
+  - "descricao": string explicativa detalhada.
+  - "itens": Array de strings com os pontos-chave, macetes e pegadinhas da VUNESP.
+
+4. ESTRUTURA DE "grafico" (Diagramas e Cards Visuais Flexíveis):
+- "tipo": "cards_flexiveis" ou "fluxograma"
+- "titulo": string do cabeçalho do diagrama.
+- "cards": Array de objetos visuais contendo:
+  - "titulo": string do card.
+  - "subtitulo": string de apoio (opcional).
+  - "topicos": Array de strings com o conteúdo resumido do card.
+  - "corBorda": string com código HEX (ex: "#3B82F6")
+  - "corFundo": string com rgba (ex: "rgba(30, 58, 138, 0.4)")
+  - "corTitulo": string com código HEX (ex: "#60A5FA")
+
+5. ESTRUTURA DE "modalInfo" (Estratégia de Prova):
+- "tag": string (ex: "Estratégia VUNESP")
+- "title": string
+- "pegadinha": string alertando sobre as armadilhas comuns da banca.
+- "conclusoes": Array de strings com as conclusões lógicas.
+- "casosPraticos": Array de objetos contendo "titulo" e "texto" com exemplos de aplicação em prova.
+
+ATENÇÃO ABSOLUTA ÀS REGRAS DE DESIGN:
+- NUNCA utilize emojis visuais dentro dos textos, títulos ou descrições geradas. 
+- Utilize estritamente elementos limpos baseados em texto e ícones estruturados.
+- Retorne APENAS o código JSON puro e válido, sem markdown de conversação antes ou depois, pronto para ser colado no sistema.`;
 
 // --- COMPONENTE DE SELEÇÃO E MARCA-TEXTO ---
 function TextoGrifavel({ children, idUnico }: { children: React.ReactNode; idUnico: string }) {
@@ -204,6 +255,7 @@ export default function MapaMentalPage() {
   const [editandoRamoId, setEditandoRamoId] = useState<string | null>(null);
   const [novoAssuntoInput, setNovoAssuntoInput] = useState<string>('');
   const [modalImagensState, setModalImagensState] = useState<{ imagens: string[]; indexAtual: number } | null>(null);
+  const [promptCopiado, setPromptCopiado] = useState<boolean>(false);
 
   useEffect(() => {
     async function init() {
@@ -249,13 +301,16 @@ export default function MapaMentalPage() {
     } catch (e) { console.error("Erro ao carregar do Supabase:", e); } finally { setCarregando(false); }
   };
 
+  const copiarPromptMestre = () => {
+    navigator.clipboard.writeText(PROMPT_MESTRE_JSON);
+    setPromptCopiado(true);
+    setTimeout(() => setPromptCopiado(false), 2500);
+  };
+
   // --- SALVAMENTO BLINDADO DIRETO ---
   const salvarNoSupabaseComBackup = async (disciplinaAlvo: string, payloadMapa: any) => {
     if (!userId) return;
     try {
-      console.log("Salvando dados para:", disciplinaAlvo);
-
-      // Tenta atualizar/inserir direto na tabela principal
       const { error: erroPrincipal } = await supabase.from('mapas_mentais').upsert({
         user_id: userId,
         disciplina: disciplinaAlvo,
@@ -269,7 +324,6 @@ export default function MapaMentalPage() {
         console.error("Erro no upsert principal:", erroPrincipal.message);
       }
 
-      // Tenta atualizar/inserir na tabela de backup
       await supabase.from('temp_mapas_mentais').upsert({
         user_id: userId,
         disciplina: disciplinaAlvo,
@@ -468,7 +522,30 @@ export default function MapaMentalPage() {
             </div>
             <h1 className="text-2xl sm:text-3xl font-black text-white mt-1">{mapaAtual ? mapaAtual.titulo : "Painel de Mapas Mentais"}</h1>
           </div>
-          <button onClick={() => { setModalDisciplinaAlvo(selectedDisciplina !== "Todas as Matérias" ? selectedDisciplina : DISCIPLINAS_TJSP[0]); setShowJsonModal(true); }} className="text-xs font-bold px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-500 text-zinc-950 transition-all shadow-md cursor-pointer">Novo Mapa</button>
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <button 
+              onClick={copiarPromptMestre} 
+              className="text-xs font-bold px-4 py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border border-zinc-700 transition-all shadow-md cursor-pointer flex items-center gap-2"
+            >
+              {promptCopiado ? (
+                <>
+                  <Check className="w-3.5 h-3.5 text-emerald-400" />
+                  <span className="text-emerald-400">Prompt Copiado!</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Copiar Prompt Mestre</span>
+                </>
+              )}
+            </button>
+            <button 
+              onClick={() => { setModalDisciplinaAlvo(selectedDisciplina !== "Todas as Matérias" ? selectedDisciplina : DISCIPLINAS_TJSP[0]); setShowJsonModal(true); }} 
+              className="text-xs font-bold px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-500 text-zinc-950 transition-all shadow-md cursor-pointer"
+            >
+              Novo Mapa
+            </button>
+          </div>
         </div>
 
         {/* BARRA DE FILTROS */}
@@ -608,7 +685,16 @@ export default function MapaMentalPage() {
         <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="bg-zinc-950 border border-zinc-800 rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl relative space-y-4">
             <button onClick={() => setShowJsonModal(false)} className="absolute top-4 right-4 text-red-400 bg-zinc-900 w-9 h-9 flex items-center justify-center rounded-full cursor-pointer"><X className="w-4 h-4" /></button>
-            <h2 className="text-lg font-bold text-white">Adicionar novo mapa / tópico via JSON</h2>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pr-10">
+              <h2 className="text-lg font-bold text-white">Adicionar novo mapa / tópico via JSON</h2>
+              <button 
+                onClick={copiarPromptMestre} 
+                className="text-xs font-bold px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-amber-400 border border-amber-400/30 transition-all cursor-pointer flex items-center gap-1.5 w-fit"
+              >
+                {promptCopiado ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>{promptCopiado ? 'Prompt Copiado!' : 'Copiar Prompt'}</span>
+              </button>
+            </div>
             <select value={modalDisciplinaAlvo} onChange={(e) => setModalDisciplinaAlvo(e.target.value)} className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 text-xs rounded-xl px-3 py-2.5">
               {DISCIPLINAS_TJSP.map((disc) => <option key={disc} value={disc}>{disc}</option>)}
             </select>

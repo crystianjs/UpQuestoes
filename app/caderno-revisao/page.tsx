@@ -4,21 +4,14 @@ import React, { useState, useEffect } from 'react';
 import Navbar from '../components/Navbar';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { Lightbulb, Tag, Check, X, Edit3, Plus, Trash2, BookOpen } from 'lucide-react';
+import { Lightbulb, Tag, X, Edit3, Plus, Trash2, BookOpen } from 'lucide-react';
 
 const DISCIPLINAS_TJSP = [
   "Língua Portuguesa",
-  "Direito Penal",
-  "Direito Processual Penal",
-  "Direito Processual Civil",
-  "Direito Constitucional",
-  "Direito Administrativo",
-  "Normas da Corregedoria",
   "Matemática",
   "Raciocínio Lógico",
   "Informática",
-  "Atualidades",
-  "Estatuto da Pessoa com Deficiência"
+  "Direito e Atualidades"
 ];
 
 const revisaoInicialExemplo = {
@@ -33,6 +26,23 @@ const revisaoInicialExemplo = {
       detalhes: "PEGADINHA VUNESP: A banca costuma tentar incluir interjeições e artigos como variáveis em graus compostos.",
       pergunta: "Quais são as 10 classes gramaticais da Língua Portuguesa?",
       respostaResumida: "Substantivo, Artigo, Adjetivo, Pronome, Numeral, Verbo, Advérbio, Preposição, Conjunção e Interjeição.",
+      statusAvaliacao: null
+    }
+  ]
+};
+
+const cardAvisoDireitoAtualidades = {
+  disciplina: "Direito e Atualidades",
+  titulo: "Aviso: Estudo pelo Circuito Loop",
+  banca: "VUNESP",
+  cards: [
+    {
+      id: "fc-aviso-circuito-loop-01",
+      tag: "Aviso",
+      assunto: "Circuito Loop",
+      detalhes: "Os flashcards de Direito, Atualidades e Estatuto da Pessoa com Deficiência (PCD) já estão disponíveis e organizados diretamente na plataforma Circuito Loop.",
+      pergunta: "‼️ Flashcard no Circuito Loop sobre Atualidade e Direito",
+      respostaResumida: "Acesse a plataforma Circuito Loop para revisar as questões e flashcards de Atualidades, PCD e disciplinas de Direito.",
       statusAvaliacao: null
     }
   ]
@@ -103,8 +113,9 @@ export default function CadernoRevisaoPage() {
       const { data, error } = await supabase.from('caderno_revisao').select('*').eq('user_id', uid);
       if (error) throw error;
 
+      const formatado: Record<string, any> = {};
+
       if (data && data.length > 0) {
-        const formatado: Record<string, any> = {};
         data.forEach((item: any) => {
           let rawCards = item.cards;
           if (typeof rawCards === 'string') {
@@ -117,21 +128,29 @@ export default function CadernoRevisaoPage() {
             cards: Array.isArray(rawCards) ? rawCards : []
           };
         });
-        setRevisoesPorDisciplina(formatado);
-      } else {
-        if (uid === '96d5de06-229d-4a5c-97c0-dbb47224bb17') {
-          await supabase.from('caderno_revisao').upsert({
-            user_id: uid,
-            disciplina: revisaoInicialExemplo.disciplina,
-            titulo: revisaoInicialExemplo.titulo,
-            banca: revisaoInicialExemplo.banca,
-            cards: revisaoInicialExemplo.cards
-          }, { onConflict: 'user_id,disciplina' });
-          setRevisoesPorDisciplina({ [revisaoInicialExemplo.disciplina]: revisaoInicialExemplo });
-        } else {
-          setRevisoesPorDisciplina({});
-        }
+      } else if (uid === '96d5de06-229d-4a5c-97c0-dbb47224bb17') {
+        await supabase.from('caderno_revisao').upsert({
+          user_id: uid,
+          disciplina: revisaoInicialExemplo.disciplina,
+          titulo: revisaoInicialExemplo.titulo,
+          banca: revisaoInicialExemplo.banca,
+          cards: revisaoInicialExemplo.cards
+        }, { onConflict: 'user_id,disciplina' });
+        formatado[revisaoInicialExemplo.disciplina] = revisaoInicialExemplo;
       }
+
+      if (!formatado["Direito e Atualidades"]) {
+        await supabase.from('caderno_revisao').upsert({
+          user_id: uid,
+          disciplina: cardAvisoDireitoAtualidades.disciplina,
+          titulo: cardAvisoDireitoAtualidades.titulo,
+          banca: cardAvisoDireitoAtualidades.banca,
+          cards: cardAvisoDireitoAtualidades.cards
+        }, { onConflict: 'user_id,disciplina' });
+        formatado["Direito e Atualidades"] = cardAvisoDireitoAtualidades;
+      }
+
+      setRevisoesPorDisciplina(formatado);
     } catch (e) {
       console.error("Erro ao carregar do Supabase:", e);
     } finally {

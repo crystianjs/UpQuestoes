@@ -307,7 +307,6 @@ export default function MapaMentalPage() {
     setTimeout(() => setPromptCopiado(false), 2500);
   };
 
-  // --- SALVAMENTO BLINDADO DIRETO ---
   const salvarNoSupabaseComBackup = async (disciplinaAlvo: string, payloadMapa: any) => {
     if (!userId) return;
     try {
@@ -398,15 +397,50 @@ export default function MapaMentalPage() {
     } catch (e: any) { alert(`Erro no JSON: ${e.message}`); }
   };
 
+  // Função otimizada com redimensionamento de imagem para prevenir estouro no banco de dados
   const handleUploadMultiplasImagens = async (ramoId: string, e: React.ChangeEvent<HTMLInputElement>) => {
     const arquivos = e.target.files;
     if (!arquivos || arquivos.length === 0 || !mapaAtual) return;
-    const promessasLeitura = Array.from(arquivos).map(file => new Promise<string>((resolve) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result as string);
-      reader.readAsDataURL(file);
-    }));
+
+    const redimensionarEConverter = (file: File): Promise<string> => {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const MAX_WIDTH = 1200;
+            const MAX_HEIGHT = 1200;
+            let width = img.width;
+            let height = img.height;
+
+            if (width > height) {
+              if (width > MAX_WIDTH) {
+                height *= MAX_WIDTH / width;
+                width = MAX_WIDTH;
+              }
+            } else {
+              if (height > MAX_HEIGHT) {
+                width *= MAX_HEIGHT / height;
+                height = MAX_HEIGHT;
+              }
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx?.drawImage(img, 0, 0, width, height);
+            resolve(canvas.toDataURL('image/jpeg', 0.85));
+          };
+          img.src = event.target?.result as string;
+        };
+        reader.readAsDataURL(file);
+      });
+    };
+
+    const promessasLeitura = Array.from(arquivos).map(file => redimensionarEConverter(file));
     const novasBase64 = await Promise.all(promessasLeitura);
+
     const ramosAtualizados = mapaAtual.ramos.map((r: any) => {
       if (r && (r.id === ramoId || r.titulo === ramoId)) {
         const listaAtual = Array.isArray(r.imagens) ? r.imagens : [];
@@ -414,6 +448,7 @@ export default function MapaMentalPage() {
       }
       return r;
     });
+
     const mapaAtualizadoFinal = { ...mapaAtual, ramos: ramosAtualizados };
     setMapasPorDisciplina(prev => ({ ...prev, [selectedDisciplina]: mapaAtualizadoFinal }));
     await salvarNoSupabaseComBackup(selectedDisciplina, mapaAtualizadoFinal);

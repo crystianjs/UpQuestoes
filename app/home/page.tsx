@@ -172,7 +172,7 @@ export default function HomePage() {
         {/* Destaque Superior */}
         <div className="bg-amber-400 border border-amber-500 rounded-3xl p-6 sm:p-8 shadow-2xl text-zinc-950 text-center space-y-2 relative overflow-hidden">
           <span className="inline-block bg-zinc-950 text-amber-400 text-[11px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md">
-            PAINEL EXCLUSIVO • CRRYSTIAN JESUS
+            PAINEL EXCLUSIVO • CRYSTIAN JESUS
           </span>
           <h2 className="text-xl sm:text-2xl font-black tracking-tight leading-snug pt-1">
             Você tem disciplina para realizar os sonhos dos outros, lute pelos seus sonhos também!

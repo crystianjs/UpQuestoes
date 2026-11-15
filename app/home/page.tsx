@@ -5,7 +5,7 @@ import Navbar from '../components/Navbar';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import Image from 'next/image';
-import { Plus, Trash2, X } from 'lucide-react';
+import { Plus, Radius, Trash2, X } from 'lucide-react';
 
 interface MotivoItem {
   id: string;
@@ -197,23 +197,62 @@ export default function HomePage() {
 
           <div className="space-y-6 pt-2">
             <div className="flex flex-col space-y-3 max-w-3xl mx-auto">
-              <span className="text-xs font-bold text-zinc-400">Vídeo Reflexivo 1</span>
-              <div className="relative w-full aspect-video bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden shadow-xl">
-                <video src="/video1.1.mp4" controls playsInline preload="metadata" className="absolute inset-0 w-full h-full object-cover" />
+              <span className="text-xs font-bold text-zinc-400">Reflexão 01</span>
+              <div className="relative w-full bg-amber-400/10 border border-amber-400/40 rounded-2xl p-6 sm:p-8 shadow-xl flex flex-col items-center justify-center text-center space-y-4">
+                <span className="inline-block bg-amber-400 text-zinc-950 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full">
+                  "PREPARAÇÃO: Sem estar preparado, não vai conquistar coisa nenhuma"
+                </span>
+                <p className="text-zinc-100 text-sm sm:text-base font-bold leading-relaxed max-w-xl">
+                  <b style={{ color: '#FBBF24' }}>Clovis de Barros:</b> "Na hora 'H', eu resolvo. Não estando preparado, não vai conquistar coisa nenhuma"
+                </p>
+                <a 
+                  href="https://youtu.be/ypGF8Gz-hzY?si=gJ3sYrYJHFbL4qA_" 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="px-5 py-2.5 bg-amber-400 hover:bg-amber-500 text-zinc-950 font-extrabold text-xs rounded-xl transition-all shadow-md cursor-pointer"
+                >
+                  Assistir ao Vídeo
+                </a>
               </div>
             </div>
 
             <div className="flex flex-col space-y-3 max-w-3xl mx-auto">
-              <span className="text-xs font-bold text-zinc-400">Vídeo Reflexivo 2</span>
-              <div className="relative w-full aspect-video bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden shadow-xl">
-                <video src="/video2.2.mp4" controls playsInline preload="metadata" className="absolute inset-0 w-full h-full object-cover" />
+              <span className="text-xs font-bold text-zinc-400">Reflexão 02</span>
+              <div className="relative w-full bg-amber-400/10 border border-amber-400/40 rounded-2xl p-6 sm:p-8 shadow-xl flex flex-col items-center justify-center text-center space-y-4">
+                <span className="inline-block bg-amber-400 text-zinc-950 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full">
+                  "MEDO: Experiência para vencer o medo de amanhã."
+                </span>
+                <p className="text-zinc-100 text-sm sm:text-base font-bold leading-relaxed max-w-xl">
+                  <b style={{ color: '#FBBF24' }}>Clovis de Barros:</b> "Se voce vencer o medo hoje, vai ter ganhado experiência para vencer o medo de amanhã."
+                </p>
+                <a 
+                  href="https://www.youtube.com/watch?v=88fyhzgogK4&t=200s" 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="px-5 py-2.5 bg-amber-400 hover:bg-amber-500 text-zinc-950 font-extrabold text-xs rounded-xl transition-all shadow-md cursor-pointer"
+                >
+                  Assistir ao Vídeo
+                </a>
               </div>
             </div>
 
             <div className="flex flex-col space-y-3 max-w-3xl mx-auto">
-              <span className="text-xs font-bold text-zinc-400">Vídeo Reflexivo 3</span>
-              <div className="relative w-full aspect-video bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden shadow-xl">
-                <video src="/video3.3.mp4" controls playsInline preload="metadata" className="absolute inset-0 w-full h-full object-cover" />
+              <span className="text-xs font-bold text-zinc-400">Reflexão 03</span>
+              <div className="relative w-full bg-amber-400/10 border border-amber-400/40 rounded-2xl p-6 sm:p-8 shadow-xl flex flex-col items-center justify-center text-center space-y-4">
+                <span className="inline-block bg-amber-400 text-zinc-950 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full">
+                  "TREINO: O seu resultado é fruto do seu treinamento."
+                </span>
+                <p className="text-zinc-100 text-sm sm:text-base font-bold leading-relaxed max-w-xl">
+                  <b style={{ color: '#FBBF24' }}>Treino:</b> Disciplina, coragem e está disposto a fazer o que a maioria não faria, é o que mudará a vida de qualquer um.
+                </p>
+                <a 
+                  href="https://www.youtube.com/watch?v=_aGPrzoQNHw" 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="px-5 py-2.5 bg-amber-400 hover:bg-amber-500 text-zinc-950 font-extrabold text-xs rounded-xl transition-all shadow-md cursor-pointer"
+                >
+                  Assistir ao Vídeo
+                </a>
               </div>
             </div>
           </div>

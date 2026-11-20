@@ -35,7 +35,7 @@ export default function HomePage() {
   const [metasPilares, setMetasPilares] = useState<MetaPilar[]>([
     { id: 'p1', tag: 'Base de Tudo', titulo: 'A Família', imagem: '/familia.jpeg' },
     { id: 'p2', tag: 'Conquista', titulo: 'O Carro dos Sonhos', imagem: '/polo_vw2025.jpg' },
-    { id: 'p3', tag: 'Liberdade', titulo: 'Estabilidade e Paz', imagem: '/cracha.jpg' },
+    { id: 'p3', tag: 'Liberdade', titulo: 'Estabilidade e Paz', imagem: '/tribunal.jpg' },
     { id: 'p4', tag: 'Liberdade', titulo: 'Viagem - EUA, ESPANHA E OUTROS', imagem: '/eua.jpg' }
   ]);
 

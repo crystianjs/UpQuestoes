@@ -5,7 +5,7 @@ import Navbar from '../components/Navbar';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import Image from 'next/image';
-import { Plus, Radius, Trash2, X } from 'lucide-react';
+import { Plus, Trash2, X, AlertTriangle, CheckCircle2, Target } from 'lucide-react';
 
 interface MotivoItem {
   id: string;
@@ -258,15 +258,15 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* LIÇÕES DE ALTA PERFORMANCE - MÉTODO FELIPE GRATON */}
+        {/* FALHAS QUE NÃO PODEM SER COMETIDAS */}
         <div className="bg-zinc-950 border border-zinc-800 rounded-3xl p-6 sm:p-10 shadow-2xl space-y-6">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-zinc-800">
             <div className="space-y-1">
-              <span className="bg-amber-400 text-zinc-950 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full">
-                Estratégia de Aprovação • Felipe Graton
+              <span className="bg-rose-500 text-white text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full inline-flex items-center gap-1.5">
+                <AlertTriangle className="w-3 h-3" /> Alerta de Execução • Método Felipe Graton
               </span>
-              <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight pt-1">
-                7 Erros Fatais nos Estudos (e Como Evitá-los)
+              <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight pt-1 uppercase">
+                Falhas que não podem ser cometidas
               </h2>
             </div>
             <div className="bg-zinc-900 border border-zinc-800 px-4 py-2.5 rounded-2xl">
@@ -276,124 +276,138 @@ export default function HomePage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
             
-            {/* Erro 1 */}
+            {/* Falha 1 */}
             <div className="p-5 rounded-2xl bg-zinc-900 border border-zinc-800 space-y-2 flex flex-col justify-between">
               <div>
                 <span className="text-[10px] font-black text-rose-500 uppercase tracking-widest bg-rose-500/10 px-2.5 py-1 rounded-md border border-rose-500/20">
-                  Erro 01
+                  Falha 01
                 </span>
-                <h4 className="text-sm font-bold text-white mt-2">Estudar todas as matérias por igual[cite: 7]</h4>
+                <h4 className="text-sm font-bold text-white mt-2">Estudar todas as matérias por igual</h4>
                 <p className="text-xs text-zinc-400 mt-1">
-                  Dar o mesmo tempo para matérias com pesos diferentes é ineficiente[cite: 7].
+                  Dar o mesmo tempo para matérias com pesos diferentes é ineficiente.
                 </p>
               </div>
               <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-800/80 mt-2">
-                <span className="text-[11px] font-bold text-amber-400 block">💡 Solução:</span>
-                <p className="text-xs text-zinc-300 mt-0.5">Use o ciclo de estudos: a matéria que mais pontua aparece mais vezes na semana[cite: 7].</p>
+                <span className="text-[11px] font-bold text-amber-400 flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Correção:
+                </span>
+                <p className="text-xs text-zinc-300 mt-1">Use o ciclo de estudos: a matéria que mais pontua aparece mais vezes na semana.</p>
               </div>
             </div>
 
-            {/* Erro 2 */}
+            {/* Falha 2 */}
             <div className="p-5 rounded-2xl bg-zinc-900 border border-zinc-800 space-y-2 flex flex-col justify-between">
               <div>
                 <span className="text-[10px] font-black text-rose-500 uppercase tracking-widest bg-rose-500/10 px-2.5 py-1 rounded-md border border-rose-500/20">
-                  Erro 02
+                  Falha 02
                 </span>
-                <h4 className="text-sm font-bold text-white mt-2">Assistir à mesma videoaula várias vezes[cite: 6]</h4>
+                <h4 className="text-sm font-bold text-white mt-2">Assistir à mesma videoaula várias vezes</h4>
                 <p className="text-xs text-zinc-400 mt-1">
-                  Rever a aula dá apenas a sensação de estar aprendendo, mas não fixa o conteúdo[cite: 6].
+                  Rever a aula dá apenas a sensação de estar aprendendo, mas não fixa o conteúdo.
                 </p>
               </div>
               <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-800/80 mt-2">
-                <span className="text-[11px] font-bold text-amber-400 block">💡 Solução:</span>
-                <p className="text-xs text-zinc-300 mt-0.5">Assista apenas uma vez e volte estritamente no trecho que não entendeu[cite: 6].</p>
+                <span className="text-[11px] font-bold text-amber-400 flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Correção:
+                </span>
+                <p className="text-xs text-zinc-300 mt-1">Assista apenas uma vez e volte estritamente no trecho que não entendeu.</p>
               </div>
             </div>
 
-            {/* Erro 3 */}
+            {/* Falha 3 */}
             <div className="p-5 rounded-2xl bg-zinc-900 border border-zinc-800 space-y-2 flex flex-col justify-between">
               <div>
                 <span className="text-[10px] font-black text-rose-500 uppercase tracking-widest bg-rose-500/10 px-2.5 py-1 rounded-md border border-rose-500/20">
-                  Erro 03
+                  Falha 03
                 </span>
-                <h4 className="text-sm font-bold text-white mt-2">Fazer mais resumo do que questão[cite: 5]</h4>
+                <h4 className="text-sm font-bold text-white mt-2">Fazer mais resumo do que questão</h4>
                 <p className="text-xs text-zinc-400 mt-1">
-                  Cadernos coloridos geram falsa segurança; na prova, erra-se justamente o resumido[cite: 5].
+                  Cadernos coloridos geram falsa segurança; na prova, erra-se justamente o resumido.
                 </p>
               </div>
               <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-800/80 mt-2">
-                <span className="text-[11px] font-bold text-amber-400 block">💡 Solução:</span>
-                <p className="text-xs text-zinc-300 mt-0.5">Terminou um tópico? Vá para as questões e crie o seu caderno de erros[cite: 5].</p>
+                <span className="text-[11px] font-bold text-amber-400 flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Correção:
+                </span>
+                <p className="text-xs text-zinc-300 mt-1">Terminou um tópico? Vá para as questões e crie o seu caderno de erros.</p>
               </div>
             </div>
 
-            {/* Erro 4 */}
+            {/* Falha 4 */}
             <div className="p-5 rounded-2xl bg-zinc-900 border border-zinc-800 space-y-2 flex flex-col justify-between">
               <div>
                 <span className="text-[10px] font-black text-rose-500 uppercase tracking-widest bg-rose-500/10 px-2.5 py-1 rounded-md border border-rose-500/20">
-                  Erro 04
+                  Falha 04
                 </span>
-                <h4 className="text-sm font-bold text-white mt-2">Deixar a revisão para depois[cite: 4]</h4>
+                <h4 className="text-sm font-bold text-white mt-2">Deixar a revisão para depois</h4>
                 <p className="text-xs text-zinc-400 mt-1">
-                  Estudar e seguir em frente faz parecer que você nunca viu o assunto um mês depois[cite: 4].
+                  Estudar e seguir em frente faz parecer que você nunca viu o assunto um mês depois.
                 </p>
               </div>
               <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-800/80 mt-2">
-                <span className="text-[11px] font-bold text-amber-400 block">💡 Solução:</span>
-                <p className="text-xs text-zinc-300 mt-0.5">Revisão é diária e inegociável (questões de fixação ou folha em branco)[cite: 4].</p>
+                <span className="text-[11px] font-bold text-amber-400 flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Correção:
+                </span>
+                <p className="text-xs text-zinc-300 mt-1">Revisão é diária e inegociável (questões de fixação ou folha em branco).</p>
               </div>
             </div>
 
-            {/* Erro 5 */}
+            {/* Falha 5 */}
             <div className="p-5 rounded-2xl bg-zinc-900 border border-zinc-800 space-y-2 flex flex-col justify-between">
               <div>
                 <span className="text-[10px] font-black text-rose-500 uppercase tracking-widest bg-rose-500/10 px-2.5 py-1 rounded-md border border-rose-500/20">
-                  Erro 05
+                  Falha 05
                 </span>
-                <h4 className="text-sm font-bold text-white mt-2">Esperar sobrar tempo para estudar[cite: 3]</h4>
+                <h4 className="text-sm font-bold text-white mt-2">Esperar sobrar tempo para estudar</h4>
                 <p className="text-xs text-zinc-400 mt-1">
-                  Trabalhando 8 horas por dia, o tempo nunca sobra sozinho; é preciso criá-lo[cite: 3].
+                  Trabalhando 8 horas por dia, o tempo nunca sobra sozinho; é preciso criá-lo.
                 </p>
               </div>
               <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-800/80 mt-2">
-                <span className="text-[11px] font-bold text-amber-400 block">💡 Solução:</span>
-                <p className="text-xs text-zinc-300 mt-0.5">Acorde mais cedo, use o almoço, estude no transporte e compensar no fim de semana[cite: 3].</p>
+                <span className="text-[11px] font-bold text-amber-400 flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Correção:
+                </span>
+                <p className="text-xs text-zinc-300 mt-1">Acorde mais cedo, use o almoço, estude no transporte e compense no fim de semana.</p>
               </div>
             </div>
 
-            {/* Erro 6 */}
+            {/* Falha 6 */}
             <div className="p-5 rounded-2xl bg-zinc-900 border border-zinc-800 space-y-2 flex flex-col justify-between">
               <div>
                 <span className="text-[10px] font-black text-rose-500 uppercase tracking-widest bg-rose-500/10 px-2.5 py-1 rounded-md border border-rose-500/20">
-                  Erro 06
+                  Falha 06
                 </span>
-                <h4 className="text-sm font-bold text-white mt-2">Deixar o celular do lado do livro[cite: 2]</h4>
+                <h4 className="text-sm font-bold text-white mt-2">Deixar o celular do lado do livro</h4>
                 <p className="text-xs text-zinc-400 mt-1">
-                  Uma olhadinha vira meia hora e a noite de sono vira madrugada perdida[cite: 2].
+                  Uma olhadinha vira meia hora e a noite de sono vira madrugada perdida.
                 </p>
               </div>
               <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-800/80 mt-2">
-                <span className="text-[11px] font-bold text-amber-400 block">💡 Solução:</span>
-                <p className="text-xs text-zinc-300 mt-0.5">Corte o celular e proteja o seu sono; o rendimento de estudo vai multiplicar[cite: 2].</p>
+                <span className="text-[11px] font-bold text-amber-400 flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Correção:
+                </span>
+                <p className="text-xs text-zinc-300 mt-1">Corte o celular e proteja o seu sono; o rendimento de estudo vai multiplicar.</p>
               </div>
             </div>
 
           </div>
 
-          {/* Erro 7 em Destaque Total */}
+          {/* Falha 7 em Destaque Total */}
           <div className="p-6 rounded-2xl bg-amber-400 text-zinc-950 space-y-3 shadow-xl">
             <span className="text-[10px] font-black bg-zinc-950 text-amber-400 uppercase tracking-widest px-3 py-1 rounded-full">
-              Erro 07 (O mais crítico)
+              Falha 07 (A mais crítica)
             </span>
             <h4 className="text-base sm:text-lg font-black leading-snug">
-              "Deixei os simulados para quando estivesse pronto."[cite: 1]
+              "Deixei os simulados para quando estivesse pronto."
             </h4>
             <p className="text-xs sm:text-sm font-bold leading-relaxed">
-              Esse dia nunca chega. Quem só faz simulado no final descobre na hora da prova que não sabe administrar o tempo[cite: 1].
+              Esse dia nunca chega. Quem só faz simulado no final descobre na hora da prova que não sabe administrar o tempo.
             </p>
             <div className="bg-zinc-950 text-zinc-100 p-4 rounded-xl border border-zinc-800">
-              <span className="text-xs font-bold text-amber-400 block">🎯 Ação Imediata:</span>
-              <p className="text-xs text-zinc-300 mt-1">Marque um simulado completo para o próximo fim de semana, com cronômetro rigoroso, exatamente como o dia da prova[cite: 1].</p>
+              <span className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
+                <Target className="w-4 h-4" /> Ação Imediata:
+              </span>
+              <p className="text-xs text-zinc-300 mt-1">Marque um simulado completo para o próximo fim de semana, com cronômetro rigoroso, exatamente como o dia da prova.</p>
             </div>
           </div>
 

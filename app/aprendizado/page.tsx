@@ -254,6 +254,19 @@ export default function AprendizadoPage() {
       {/* Container Full Width Responsivo */}
       <main className="w-full max-w-7xl mx-auto px-4 sm:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8">
         
+        {/* Card Full-Width Amarelo - Mensagem de Alta Performance */}
+        <div className="bg-amber-400 border border-amber-500 rounded-3xl p-6 sm:p-8 shadow-2xl text-zinc-950 text-center space-y-2 relative overflow-hidden">
+          <span className="inline-block bg-zinc-950 text-amber-400 text-[11px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md">
+            ESTRATÉGIA DE APROVAÇÃO • CADERNO DE ERROS
+          </span>
+          <h2 className="text-xl sm:text-2xl font-black tracking-tight leading-snug pt-1">
+            Depende de você, aprenda de fato o que precisa aprender e curta o processo
+          </h2>
+          <p className="text-xs sm:text-sm font-bold leading-relaxed text-zinc-900 max-w-3xl mx-auto">
+            Errar a questão serve de aprendizado. É com o erro que avançaremos e, quanto mais questões fizermos, mais pegaremos o padrão da banca. Após entender o padrão, a aprovação é consequência.
+          </p>
+        </div>
+
         {/* Header */}
         <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4 sm:p-6 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div>

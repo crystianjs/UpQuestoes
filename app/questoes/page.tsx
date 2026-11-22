@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Navbar from '../components/Navbar';
 import { supabase } from '@/lib/supabase';
-import { BookOpen, CheckCircle, AlertCircle } from 'lucide-react';
+import { BookOpen, CheckCircle, AlertCircle, AlertTriangle } from 'lucide-react';
 
 const MATERIAS_TJSP = [
   'Língua Portuguesa',
@@ -28,6 +28,7 @@ export default function QuestoesPage() {
   const [totalFeitas, setTotalFeitas] = useState<number | ''>(1);
   const [acertos, setAcertos] = useState<number | ''>(1);
   const [erros, setErros] = useState<number | ''>(0);
+  const [motivoErro, setMotivoErro] = useState('');
   
   const [salvando, setSalvando] = useState(false);
   const [sucesso, setSucesso] = useState(false);
@@ -88,6 +89,7 @@ export default function QuestoesPage() {
           total_feitas: totalFeitas,
           acertos: acertos,
           erros: erros,
+          motivo_erro: motivoErro.trim() || null,
           user_id: userId
         }
       ]);
@@ -99,6 +101,7 @@ export default function QuestoesPage() {
       setTotalFeitas(1);
       setAcertos(1);
       setErros(0);
+      setMotivoErro('');
     } catch (err: any) {
       console.error(err);
       setErro(`Erro ao guardar: ${err.message || 'Erro desconhecido'}`);
@@ -108,20 +111,30 @@ export default function QuestoesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-zinc-100 font-sans selection:bg-red-600 selection:text-white">
+    <div className="min-h-screen bg-black text-zinc-100 font-sans selection:bg-amber-400 selection:text-zinc-950">
       <Navbar />
 
-      <main className="max-w-4xl mx-auto px-6 py-8 space-y-12">
+      <main className="w-full px-4 sm:px-8 py-8 space-y-8 max-w-5xl mx-auto">
         
+        {/* Card Full-Width Amarelo */}
+        <div className="bg-amber-400 border border-amber-500 rounded-3xl p-6 sm:p-8 shadow-2xl text-zinc-950 text-center space-y-2 relative overflow-hidden">
+          <span className="inline-block bg-zinc-950 text-amber-400 text-[11px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md">
+            FOCO E CONSTÂNCIA • UPQUESTÕES
+          </span>
+          <h2 className="text-xl sm:text-2xl font-black tracking-tight leading-snug pt-1">
+            Depende de você, aprenda de fato o que precisa aprender e curta o processo
+          </h2>
+        </div>
+
         {/* Bloco Único: Registo de Questões */}
         <div className="space-y-6">
-          <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 shadow-xl">
+          <div className="bg-zinc-950 border border-zinc-800 rounded-3xl p-6 sm:p-8 shadow-xl">
             <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-              <BookOpen className="w-6 h-6 text-red-500" />
+              <BookOpen className="w-6 h-6 text-amber-400" />
               Registo de Questões — UPQUESTÕES
             </h1>
             <p className="text-sm text-zinc-400 mt-1">
-              Registe o seu progresso individual isolado por conta.
+              Registe o seu progresso e mapeie os motivos dos seus erros.
             </p>
           </div>
 
@@ -139,7 +152,7 @@ export default function QuestoesPage() {
             </div>
           )}
 
-          <form onSubmit={handleSalvarQuestoes} className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 md:p-8 shadow-xl space-y-6">
+          <form onSubmit={handleSalvarQuestoes} className="bg-zinc-950 border border-zinc-800 rounded-3xl p-6 md:p-8 shadow-xl space-y-6">
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
@@ -147,7 +160,7 @@ export default function QuestoesPage() {
                 <select 
                   value={materia}
                   onChange={(e) => setMateria(e.target.value)}
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-100 focus:outline-none focus:border-red-600 transition-colors"
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-100 focus:outline-none focus:border-amber-400 transition-colors"
                 >
                   {MATERIAS_TJSP.map((mat) => (
                     <option key={mat} value={mat}>{mat}</option>
@@ -162,7 +175,7 @@ export default function QuestoesPage() {
                   placeholder="Ex: Negação de Proposições, Art. 5º CF..."
                   value={assunto}
                   onChange={(e) => setAssunto(e.target.value)}
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-100 focus:outline-none focus:border-red-600 transition-colors"
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-100 focus:outline-none focus:border-amber-400 transition-colors"
                 />
               </div>
             </div>
@@ -176,7 +189,7 @@ export default function QuestoesPage() {
                   required
                   value={totalFeitas}
                   onChange={(e) => handleTotalChange(e.target.value)}
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-100 focus:outline-none focus:border-red-600 transition-colors"
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-100 focus:outline-none focus:border-amber-400 transition-colors"
                 />
               </div>
 
@@ -206,6 +219,20 @@ export default function QuestoesPage() {
                   className="w-full bg-red-950/20 border border-red-600/50 rounded-xl px-4 py-3 text-sm text-red-400 font-bold cursor-not-allowed"
                 />
               </div>
+            </div>
+
+            {/* Campo Motivo do Erro (Sempre Visível) */}
+            <div className="space-y-2 pt-2 border-t border-zinc-900">
+              <label className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                <AlertTriangle className="w-4 h-4" /> Motivo do Erro (Opcional / Caderno de Erros)
+              </label>
+              <textarea 
+                rows={3}
+                placeholder="Ex: Confundi o prazo do recurso, falta de atenção na leitura do comando, desconhecimento da letra da lei..."
+                value={motivoErro}
+                onChange={(e) => setMotivoErro(e.target.value)}
+                className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-4 text-sm text-zinc-100 focus:outline-none focus:border-amber-400 transition-colors"
+              />
             </div>
 
             <button 

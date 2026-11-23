@@ -73,6 +73,7 @@ export default function SimuladosPage() {
   const [jsonErrosApartado, setJsonErrosApartado] = useState('');
   const [copiadoPromptErros, setCopiadoPromptErros] = useState(false);
   const [mostrarInputErros, setMostrarInputErros] = useState(false);
+  const [filtroMateriaErros, setFiltroMateriaErros] = useState<string>('todos');
 
   const [titulo, setTitulo] = useState('');
   const [dataSimulado, setDataSimulado] = useState(new Date().toISOString().split('T')[0]);
@@ -456,7 +457,7 @@ Quando eu pedir para enviar, retorne EXCLUSIVAMENTE o JSON puro (sem textos expl
     setTimeout(() => setCopiadoPromptErros(false), 2500);
   };
 
-const handleImportarLevantamentoErros = () => {
+  const handleImportarLevantamentoErros = () => {
     try {
       let textoLimpo = jsonErrosApartado.trim();
       if (textoLimpo.startsWith('```')) {
@@ -470,7 +471,7 @@ const handleImportarLevantamentoErros = () => {
         return;
       }
 
-      // Criamos um Map com os itens atuais usando a matéria + assunto principal como chave única
+      // Mesclagem inteligente: agrupa e soma mantendo o histórico sem duplicar
       const mapaAtualizado = new Map<string, LevantamentoErroItem>();
       
       levantamentoErros.forEach(item => {
@@ -478,7 +479,6 @@ const handleImportarLevantamentoErros = () => {
         mapaAtualizado.set(chave, { ...item });
       });
 
-      // Mesclamos os novos itens recebidos da IA
       listaBruta.forEach((novo: any, idx: number) => {
         const materia = novo.materia || 'Geral';
         const assuntoPrincipal = novo.assunto_principal || novo.assunto || 'Assunto Geral';
@@ -487,14 +487,11 @@ const handleImportarLevantamentoErros = () => {
         const topicosNovos = Array.isArray(novo.topicos) ? novo.topicos : [];
 
         if (mapaAtualizado.has(chave)) {
-          // Se já existe, soma as questões e une os tópicos sem duplicar
           const existente = mapaAtualizado.get(chave)!;
           existente.quantidade_questoes += quantidade;
-          
           const topicosUnicos = Array.from(new Set([...existente.topicos, ...topicosNovos]));
           existente.topicos = topicosUnicos;
         } else {
-          // Se não existe, adiciona como um novo bloco
           mapaAtualizado.set(chave, {
             id: `err-${Date.now()}-${idx}`,
             materia,
@@ -850,7 +847,7 @@ Analise o meu desempenho no simulado e gere um payload JSON estrito contendo a d
               </div>
             </div>
 
-            {/* Desempenho por Matéria (Sem o texto engessado de foco) */}
+            {/* Desempenho por Matéria */}
             <div className="space-y-4 pt-4">
               <h3 className="text-sm font-extrabold uppercase tracking-wider text-white flex items-center gap-2">
                 <BarChart2 className="w-4 h-4 text-amber-400" />
@@ -911,7 +908,7 @@ Analise o meu desempenho no simulado e gere um payload JSON estrito contendo a d
                 Organização por matéria para seu cronograma
               </h2>
               <p className="text-xs text-zinc-400">
-                Vá passando seus erros para a IA montar sua lista e importe o JSON aqui somente quando finalizar.
+                Vá passando seus erros para a IA montar sua lista e importe o JSON aqui. Os dados são mesclados inteligentemente sem apagar o histórico.
               </p>
             </div>
 
@@ -964,6 +961,25 @@ Analise o meu desempenho no simulado e gere um payload JSON estrito contendo a d
             </div>
           )}
 
+          {/* BARRA DE FILTRO POR MATÉRIA */}
+          {levantamentoErros.length > 0 && (
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-zinc-900/60 p-4 rounded-2xl border border-zinc-800">
+              <span className="text-xs font-bold uppercase tracking-wider text-zinc-300">Filtrar por Matéria:</span>
+              <select
+                value={filtroMateriaErros}
+                onChange={(e) => setFiltroMateriaErros(e.target.value)}
+                className="w-full sm:w-64 bg-zinc-950 border border-zinc-800 text-amber-300 text-xs font-bold rounded-xl px-3 py-2.5 outline-none focus:border-amber-400 cursor-pointer"
+              >
+                <option value="todos">Todas as Matérias ({levantamentoErros.length})</option>
+                {Array.from(new Set(levantamentoErros.map(item => item.materia))).map((mat, idx) => (
+                  <option key={idx} value={mat}>
+                    {mat} ({levantamentoErros.filter(i => i.materia === mat).length})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {/* Exibição dos Grandes Assuntos Levantados */}
           {levantamentoErros.length === 0 ? (
             <div className="text-center py-10 px-4 border border-dashed border-zinc-800 rounded-2xl space-y-2">
@@ -975,49 +991,47 @@ Analise o meu desempenho no simulado e gere um payload JSON estrito contendo a d
             </div>
           ) : (
             <div className="space-y-4">
-              <p className="text-sm text-zinc-300">
-                Você tem <b className="text-white">{levantamentoErros.length} grandes assuntos</b> para revisar:
-              </p>
-
               <div className="border border-zinc-800 rounded-2xl divide-y divide-zinc-800 bg-zinc-900/40 overflow-hidden">
-                {levantamentoErros.map((item, idx) => (
-                  <div key={item.id} className="p-5 sm:p-6 space-y-3 relative group hover:bg-zinc-900/70 transition-colors">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="space-y-1.5">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-zinc-800 text-zinc-300">
-                            {item.materia}
+                {levantamentoErros
+                  .filter(item => filtroMateriaErros === 'todos' || item.materia === filtroMateriaErros)
+                  .map((item, idx) => (
+                    <div key={item.id} className="p-5 sm:p-6 space-y-3 relative group hover:bg-zinc-900/70 transition-colors">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="space-y-1.5">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-md bg-amber-400/10 border border-amber-400/20 text-amber-400">
+                              {item.materia}
+                            </span>
+                          </div>
+                          <h3 className="text-base font-extrabold text-white">
+                            {idx + 1}. {item.assunto_principal}
+                          </h3>
+                          <span className="inline-block bg-rose-950/80 border border-rose-500/30 text-rose-400 text-[11px] font-bold px-2.5 py-0.5 rounded-md">
+                            {item.quantidade_questoes} {item.quantidade_questoes === 1 ? 'questão' : 'questões'}
                           </span>
                         </div>
-                        <h3 className="text-base font-extrabold text-white">
-                          {idx + 1}. {item.assunto_principal}
-                        </h3>
-                        <span className="inline-block bg-rose-950/80 border border-rose-500/30 text-rose-400 text-[11px] font-bold px-2.5 py-0.5 rounded-md">
-                          {item.quantidade_questoes} {item.quantidade_questoes === 1 ? 'questão' : 'questões'}
-                        </span>
+
+                        <button
+                          onClick={() => removerItemLevantamento(item.id)}
+                          className="text-zinc-500 hover:text-rose-400 p-2 rounded-lg bg-zinc-950 border border-zinc-800 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                          title="Remover assunto"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
 
-                      <button
-                        onClick={() => removerItemLevantamento(item.id)}
-                        className="text-zinc-500 hover:text-rose-400 p-2 rounded-lg bg-zinc-950 border border-zinc-800 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-                        title="Remover assunto"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      {item.topicos.length > 0 && (
+                        <ul className="space-y-1.5 pt-1 text-xs sm:text-sm text-zinc-300">
+                          {item.topicos.map((topico, tIdx) => (
+                            <li key={tIdx} className="flex items-start gap-2.5">
+                              <span className="text-zinc-500 font-bold">•</span>
+                              <span>{topico}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
                     </div>
-
-                    {item.topicos.length > 0 && (
-                      <ul className="space-y-1.5 pt-1 text-xs sm:text-sm text-zinc-300">
-                        {item.topicos.map((topico, tIdx) => (
-                          <li key={tIdx} className="flex items-start gap-2.5">
-                            <span className="text-zinc-500 font-bold">•</span>
-                            <span>{topico}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                ))}
+                  ))}
               </div>
             </div>
           )}

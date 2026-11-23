@@ -456,7 +456,7 @@ Quando eu pedir para enviar, retorne EXCLUSIVAMENTE o JSON puro (sem textos expl
     setTimeout(() => setCopiadoPromptErros(false), 2500);
   };
 
-  const handleImportarLevantamentoErros = () => {
+const handleImportarLevantamentoErros = () => {
     try {
       let textoLimpo = jsonErrosApartado.trim();
       if (textoLimpo.startsWith('```')) {
@@ -470,21 +470,51 @@ Quando eu pedir para enviar, retorne EXCLUSIVAMENTE o JSON puro (sem textos expl
         return;
       }
 
-      const formatados: LevantamentoErroItem[] = listaBruta.map((item: any, idx: number) => ({
-        id: `err-${Date.now()}-${idx}`,
-        materia: item.materia || 'Geral',
-        assunto_principal: item.assunto_principal || item.assunto || 'Assunto Geral',
-        quantidade_questoes: Number(item.quantidade_questoes) || 1,
-        topicos: Array.isArray(item.topicos) ? item.topicos : []
-      }));
+      // Criamos um Map com os itens atuais usando a matéria + assunto principal como chave única
+      const mapaAtualizado = new Map<string, LevantamentoErroItem>();
+      
+      levantamentoErros.forEach(item => {
+        const chave = `${item.materia.toLowerCase().trim()}_${item.assunto_principal.toLowerCase().trim()}`;
+        mapaAtualizado.set(chave, { ...item });
+      });
 
-      const novaLista = [...levantamentoErros, ...formatados];
-      setLevantamentoErros(novaLista);
+      // Mesclamos os novos itens recebidos da IA
+      listaBruta.forEach((novo: any, idx: number) => {
+        const materia = novo.materia || 'Geral';
+        const assuntoPrincipal = novo.assunto_principal || novo.assunto || 'Assunto Geral';
+        const chave = `${materia.toLowerCase().trim()}_${assuntoPrincipal.toLowerCase().trim()}`;
+        const quantidade = Number(novo.quantidade_questoes) || 1;
+        const topicosNovos = Array.isArray(novo.topicos) ? novo.topicos : [];
+
+        if (mapaAtualizado.has(chave)) {
+          // Se já existe, soma as questões e une os tópicos sem duplicar
+          const existente = mapaAtualizado.get(chave)!;
+          existente.quantidade_questoes += quantidade;
+          
+          const topicosUnicos = Array.from(new Set([...existente.topicos, ...topicosNovos]));
+          existente.topicos = topicosUnicos;
+        } else {
+          // Se não existe, adiciona como um novo bloco
+          mapaAtualizado.set(chave, {
+            id: `err-${Date.now()}-${idx}`,
+            materia,
+            assunto_principal: assuntoPrincipal,
+            quantidade_questoes: quantidade,
+            topicos: topicosNovos
+          });
+        }
+      });
+
+      const novaListaFinal = Array.from(mapaAtualizado.values());
+      setLevantamentoErros(novaListaFinal);
+      
       if (userId) {
-        localStorage.setItem(`levantamento_erros_apartado_${userId}`, JSON.stringify(novaLista));
+        localStorage.setItem(`levantamento_erros_apartado_${userId}`, JSON.stringify(novaListaFinal));
       }
+      
       setJsonErrosApartado('');
       setMostrarInputErros(false);
+      alert('Levantamento atualizado e mesclado com sucesso!');
     } catch (e) {
       alert('JSON inválido. Verifique se copiou corretamente da IA.');
     }

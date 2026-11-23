@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import Navbar from '../components/Navbar';
-import { Award, Plus, CheckCircle2, XCircle, Calendar, BarChart2, Target, Code, Copy, Check, Trash2, Sparkles, Pencil, ShieldCheck } from 'lucide-react';
+import { Award, Plus, CheckCircle2, XCircle, Calendar, BarChart2, Target, Code, Copy, Check, Trash2, Pencil, ShieldCheck, BookOpen, ListChecks } from 'lucide-react';
 
 interface Simulado {
   id: string;
@@ -25,6 +25,14 @@ interface PontoMelhoria {
   assunto_estudar: string;
   created_at: string;
   user_id?: string;
+}
+
+interface LevantamentoErroItem {
+  id: string;
+  materia: string;
+  assunto_principal: string;
+  quantidade_questoes: number;
+  topicos: string[];
 }
 
 // Mapeamento dos Blocos do Edital TJSP
@@ -60,6 +68,12 @@ export default function SimuladosPage() {
   const [modalEditSimuladoOpen, setModalEditSimuladoOpen] = useState(false);
   const [copiado, setCopiado] = useState(false);
 
+  // Estados do Levantamento Apartado de Erros
+  const [levantamentoErros, setLevantamentoErros] = useState<LevantamentoErroItem[]>([]);
+  const [jsonErrosApartado, setJsonErrosApartado] = useState('');
+  const [copiadoPromptErros, setCopiadoPromptErros] = useState(false);
+  const [mostrarInputErros, setMostrarInputErros] = useState(false);
+
   const [titulo, setTitulo] = useState('');
   const [dataSimulado, setDataSimulado] = useState(new Date().toISOString().split('T')[0]);
 
@@ -94,6 +108,16 @@ export default function SimuladosPage() {
       const uid = session.user.id;
       setUserId(uid);
       carregarDados(uid);
+
+      // Carregar levantamento apartado salvo localmente
+      const salvoLocal = localStorage.getItem(`levantamento_erros_apartado_${uid}`);
+      if (salvoLocal) {
+        try {
+          setLevantamentoErros(JSON.parse(salvoLocal));
+        } catch (e) {
+          console.error(e);
+        }
+      }
     }
     init();
   }, [router]);
@@ -125,13 +149,11 @@ export default function SimuladosPage() {
 
   const simuladoAtivo = simuladosList.find(s => s.id === simuladoSelecionadoId) || simuladosList[0];
 
-  // Filtro restrito e seguro por simulado_id
   const melhoriasBrutas = melhorias.filter((m) => {
     if (!simuladoAtivo) return false;
     return m.simulado_id === simuladoAtivo.id;
   });
 
-  // Consolidação por nome de matéria para evitar duplicadas
   const mapaConsolidado = new Map<string, PontoMelhoria>();
   melhoriasBrutas.forEach((m) => {
     const nomeBruto = m.materia.trim();
@@ -155,7 +177,6 @@ export default function SimuladosPage() {
   const totalErrosAnalitico = Math.max(0, totalQuestoesAnalitico - totalAcertosAnalitico);
   const aproveitamentoTotal = totalQuestoesAnalitico > 0 ? ((totalAcertosAnalitico / totalQuestoesAnalitico) * 100).toFixed(1) : '0';
 
-  // Métricas de Acertos por Bloco
   const acertosBloco1 = melhoriasDoSimuladoAtivo
     .filter(m => MATERIAS_BLOCO_1.some(b => m.materia.toLowerCase().includes(b.toLowerCase())))
     .reduce((acc, m) => acc + (m.quantidade_acertos || 0), 0);
@@ -393,6 +414,89 @@ export default function SimuladosPage() {
       console.error(err);
     }
   }
+
+  // --- FUNÇÕES DO LEVANTAMENTO APARTADO DE ERROS ---
+  const promptLevantamentoErros = `Atue como meu assistente organizador de estudos para o concurso do TJSP (Banca VUNESP).
+
+REGRA DE FUNCIONAMENTO (MUITO IMPORTANTE):
+1. A partir de agora, eu vou te enviar aos poucos as questões que eu errei, os assuntos ou dúvidas que tive nos meus simulados/listas.
+2. NÃO gere o JSON ainda! Apenas vá registrando internamente, organizando por matéria e agrupando por grandes assuntos, e me confirme brevemente: "Anotado! Pode mandar o próximo erro."
+3. SÓ gere e me envie o código JSON final quando eu escrever explicitamente: "pode enviar" ou "gerar json".
+
+Quando eu pedir para enviar, retorne EXCLUSIVAMENTE o JSON puro (sem textos explicativos antes ou depois) seguindo rigorosamente esta estrutura:
+{
+  "assuntos_revisar": [
+    {
+      "materia": "Língua Portuguesa",
+      "assunto_principal": "Semântica",
+      "quantidade_questoes": 3,
+      "topicos": [
+        "Denotação e conotação.",
+        "Sentido próprio e figurado.",
+        "Sinônimos e substituição contextual."
+      ]
+    },
+    {
+      "materia": "Língua Portuguesa",
+      "assunto_principal": "Crase e regência verbal",
+      "quantidade_questoes": 2,
+      "topicos": [
+        "Regência verbal.",
+        "Verbos que exigem preposição.",
+        "Uso da crase.",
+        "Casos em que não ocorre crase."
+      ]
+    }
+  ]
+}`;
+
+  const copiarPromptLevantamento = () => {
+    navigator.clipboard.writeText(promptLevantamentoErros);
+    setCopiadoPromptErros(true);
+    setTimeout(() => setCopiadoPromptErros(false), 2500);
+  };
+
+  const handleImportarLevantamentoErros = () => {
+    try {
+      let textoLimpo = jsonErrosApartado.trim();
+      if (textoLimpo.startsWith('```')) {
+        textoLimpo = textoLimpo.replace(/^```(json)?/i, '').replace(/```$/, '').trim();
+      }
+      const parsed = JSON.parse(textoLimpo);
+      const listaBruta = Array.isArray(parsed) ? parsed : parsed.assuntos_revisar;
+
+      if (!Array.isArray(listaBruta) || listaBruta.length === 0) {
+        alert('O JSON precisa conter o array "assuntos_revisar" válido.');
+        return;
+      }
+
+      const formatados: LevantamentoErroItem[] = listaBruta.map((item: any, idx: number) => ({
+        id: `err-${Date.now()}-${idx}`,
+        materia: item.materia || 'Geral',
+        assunto_principal: item.assunto_principal || item.assunto || 'Assunto Geral',
+        quantidade_questoes: Number(item.quantidade_questoes) || 1,
+        topicos: Array.isArray(item.topicos) ? item.topicos : []
+      }));
+
+      const novaLista = [...levantamentoErros, ...formatados];
+      setLevantamentoErros(novaLista);
+      if (userId) {
+        localStorage.setItem(`levantamento_erros_apartado_${userId}`, JSON.stringify(novaLista));
+      }
+      setJsonErrosApartado('');
+      setMostrarInputErros(false);
+    } catch (e) {
+      alert('JSON inválido. Verifique se copiou corretamente da IA.');
+    }
+  };
+
+  const removerItemLevantamento = (id: string) => {
+    const atualizada = levantamentoErros.filter(item => item.id !== id);
+    setLevantamentoErros(atualizada);
+    if (userId) {
+      localStorage.setItem(`levantamento_erros_apartado_${userId}`, JSON.stringify(atualizada));
+    }
+  };
 
   const promptModelo = `Atue como meu mentor especializado no concurso do Tribunal de Justiça de São Paulo (TJSP) sob o padrão da banca VUNESP. 
 Analise o meu desempenho no simulado e gere um payload JSON estrito contendo a data e um array de objetos para cada matéria:
@@ -716,7 +820,7 @@ Analise o meu desempenho no simulado e gere um payload JSON estrito contendo a d
               </div>
             </div>
 
-            {/* Desempenho por Matéria */}
+            {/* Desempenho por Matéria (Sem o texto engessado de foco) */}
             <div className="space-y-4 pt-4">
               <h3 className="text-sm font-extrabold uppercase tracking-wider text-white flex items-center gap-2">
                 <BarChart2 className="w-4 h-4 text-amber-400" />
@@ -738,19 +842,15 @@ Analise o meu desempenho no simulado e gere um payload JSON estrito contendo a d
                       <div key={m.id} className="bg-zinc-900/60 border border-zinc-800 p-4 rounded-xl space-y-2">
                         <div className="flex justify-between items-center text-xs">
                           <span className="font-bold text-white">{m.materia}</span>
-                          <span className="font-mono font-bold text-zinc-300">{acertosMat}/{totalMat} ({percMat}%)</span>
+                          <div className="flex items-center gap-3">
+                            <span className="font-mono font-bold text-zinc-300">{acertosMat}/{totalMat} ({percMat}%)</span>
+                            <button onClick={() => abrirEdicaoMelhoria(m)} className="text-amber-400 hover:underline cursor-pointer text-[11px]">Editar</button>
+                            <button onClick={() => apagarMelhoria(m.id)} className="text-rose-400 hover:underline cursor-pointer text-[11px]">Excluir</button>
+                          </div>
                         </div>
                         
                         <div className="w-full bg-zinc-950 h-2.5 rounded-full overflow-hidden border border-zinc-800">
                           <div className={`h-full ${corBarra} transition-all duration-500`} style={{ width: `${percMat}%` }}></div>
-                        </div>
-
-                        <div className="flex justify-between items-center text-[11px] text-zinc-400 pt-1">
-                          <span>Foco: <b className="text-zinc-200">{m.assunto_estudar}</b></span>
-                          <div className="flex items-center gap-2">
-                            <button onClick={() => abrirEdicaoMelhoria(m)} className="text-amber-400 hover:underline cursor-pointer">Editar</button>
-                            <button onClick={() => apagarMelhoria(m.id)} className="text-rose-400 hover:underline cursor-pointer">Excluir</button>
-                          </div>
                         </div>
                       </div>
                     );
@@ -766,6 +866,132 @@ Analise o meu desempenho no simulado e gere um payload JSON estrito contendo a d
             <h3 className="text-lg font-semibold text-zinc-300">Nenhum simulado registado ainda</h3>
           </div>
         )}
+
+        {/* --- CAMPO APARTADO: LEVANTAMENTO DE ERROS E ORGANIZAÇÃO PARA CRONOGRAMA --- */}
+        <div className="bg-zinc-950 border border-zinc-800 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-zinc-800 pb-5">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="bg-amber-400/10 text-amber-400 border border-amber-400/30 text-[10px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full">
+                  Diagnóstico Apartado
+                </span>
+              </div>
+              <h2 className="text-xl font-black text-white flex items-center gap-2 pt-1">
+                <ListChecks className="w-6 h-6 text-amber-400" />
+                Organização por matéria para seu cronograma
+              </h2>
+              <p className="text-xs text-zinc-400">
+                Vá passando seus erros para a IA montar sua lista e importe o JSON aqui somente quando finalizar.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <button
+                onClick={copiarPromptLevantamento}
+                className="px-4 py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-amber-400 text-xs font-bold transition-all flex items-center gap-2 cursor-pointer shadow-md"
+              >
+                {copiadoPromptErros ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                <span>{copiadoPromptErros ? 'Prompt Copiado!' : 'Copiar Prompt de Levantamento'}</span>
+              </button>
+
+              <button
+                onClick={() => setMostrarInputErros(!mostrarInputErros)}
+                className="px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-500 text-zinc-950 text-xs font-extrabold transition-all flex items-center gap-1.5 cursor-pointer shadow-md"
+              >
+                <Code className="w-4 h-4" />
+                <span>{mostrarInputErros ? 'Fechar Campo JSON' : 'Importar JSON da Lista'}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Área de Colagem do JSON */}
+          {mostrarInputErros && (
+            <div className="bg-zinc-900/80 border border-amber-400/40 rounded-2xl p-5 space-y-4">
+              <div className="flex justify-between items-center">
+                <span className="text-xs font-bold text-amber-400">Cole o JSON gerado pela IA após dizer &ldquo;pode enviar&rdquo;:</span>
+              </div>
+              <textarea
+                rows={6}
+                value={jsonErrosApartado}
+                onChange={(e) => setJsonErrosApartado(e.target.value)}
+                placeholder='{"assuntos_revisar": [{"materia": "Língua Portuguesa", "assunto_principal": "Semântica", "quantidade_questoes": 3, "topicos": ["Denotação e conotação."]}]}'
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3.5 text-xs text-amber-300 font-mono outline-none focus:border-amber-400"
+              />
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => setMostrarInputErros(false)}
+                  className="px-4 py-2 bg-zinc-800 text-zinc-300 rounded-xl text-xs font-bold cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleImportarLevantamentoErros}
+                  className="px-5 py-2 bg-amber-400 hover:bg-amber-500 text-zinc-950 rounded-xl text-xs font-extrabold cursor-pointer"
+                >
+                  Adicionar ao Levantamento
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Exibição dos Grandes Assuntos Levantados */}
+          {levantamentoErros.length === 0 ? (
+            <div className="text-center py-10 px-4 border border-dashed border-zinc-800 rounded-2xl space-y-2">
+              <BookOpen className="w-8 h-8 text-zinc-600 mx-auto" />
+              <p className="text-sm font-semibold text-zinc-300">Nenhum levantamento importado ainda</p>
+              <p className="text-xs text-zinc-500 max-w-md mx-auto">
+                Copie o prompt acima, cole na IA e vá enviando seus erros. Quando terminar, digite <b>&ldquo;pode enviar&rdquo;</b> e importe o JSON gerado aqui.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <p className="text-sm text-zinc-300">
+                Você tem <b className="text-white">{levantamentoErros.length} grandes assuntos</b> para revisar:
+              </p>
+
+              <div className="border border-zinc-800 rounded-2xl divide-y divide-zinc-800 bg-zinc-900/40 overflow-hidden">
+                {levantamentoErros.map((item, idx) => (
+                  <div key={item.id} className="p-5 sm:p-6 space-y-3 relative group hover:bg-zinc-900/70 transition-colors">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="space-y-1.5">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-zinc-800 text-zinc-300">
+                            {item.materia}
+                          </span>
+                        </div>
+                        <h3 className="text-base font-extrabold text-white">
+                          {idx + 1}. {item.assunto_principal}
+                        </h3>
+                        <span className="inline-block bg-rose-950/80 border border-rose-500/30 text-rose-400 text-[11px] font-bold px-2.5 py-0.5 rounded-md">
+                          {item.quantidade_questoes} {item.quantidade_questoes === 1 ? 'questão' : 'questões'}
+                        </span>
+                      </div>
+
+                      <button
+                        onClick={() => removerItemLevantamento(item.id)}
+                        className="text-zinc-500 hover:text-rose-400 p-2 rounded-lg bg-zinc-950 border border-zinc-800 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                        title="Remover assunto"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    {item.topicos.length > 0 && (
+                      <ul className="space-y-1.5 pt-1 text-xs sm:text-sm text-zinc-300">
+                        {item.topicos.map((topico, tIdx) => (
+                          <li key={tIdx} className="flex items-start gap-2.5">
+                            <span className="text-zinc-500 font-bold">•</span>
+                            <span>{topico}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* MODAL DE ADICIONAR NOVO SIMULADO */}
         {modalOpen && (

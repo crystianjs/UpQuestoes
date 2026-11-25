@@ -239,6 +239,7 @@ export default function QuestoesPage() {
     }
   }
 
+  // Prompt Mestre Atualizado com a Lista Restrita e Obrigatória de Matérias
   const promptMestreJson = `Atue como meu assistente de estudos para o concurso do TJSP (Banca VUNESP). 
 A partir das questões ou comentários que eu colar aqui, formate a saída EXCLUSIVAMENTE em um código JSON puro (sem markdown extra, sem texto antes ou depois) seguindo exatamente esta estrutura de array:
 
@@ -247,14 +248,17 @@ A partir das questões ou comentários que eu colar aqui, formate a saída EXCLU
     "materia": "Direito Penal",
     "assunto": "Falsificação de papéis públicos",
     "enunciado": "Texto principal do enunciado da questão.\\n\\nA) Primeira alternativa...\\nB) Segunda alternativa...\\nC) Terceira alternativa...\\nD) Quarta alternativa...\\nE) Quinta alternativa...",
-    "resolucao": "Gabarito: Letra X.\\n\\nExplicação detalhada da resolução...",
+    "resolucao": "Gabarito: Letra X.\\n\\nExplicação detalhada da resolução...\\n\\nJustificativa alternativa por alternativa...",
     "prioridade": "Alta"
   }
 ]
 
 Regras estritas:
-- No campo "enunciado", se houver alternativas (A, B, C, D, E), insira obrigatoriamente quebras de linha duplas (\\n\\n) antes de cada letra de alternativa.
-- O campo "materia" deve corresponder exatamente a uma das disciplinas do edital do TJSP.
+- O campo "materia" DEVE ser preenchido EXCLUSIVAMENTE com um dos seguintes valores exatos (não altere, não abrevie e não crie novos nomes):
+  "Língua Portuguesa", "Direito Penal", "Direito Processual Penal", "Direito Processual Civil", "Direito Constitucional", "Direito Administrativo", "Normas da Corregedoria", "Matemática", "Raciocínio Lógico", "Informática", "Atualidades", "Estatuto da Pessoa com Deficiência".
+- No campo "enunciado", se houver alternativas (A, B, C, D, E), insira obrigatoriamente quebras de linha duplas (\\n\\n) antes de cada letra de alternativa para que fiquem empilhadas uma abaixo da outra.
+- No campo "resolucao", utilize quebras de linha (\\n\\n) para separar o gabarito, o fundamento legal e a análise das alternativas.
+- O campo "assunto" deve identificar o tema específico cobrado na questão.
 - O campo "prioridade" deve ser estritamente: "Baixa", "Média", "Alta" ou "Crítica".`;
 
   const copiarPromptMestre = () => {
@@ -284,7 +288,7 @@ Regras estritas:
       setSalvandoBanco(true);
       const itensParaSalvar = listaArray.map(item => ({
         user_id: userId,
-        materia: item.materia || 'Língua Portuguesa',
+        materia: MATERIAS_TJSP.includes(item.materia) ? item.materia : 'Língua Portuguesa',
         assunto: item.assunto || 'Geral',
         enunciado: formatarTextoQuestao(item.enunciado || 'Enunciado não informado'),
         resolucao: item.resolucao || '',

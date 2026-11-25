@@ -392,21 +392,21 @@ Regras estritas:
   }
 
   const toggleResolucao = (id: string) => {
-    setResolucoesVisiveis(prev => ({ ...prev, [id]: !prev[id] }))
+    setResolucoesVisiveis(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
   const toggleObservacao = (id: string) => {
     setObservacoesVisiveis(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
-  // Cores de Fundo do Card Inteiro baseadas na Prioridade (Alta/Crítica = Vermelho, Média = Amarelo, Baixa = Verde)
+  // Cores de fundo sutis para cada prioridade (mantendo o texto claro em modo escuro elegante)
   const estiloCardPrioridade = (p: string) => {
     switch (p) {
       case 'Crítica':
       case 'Alta': 
         return 'bg-rose-950/40 border-rose-600/50 text-zinc-100';
       case 'Média': 
-        return 'bg-amber-400 border-amber-500 text-zinc-950'; // Card inteiro amarelo forte
+        return 'bg-amber-950/30 border-amber-600/40 text-zinc-100'; // Amarelo escuro sutil e agradável
       case 'Baixa': 
       default: 
         return 'bg-emerald-950/40 border-emerald-600/50 text-zinc-100';
@@ -419,7 +419,7 @@ Regras estritas:
       case 'Alta': 
         return 'bg-rose-600 text-white border-rose-700';
       case 'Média': 
-        return 'bg-zinc-950 text-amber-400 border-zinc-800';
+        return 'bg-amber-500/20 text-amber-400 border-amber-500/30';
       case 'Baixa': 
       default: 
         return 'bg-emerald-600 text-white border-emerald-700';
@@ -827,13 +827,13 @@ Regras estritas:
                     <div key={q.id} className={`border rounded-2xl p-5 sm:p-6 space-y-4 shadow-md transition-all ${estiloCardPrioridade(q.prioridade)}`}>
                       
                       {/* Cabeçalho do Card */}
-                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-black/10 pb-3">
+                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-white/10 pb-3">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded border ${q.prioridade === 'Média' ? 'bg-zinc-950 text-amber-400 border-zinc-900' : 'bg-black/30 text-white border-black/20'}`}>
+                          <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded bg-black/30 text-amber-400 border border-white/10">
                             {q.materia}
                           </span>
                           {q.assunto && (
-                            <span className={`text-[10px] font-semibold px-2.5 py-0.5 rounded border ${q.prioridade === 'Média' ? 'bg-zinc-900/50 text-zinc-900 border-amber-600/30' : 'bg-black/30 text-zinc-200 border-black/20'}`}>
+                            <span className="text-[10px] font-semibold text-zinc-200 bg-black/30 border border-white/10 px-2.5 py-0.5 rounded">
                               {q.assunto}
                             </span>
                           )}
@@ -845,14 +845,14 @@ Regras estritas:
                           </span>
                           <button
                             onClick={() => abrirEdicao(q)}
-                            className={`p-1.5 rounded-lg transition cursor-pointer ${q.prioridade === 'Média' ? 'bg-zinc-950 text-amber-400 hover:bg-zinc-900' : 'bg-black/40 text-zinc-300 hover:text-amber-400'}`}
+                            className="p-1.5 text-zinc-300 hover:text-amber-400 bg-black/30 rounded-lg transition cursor-pointer"
                             title="Editar Questão"
                           >
                             <Pencil className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={() => handleDeletar(q.id)}
-                            className={`p-1.5 rounded-lg transition cursor-pointer ${q.prioridade === 'Média' ? 'bg-zinc-950 text-amber-400 hover:bg-zinc-900' : 'bg-black/40 text-zinc-300 hover:text-rose-400'}`}
+                            className="p-1.5 text-zinc-300 hover:text-rose-400 bg-black/30 rounded-lg transition cursor-pointer"
                             title="Excluir Questão"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -862,13 +862,13 @@ Regras estritas:
 
                       {/* Imagem do Enunciado (se houver) */}
                       {q.imagem_url && (
-                        <div className="rounded-xl overflow-hidden border border-black/20 bg-black/20 p-2 max-w-xl">
+                        <div className="rounded-xl overflow-hidden border border-white/10 bg-black/30 p-2 max-w-xl">
                           <img src={q.imagem_url} alt="Questão Anexo" className="rounded-lg max-h-80 w-auto object-contain" />
                         </div>
                       )}
 
                       {/* Enunciado */}
-                      <div className={`text-xs sm:text-sm leading-relaxed font-medium whitespace-pre-line ${q.prioridade === 'Média' ? 'text-zinc-950' : 'text-zinc-100'}`}>
+                      <div className="text-xs sm:text-sm text-zinc-100 leading-relaxed font-medium whitespace-pre-line">
                         {enunciadoFormatado}
                       </div>
 
@@ -876,7 +876,7 @@ Regras estritas:
                       <div className="pt-2 flex flex-wrap items-center gap-2">
                         <button
                           onClick={() => toggleResolucao(q.id)}
-                          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm ${q.prioridade === 'Média' ? 'bg-zinc-950 text-amber-400 hover:bg-zinc-900' : 'bg-black/40 text-zinc-100 hover:bg-black/60 border border-black/20'}`}
+                          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-black/30 hover:bg-black/50 border border-white/10 text-amber-400 text-xs font-bold transition-all cursor-pointer shadow-sm"
                         >
                           {respostaAberta ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                           <span>{respostaAberta ? 'Ocultar Resposta Comentada' : 'Ver Resposta Comentada'}</span>
@@ -885,7 +885,7 @@ Regras estritas:
                         {q.observacao && (
                           <button
                             onClick={() => toggleObservacao(q.id)}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm ${q.prioridade === 'Média' ? 'bg-zinc-950 text-amber-400 hover:bg-zinc-900' : 'bg-black/40 text-blue-300 hover:bg-black/60 border border-black/20'}`}
+                            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-black/30 hover:bg-black/50 border border-white/10 text-blue-400 text-xs font-bold transition-all cursor-pointer shadow-sm"
                           >
                             {observacaoAberta ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                             <span>{observacaoAberta ? 'Ocultar Observação Pessoal' : 'Ver Observação Pessoal'}</span>
@@ -895,11 +895,11 @@ Regras estritas:
 
                       {/* Observação Pessoal */}
                       {observacaoAberta && q.observacao && (
-                        <div className={`p-4 rounded-r-xl space-y-1.5 border-l-2 ${q.prioridade === 'Média' ? 'bg-black/10 border-zinc-950 text-zinc-950' : 'bg-blue-950/20 border-blue-400 text-zinc-300'}`}>
-                          <span className="text-[10px] font-black uppercase tracking-wider flex items-center gap-1">
+                        <div className="bg-blue-950/30 border-l-2 border-blue-400 p-4 rounded-r-xl space-y-1.5 animate-fadeIn">
+                          <span className="text-[10px] font-black uppercase tracking-wider text-blue-400 flex items-center gap-1">
                             <MessageSquare className="w-3 h-3" /> Observação Pessoal:
                           </span>
-                          <div className="text-xs leading-relaxed whitespace-pre-line">
+                          <div className="text-xs text-zinc-300 leading-relaxed whitespace-pre-line">
                             {q.observacao}
                           </div>
                         </div>
@@ -907,11 +907,11 @@ Regras estritas:
 
                       {/* Resolução Comentada */}
                       {respostaAberta && q.resolucao && (
-                        <div className={`p-4 rounded-r-xl space-y-1.5 border-l-2 ${q.prioridade === 'Média' ? 'bg-black/10 border-zinc-950 text-zinc-950' : 'bg-black/30 border-amber-400 text-zinc-200'}`}>
-                          <span className="text-[10px] font-black uppercase tracking-wider block">
+                        <div className="bg-black/30 border-l-2 border-amber-400 p-4 rounded-r-xl space-y-1.5 animate-fadeIn">
+                          <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 block">
                             Resolução Comentada / Gabarito:
                           </span>
-                          <div className="text-xs leading-relaxed whitespace-pre-line font-mono">
+                          <div className="text-xs text-zinc-200 leading-relaxed whitespace-pre-line font-mono">
                             {q.resolucao}
                           </div>
                         </div>

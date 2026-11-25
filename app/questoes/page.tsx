@@ -109,6 +109,15 @@ export default function QuestoesPage() {
     }
   }
 
+  // Formata automaticamente o enunciado para separar alternativas (A, B, C, D, E) em linhas distintas
+  function formatarTextoQuestao(texto: string) {
+    if (!texto) return '';
+    return texto
+      .replace(/\s+(?=[A-E]\)\s)/g, '\n\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+  }
+
   // Lógica do Registo Numérico Original
   const handleTotalChange = (val: string) => {
     const num = val === '' ? '' : Number(val);
@@ -173,21 +182,23 @@ export default function QuestoesPage() {
     }
   }
 
-  // Prompt Mestre para a IA
+  // Prompt Mestre Ajustado com Quebras de Linha nas Alternativas
   const promptMestreJson = `Atue como meu assistente de estudos para o concurso do TJSP (Banca VUNESP). 
 A partir das questões ou comentários que eu colar aqui, formate a saída EXCLUSIVAMENTE em um código JSON puro (sem markdown extra, sem texto antes ou depois) seguindo exatamente esta estrutura de array:
 
 [
   {
-    "materia": "Língua Portuguesa",
-    "assunto": "Crase",
-    "enunciado": "Texto da questão...",
-    "resolucao": "Explicação detalhada da resolução e gabarito...",
+    "materia": "Direito Penal",
+    "assunto": "Falsificação de papéis públicos",
+    "enunciado": "Texto principal do enunciado da questão.\\n\\nA) Primeira alternativa...\\nB) Segunda alternativa...\\nC) Terceira alternativa...\\nD) Quarta alternativa...\\nE) Quinta alternativa...",
+    "resolucao": "Gabarito: Letra X.\\n\\nExplicação detalhada da resolução...\\n\\nJustificativa alternativa por alternativa...",
     "prioridade": "Alta"
   }
 ]
 
 Regras estritas:
+- No campo "enunciado", se houver alternativas (A, B, C, D, E), insira obrigatoriamente quebras de linha duplas (\\n\\n) antes de cada letra de alternativa para que fiquem empilhadas uma abaixo da outra.
+- No campo "resolucao", utilize quebras de linha (\\n\\n) para separar o gabarito, o fundamento legal e a análise das alternativas.
 - O campo "materia" deve corresponder exatamente a uma das disciplinas do edital do TJSP.
 - O campo "assunto" deve identificar o tema específico cobrado na questão.
 - O campo "prioridade" deve ser estritamente: "Baixa", "Média", "Alta" ou "Crítica".`;
@@ -222,7 +233,7 @@ Regras estritas:
         user_id: userId,
         materia: item.materia || 'Língua Portuguesa',
         assunto: item.assunto || 'Geral',
-        enunciado: item.enunciado || 'Enunciado não informado',
+        enunciado: formatarTextoQuestao(item.enunciado || 'Enunciado não informado'),
         resolucao: item.resolucao || '',
         prioridade: ['Baixa', 'Média', 'Alta', 'Crítica'].includes(item.prioridade) ? item.prioridade : 'Média'
       }));
@@ -253,7 +264,7 @@ Regras estritas:
           user_id: userId,
           materia: materiaBanco,
           assunto: assuntoBanco.trim() || null,
-          enunciado: enunciadoBanco.trim(),
+          enunciado: formatarTextoQuestao(enunciadoBanco.trim()),
           resolucao: resolucaoBanco.trim(),
           prioridade: prioridadeBanco
         }
@@ -291,7 +302,7 @@ Regras estritas:
     setEditId(q.id);
     setEditMateria(q.materia);
     setEditAssunto(q.assunto || '');
-    setEditEnunciado(q.enunciado);
+    setEditEnunciado(formatarTextoQuestao(q.enunciado));
     setEditResolucao(q.resolucao || '');
     setEditPrioridade(q.prioridade);
     setModalEditOpen(true);
@@ -308,7 +319,7 @@ Regras estritas:
         .update({
           materia: editMateria,
           assunto: editAssunto,
-          enunciado: editEnunciado,
+          enunciado: formatarTextoQuestao(editEnunciado),
           resolucao: editResolucao,
           prioridade: editPrioridade
         })
@@ -546,7 +557,7 @@ Regras estritas:
                     required
                     value={jsonInput}
                     onChange={(e) => setJsonInput(e.target.value)}
-                    placeholder='[{"materia": "Direito Constitucional", "assunto": "Art. 5º", "enunciado": "...", "resolucao": "...", "prioridade": "Alta"}]'
+                    placeholder='[{"materia": "Direito Constitucional", "assunto": "Art. 5º", "enunciado": "Texto...\n\nA) ...\nB) ...", "resolucao": "...", "prioridade": "Alta"}]'
                     className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-4 text-xs text-amber-300 font-mono focus:outline-none focus:border-amber-400"
                   />
                 </div>
@@ -604,11 +615,11 @@ Regras estritas:
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold uppercase tracking-wider text-zinc-400">Enunciado / Pergunta da Questão</label>
+                  <label className="text-xs font-bold uppercase tracking-wider text-zinc-400">Enunciado / Pergunta e Alternativas</label>
                   <textarea
-                    rows={3}
+                    rows={4}
                     required
-                    placeholder="Cole o enunciado da questão aqui..."
+                    placeholder="Cole o enunciado e as alternativas (A, B, C, D, E) aqui..."
                     value={enunciadoBanco}
                     onChange={(e) => setEnunciadoBanco(e.target.value)}
                     className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-xs text-zinc-100"
@@ -685,6 +696,7 @@ Regras estritas:
               <div className="space-y-4">
                 {questoesFiltradas.map((q) => {
                   const respostaAberta = resolucoesVisiveis[q.id];
+                  const enunciadoFormatado = formatarTextoQuestao(q.enunciado);
 
                   return (
                     <div key={q.id} className="bg-zinc-950 border border-zinc-800 rounded-2xl p-5 sm:p-6 space-y-4 shadow-md hover:border-zinc-700 transition-all">
@@ -723,9 +735,9 @@ Regras estritas:
                         </div>
                       </div>
 
-                      {/* Enunciado (Para você resolver antes de ver a resposta) */}
+                      {/* Enunciado com alternativas empilhadas e quebra limpa */}
                       <div className="text-xs sm:text-sm text-zinc-200 leading-relaxed font-medium whitespace-pre-line">
-                        {q.enunciado}
+                        {enunciadoFormatado}
                       </div>
 
                       {/* Botão de Ver Resposta */}
@@ -811,9 +823,9 @@ Regras estritas:
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-semibold text-zinc-400 mb-1">Enunciado</label>
+                  <label className="block text-[11px] font-semibold text-zinc-400 mb-1">Enunciado e Alternativas</label>
                   <textarea
-                    rows={3}
+                    rows={5}
                     value={editEnunciado}
                     onChange={(e) => setEditEnunciado(e.target.value)}
                     className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-2.5 text-xs text-white whitespace-pre-line"

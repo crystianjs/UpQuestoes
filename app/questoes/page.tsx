@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Navbar from '../components/Navbar';
 import { supabase } from '@/lib/supabase';
-import { BookOpen, CheckCircle, AlertCircle, AlertTriangle, Copy, Check, Trash2, Pencil, Sparkles, Filter, Eye, EyeOff, MessageSquare } from 'lucide-react';
+import { BookOpen, CheckCircle, AlertCircle, AlertTriangle, Copy, Check, Trash2, Pencil, Sparkles, Filter, Eye, EyeOff, MessageSquare, Image as ImageIcon, Upload } from 'lucide-react';
 
 const MATERIAS_TJSP = [
   'Língua Portuguesa',
@@ -28,6 +28,7 @@ interface QuestaoConcurso {
   enunciado: string;
   resolucao: string;
   observacao?: string;
+  imagem_url?: string;
   prioridade: 'Baixa' | 'Média' | 'Alta' | 'Crítica';
   created_at: string;
 }
@@ -55,6 +56,7 @@ export default function QuestoesPage() {
   const [enunciadoBanco, setEnunciadoBanco] = useState('');
   const [resolucaoBanco, setResolucaoBanco] = useState('');
   const [observacaoBanco, setObservacaoBanco] = useState('');
+  const [imagemBanco, setImagemBanco] = useState<string | null>(null);
   const [prioridadeBanco, setPrioridadeBanco] = useState<'Baixa' | 'Média' | 'Alta' | 'Crítica'>('Média');
 
   const [modoPreenchimento, setModoPreenchimento] = useState<'manual' | 'json'>('json');
@@ -63,11 +65,11 @@ export default function QuestoesPage() {
   const [salvandoBanco, setSalvandoBanco] = useState(false);
   const [sucessoBanco, setSucessoBanco] = useState(false);
 
-  // Estados de Controle de Visibilidade (Resoluções e Observações por Card)
+  // Estados de Controle de Visibilidade
   const [resolucoesVisiveis, setResolucoesVisiveis] = useState<{ [key: string]: boolean }>({});
   const [observacoesVisiveis, setObservacoesVisiveis] = useState<{ [key: string]: boolean }>({});
 
-  // Estados de Filtro Duplo (Matéria e Assunto)
+  // Estados de Filtro
   const [filtroMateria, setFiltroMateria] = useState('todos');
   const [filtroAssunto, setFiltroAssunto] = useState('todos');
 
@@ -79,6 +81,7 @@ export default function QuestoesPage() {
   const [editEnunciado, setEditEnunciado] = useState('');
   const [editResolucao, setEditResolucao] = useState('');
   const [editObservacao, setEditObservacao] = useState('');
+  const [editImagemUrl, setEditImagemUrl] = useState<string | null>(null);
   const [editPrioridade, setEditPrioridade] = useState<'Baixa' | 'Média' | 'Alta' | 'Crítica'>('Média');
 
   useEffect(() => {
@@ -110,6 +113,58 @@ export default function QuestoesPage() {
       console.error('Erro ao carregar questões:', err);
     } finally {
       setLoading(false);
+    }
+  }
+
+  // Função para fazer upload da imagem para o Supabase Storage (suporta colar do clipboard e arquivo)
+  async function uploadImagemParaSupabase(file: File): Promise<string | null> {
+    try {
+      const fileExt = file.name.split('.').pop() || 'png';
+      const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('questoes-imagens') // Nome do seu bucket no Supabase Storage
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage
+        .from('questoes-imagens')
+        .getPublicUrl(filePath);
+
+      return data.publicUrl;
+    } catch (err: any) {
+      alert(`Erro ao carregar imagem: ${err.message || 'Erro desconhecido'}`);
+      return null;
+    }
+  }
+
+  // Capturar Ctrl+V (colar imagem direto da área de transferência)
+  async function handlePaste(e: React.ClipboardEvent<HTMLTextAreaElement>, setImgFunc: (url: string) => void) {
+    const items = e.clipboardData.items;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.indexOf('image') !== -1) {
+        const file = items[i].getAsFile();
+        if (file) {
+          e.preventDefault();
+          const url = await uploadImagemParaSupabase(file);
+          if (url) {
+            setImgFunc(url);
+          }
+        }
+      }
+    }
+  }
+
+  // Upload por seleção de arquivo
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>, setImgFunc: (url: string) => void) {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      const url = await uploadImagemParaSupabase(file);
+      if (url) {
+        setImgFunc(url);
+      }
     }
   }
 
@@ -192,16 +247,14 @@ A partir das questões ou comentários que eu colar aqui, formate a saída EXCLU
     "materia": "Direito Penal",
     "assunto": "Falsificação de papéis públicos",
     "enunciado": "Texto principal do enunciado da questão.\\n\\nA) Primeira alternativa...\\nB) Segunda alternativa...\\nC) Terceira alternativa...\\nD) Quarta alternativa...\\nE) Quinta alternativa...",
-    "resolucao": "Gabarito: Letra X.\\n\\nExplicação detalhada da resolução...\\n\\nJustificativa alternativa por alternativa...",
+    "resolucao": "Gabarito: Letra X.\\n\\nExplicação detalhada da resolução...",
     "prioridade": "Alta"
   }
 ]
 
 Regras estritas:
-- No campo "enunciado", se houver alternativas (A, B, C, D, E), insira obrigatoriamente quebras de linha duplas (\\n\\n) antes de cada letra de alternativa para que fiquem empilhadas uma abaixo da outra.
-- No campo "resolucao", utilize quebras de linha (\\n\\n) para separar o gabarito, o fundamento legal e a análise das alternativas.
+- No campo "enunciado", se houver alternativas (A, B, C, D, E), insira obrigatoriamente quebras de linha duplas (\\n\\n) antes de cada letra de alternativa.
 - O campo "materia" deve corresponder exatamente a uma das disciplinas do edital do TJSP.
-- O campo "assunto" deve identificar o tema específico cobrado na questão.
 - O campo "prioridade" deve ser estritamente: "Baixa", "Média", "Alta" ou "Crítica".`;
 
   const copiarPromptMestre = () => {
@@ -236,6 +289,7 @@ Regras estritas:
         enunciado: formatarTextoQuestao(item.enunciado || 'Enunciado não informado'),
         resolucao: item.resolucao || '',
         observacao: null,
+        imagem_url: null,
         prioridade: ['Baixa', 'Média', 'Alta', 'Crítica'].includes(item.prioridade) ? item.prioridade : 'Média'
       }));
 
@@ -267,6 +321,7 @@ Regras estritas:
           enunciado: formatarTextoQuestao(enunciadoBanco.trim()),
           resolucao: resolucaoBanco.trim(),
           observacao: observacaoBanco.trim() || null,
+          imagem_url: imagemBanco,
           prioridade: prioridadeBanco
         }
       ]);
@@ -278,6 +333,7 @@ Regras estritas:
       setEnunciadoBanco('');
       setResolucaoBanco('');
       setObservacaoBanco('');
+      setImagemBanco(null);
       carregarQuestoes(userId);
       setTimeout(() => setSucessoBanco(false), 3000);
     } catch (err: any) {
@@ -305,6 +361,7 @@ Regras estritas:
     setEditEnunciado(formatarTextoQuestao(q.enunciado));
     setEditResolucao(q.resolucao || '');
     setEditObservacao(q.observacao || '');
+    setEditImagemUrl(q.imagem_url || null);
     setEditPrioridade(q.prioridade);
     setModalEditOpen(true);
   }
@@ -322,6 +379,7 @@ Regras estritas:
           enunciado: formatarTextoQuestao(editEnunciado),
           resolucao: editResolucao,
           observacao: editObservacao.trim() || null,
+          imagem_url: editImagemUrl,
           prioridade: editPrioridade
         })
         .eq('id', editId);
@@ -500,7 +558,7 @@ Regras estritas:
           </form>
         </div>
 
-        {/* --- BLOCO 2: BANCO DE QUESTÕES PRÁTICAS COM RESOLUÇÃO INTERATIVA --- */}
+        {/* --- BLOCO 2: BANCO DE QUESTÕES PRÁTICAS COM RESOLUÇÃO E SUPORTE A IMAGENS --- */}
         <div className="space-y-6 pt-6 border-t border-zinc-800">
           <div className="bg-zinc-950 border border-zinc-800 rounded-3xl p-6 md:p-8 shadow-xl space-y-6">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-zinc-800 pb-5">
@@ -510,7 +568,7 @@ Regras estritas:
                   Caderno Prático de Questões & Resoluções
                 </h1>
                 <p className="text-xs text-zinc-400 mt-0.5">
-                  Importe via IA (JSON) ou cadastre manualmente para praticar com ocultação de gabarito.
+                  Cole prints (Ctrl+V) diretamente no enunciado ou importe via JSON.
                 </p>
               </div>
 
@@ -575,7 +633,7 @@ Regras estritas:
               </form>
             )}
 
-            {/* MODO MANUAL */}
+            {/* MODO MANUAL (COM SUPORTE A COLE/UPLOAD DE IMAGEM) */}
             {modoPreenchimento === 'manual' && (
               <form onSubmit={handleSalvarBancoManual} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -619,15 +677,48 @@ Regras estritas:
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold uppercase tracking-wider text-zinc-400">Enunciado / Pergunta e Alternativas</label>
+                  <div className="flex justify-between items-center">
+                    <label className="text-xs font-bold uppercase tracking-wider text-zinc-400">Enunciado / Pergunta e Alternativas</label>
+                    <span className="text-[10px] text-amber-400 italic">Dica: Você pode dar Ctrl+V para colar um print direto aqui!</span>
+                  </div>
                   <textarea
                     rows={4}
                     required
-                    placeholder="Cole o enunciado e as alternativas (A, B, C, D, E) aqui..."
+                    placeholder="Cole o enunciado aqui ou dê Ctrl+V para colar um print..."
                     value={enunciadoBanco}
                     onChange={(e) => setEnunciadoBanco(e.target.value)}
+                    onPaste={(e) => handlePaste(e, (url) => setImagemBanco(url))}
                     className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-xs text-zinc-100"
                   />
+                </div>
+
+                {/* Upload ou Pré-visualização da Imagem */}
+                <div className="space-y-2 bg-zinc-900/50 p-4 rounded-xl border border-zinc-800">
+                  <label className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                    <ImageIcon className="w-4 h-4" /> Imagem Anexada ao Enunciado (Opcional)
+                  </label>
+                  
+                  {imagemBanco ? (
+                    <div className="relative inline-block">
+                      <img src={imagemBanco} alt="Preview" className="max-h-40 rounded-lg border border-zinc-700" />
+                      <button
+                        type="button"
+                        onClick={() => setImagemBanco(null)}
+                        className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-1 text-[10px] hover:bg-red-700 cursor-pointer shadow"
+                      >
+                        ✕ Remover
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-3">
+                      <label className="flex items-center gap-2 px-4 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-amber-400 text-xs font-bold cursor-pointer shadow-sm transition">
+                        <Upload className="w-4 h-4" />
+                        <span>Carregar Imagem do Computador</span>
+                        <input type="file" accept="image/*" onChange={(e) => handleFileChange(e, (url) => setImagemBanco(url))} className="hidden" />
+                      </label>
+                      <span className="text-[11px] text-zinc-500">ou cole com Ctrl+V na caixa de texto acima</span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-1.5">
@@ -753,12 +844,19 @@ Regras estritas:
                         </div>
                       </div>
 
-                      {/* Enunciado com alternativas empilhadas e quebra limpa */}
+                      {/* Imagem do Enunciado (se houver) */}
+                      {q.imagem_url && (
+                        <div className="rounded-xl overflow-hidden border border-zinc-800 bg-zinc-900/40 p-2 max-w-xl">
+                          <img src={q.imagem_url} alt="Questão Anexo" className="rounded-lg max-h-80 w-auto object-contain" />
+                        </div>
+                      )}
+
+                      {/* Enunciado */}
                       <div className="text-xs sm:text-sm text-zinc-200 leading-relaxed font-medium whitespace-pre-line">
                         {enunciadoFormatado}
                       </div>
 
-                      {/* Botões de Ação (Ver Resposta & Ver Observação) */}
+                      {/* Botões de Ação */}
                       <div className="pt-2 flex flex-wrap items-center gap-2">
                         <button
                           onClick={() => toggleResolucao(q.id)}
@@ -779,7 +877,7 @@ Regras estritas:
                         )}
                       </div>
 
-                      {/* Observação Pessoal (Oculta até clicar no botão) */}
+                      {/* Observação Pessoal */}
                       {observacaoAberta && q.observacao && (
                         <div className="bg-blue-950/20 border-l-2 border-blue-400 p-4 rounded-r-xl space-y-1.5 animate-fadeIn">
                           <span className="text-[10px] font-black uppercase tracking-wider text-blue-400 flex items-center gap-1">
@@ -791,7 +889,7 @@ Regras estritas:
                         </div>
                       )}
 
-                      {/* Resolução Comentada (Oculta até clicar no botão) */}
+                      {/* Resolução Comentada */}
                       {respostaAberta && q.resolucao && (
                         <div className="bg-amber-400/5 border-l-2 border-amber-400 p-4 rounded-r-xl space-y-1.5 animate-fadeIn">
                           <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 block">
@@ -863,13 +961,36 @@ Regras estritas:
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-semibold text-zinc-400 mb-1">Enunciado e Alternativas</label>
+                  <label className="block text-[11px] font-semibold text-zinc-400 mb-1">Enunciado (Ctrl+V suportado)</label>
                   <textarea
                     rows={4}
                     value={editEnunciado}
                     onChange={(e) => setEditEnunciado(e.target.value)}
+                    onPaste={(e) => handlePaste(e, (url) => setEditImagemUrl(url))}
                     className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-2.5 text-xs text-white whitespace-pre-line"
                   />
+                </div>
+
+                {/* Imagem no Modal de Edição */}
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-semibold text-amber-400">Imagem Anexada</label>
+                  {editImagemUrl ? (
+                    <div className="relative inline-block">
+                      <img src={editImagemUrl} alt="Edit Preview" className="max-h-32 rounded border border-zinc-800" />
+                      <button
+                        type="button"
+                        onClick={() => setEditImagemUrl(null)}
+                        className="absolute top-1 right-1 bg-red-600 text-white rounded-full px-1 text-[9px] cursor-pointer"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ) : (
+                    <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-950 border border-zinc-800 text-amber-400 text-xs cursor-pointer">
+                      <Upload className="w-3.5 h-3.5" /> Adicionar Imagem
+                      <input type="file" accept="image/*" onChange={(e) => handleFileChange(e, (url) => setEditImagemUrl(url))} className="hidden" />
+                    </label>
+                  )}
                 </div>
 
                 <div>

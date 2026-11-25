@@ -116,7 +116,7 @@ export default function QuestoesPage() {
     }
   }
 
-  // Função para fazer upload da imagem para o Supabase Storage
+  // Função para fazer upload da imagem para o Supabase Storage (suporta colar do clipboard e arquivo)
   async function uploadImagemParaSupabase(file: File): Promise<string | null> {
     try {
       const fileExt = file.name.split('.').pop() || 'png';
@@ -124,7 +124,7 @@ export default function QuestoesPage() {
       const filePath = `${fileName}`;
 
       const { error: uploadError } = await supabase.storage
-        .from('questoes-imagens')
+        .from('questoes-imagens') // Nome do seu bucket no Supabase Storage
         .upload(filePath, file);
 
       if (uploadError) throw uploadError;
@@ -157,6 +157,7 @@ export default function QuestoesPage() {
     }
   }
 
+  // Upload por seleção de arquivo
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>, setImgFunc: (url: string) => void) {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
@@ -238,6 +239,7 @@ export default function QuestoesPage() {
     }
   }
 
+  // Prompt Mestre Atualizado com a Lista Restrita e Obrigatória de Matérias
   const promptMestreJson = `Atue como meu assistente de estudos para o concurso do TJSP (Banca VUNESP). 
 A partir das questões ou comentários que eu colar aqui, formate a saída EXCLUSIVAMENTE em um código JSON puro (sem markdown extra, sem texto antes ou depois) seguindo exatamente esta estrutura de array:
 
@@ -246,7 +248,7 @@ A partir das questões ou comentários que eu colar aqui, formate a saída EXCLU
     "materia": "Direito Penal",
     "assunto": "Falsificação de papéis públicos",
     "enunciado": "Texto principal do enunciado da questão.\\n\\nA) Primeira alternativa...\\nB) Segunda alternativa...\\nC) Terceira alternativa...\\nD) Quarta alternativa...\\nE) Quinta alternativa...",
-    "resolucao": "Gabarito: Letra X.\\n\\nExplicação detalhada da resolução...",
+    "resolucao": "Gabarito: Letra X.\\n\\nExplicação detalhada da resolução...\\n\\nJustificativa alternativa por alternativa...",
     "prioridade": "Alta"
   }
 ]
@@ -254,7 +256,9 @@ A partir das questões ou comentários que eu colar aqui, formate a saída EXCLU
 Regras estritas:
 - O campo "materia" DEVE ser preenchido EXCLUSIVAMENTE com um dos seguintes valores exatos (não altere, não abrevie e não crie novos nomes):
   "Língua Portuguesa", "Direito Penal", "Direito Processual Penal", "Direito Processual Civil", "Direito Constitucional", "Direito Administrativo", "Normas da Corregedoria", "Matemática", "Raciocínio Lógico", "Informática", "Atualidades", "Estatuto da Pessoa com Deficiência".
-- No campo "enunciado", se houver alternativas (A, B, C, D, E), insira obrigatoriamente quebras de linha duplas (\\n\\n) antes de cada letra de alternativa.
+- No campo "enunciado", se houver alternativas (A, B, C, D, E), insira obrigatoriamente quebras de linha duplas (\\n\\n) antes de cada letra de alternativa para que fiquem empilhadas uma abaixo da outra.
+- No campo "resolucao", utilize quebras de linha (\\n\\n) para separar o gabarito, o fundamento legal e a análise das alternativas.
+- O campo "assunto" deve identificar o tema específico cobrado na questão.
 - O campo "prioridade" deve ser estritamente: "Baixa", "Média", "Alta" ou "Crítica".`;
 
   const copiarPromptMestre = () => {
@@ -401,17 +405,12 @@ Regras estritas:
     setObservacoesVisiveis(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
-  // Função atualizada para diferenciar Vermelho (Crítica/Alta), Amarelo (Média) e Verde (Baixa)
   const corPrioridade = (p: string) => {
     switch (p) {
-      case 'Crítica':
-      case 'Alta': 
-        return 'bg-rose-500/20 text-rose-400 border-rose-500/30';
-      case 'Média': 
-        return 'bg-amber-500/20 text-amber-400 border-amber-500/30';
-      case 'Baixa': 
-      default: 
-        return 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
+      case 'Crítica': return 'bg-rose-500/20 text-rose-400 border-rose-500/30';
+      case 'Alta': return 'bg-amber-500/20 text-amber-400 border-amber-500/30';
+      case 'Média': return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
+      default: return 'bg-zinc-800 text-zinc-400 border-zinc-700';
     }
   };
 
@@ -638,7 +637,7 @@ Regras estritas:
               </form>
             )}
 
-            {/* MODO MANUAL */}
+            {/* MODO MANUAL (COM SUPORTE A COLE/UPLOAD DE IMAGEM) */}
             {modoPreenchimento === 'manual' && (
               <form onSubmit={handleSalvarBancoManual} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -856,8 +855,8 @@ Regras estritas:
                         </div>
                       )}
 
-                      {/* Enunciado com Amarelo Mais Forte (text-amber-200) */}
-                      <div className="text-xs sm:text-sm text-amber-200 leading-relaxed font-medium whitespace-pre-line">
+                      {/* Enunciado */}
+                      <div className="text-xs sm:text-sm text-zinc-200 leading-relaxed font-medium whitespace-pre-line">
                         {enunciadoFormatado}
                       </div>
 

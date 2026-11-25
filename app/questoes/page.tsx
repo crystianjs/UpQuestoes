@@ -116,7 +116,6 @@ export default function QuestoesPage() {
     }
   }
 
-  // Função para fazer upload da imagem para o Supabase Storage (suporta colar do clipboard e arquivo)
   async function uploadImagemParaSupabase(file: File): Promise<string | null> {
     try {
       const fileExt = file.name.split('.').pop() || 'png';
@@ -124,7 +123,7 @@ export default function QuestoesPage() {
       const filePath = `${fileName}`;
 
       const { error: uploadError } = await supabase.storage
-        .from('questoes-imagens') // Nome do seu bucket no Supabase Storage
+        .from('questoes-imagens')
         .upload(filePath, file);
 
       if (uploadError) throw uploadError;
@@ -140,7 +139,6 @@ export default function QuestoesPage() {
     }
   }
 
-  // Capturar Ctrl+V (colar imagem direto da área de transferência)
   async function handlePaste(e: React.ClipboardEvent<HTMLTextAreaElement>, setImgFunc: (url: string) => void) {
     const items = e.clipboardData.items;
     for (let i = 0; i < items.length; i++) {
@@ -157,7 +155,6 @@ export default function QuestoesPage() {
     }
   }
 
-  // Upload por seleção de arquivo
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>, setImgFunc: (url: string) => void) {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
@@ -239,7 +236,6 @@ export default function QuestoesPage() {
     }
   }
 
-  // Prompt Mestre Atualizado com a Lista Restrita e Obrigatória de Matérias
   const promptMestreJson = `Atue como meu assistente de estudos para o concurso do TJSP (Banca VUNESP). 
 A partir das questões ou comentários que eu colar aqui, formate a saída EXCLUSIVAMENTE em um código JSON puro (sem markdown extra, sem texto antes ou depois) seguindo exatamente esta estrutura de array:
 
@@ -248,7 +244,7 @@ A partir das questões ou comentários que eu colar aqui, formate a saída EXCLU
     "materia": "Direito Penal",
     "assunto": "Falsificação de papéis públicos",
     "enunciado": "Texto principal do enunciado da questão.\\n\\nA) Primeira alternativa...\\nB) Segunda alternativa...\\nC) Terceira alternativa...\\nD) Quarta alternativa...\\nE) Quinta alternativa...",
-    "resolucao": "Gabarito: Letra X.\\n\\nExplicação detalhada da resolução...\\n\\nJustificativa alternativa por alternativa...",
+    "resolucao": "Gabarito: Letra X.\\n\\nExplicação detalhada da resolução...",
     "prioridade": "Alta"
   }
 ]
@@ -256,9 +252,7 @@ A partir das questões ou comentários que eu colar aqui, formate a saída EXCLU
 Regras estritas:
 - O campo "materia" DEVE ser preenchido EXCLUSIVAMENTE com um dos seguintes valores exatos (não altere, não abrevie e não crie novos nomes):
   "Língua Portuguesa", "Direito Penal", "Direito Processual Penal", "Direito Processual Civil", "Direito Constitucional", "Direito Administrativo", "Normas da Corregedoria", "Matemática", "Raciocínio Lógico", "Informática", "Atualidades", "Estatuto da Pessoa com Deficiência".
-- No campo "enunciado", se houver alternativas (A, B, C, D, E), insira obrigatoriamente quebras de linha duplas (\\n\\n) antes de cada letra de alternativa para que fiquem empilhadas uma abaixo da outra.
-- No campo "resolucao", utilize quebras de linha (\\n\\n) para separar o gabarito, o fundamento legal e a análise das alternativas.
-- O campo "assunto" deve identificar o tema específico cobrado na questão.
+- No campo "enunciado", se houver alternativas (A, B, C, D, E), insira obrigatoriamente quebras de linha duplas (\\n\\n) antes de cada letra de alternativa.
 - O campo "prioridade" deve ser estritamente: "Baixa", "Média", "Alta" ou "Crítica".`;
 
   const copiarPromptMestre = () => {
@@ -398,19 +392,37 @@ Regras estritas:
   }
 
   const toggleResolucao = (id: string) => {
-    setResolucoesVisiveis(prev => ({ ...prev, [id]: !prev[id] }));
+    setResolucoesVisiveis(prev => ({ ...prev, [id]: !prev[id] }))
   };
 
   const toggleObservacao = (id: string) => {
     setObservacoesVisiveis(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const corPrioridade = (p: string) => {
+  // Cores de Fundo do Card Inteiro baseadas na Prioridade (Alta/Crítica = Vermelho, Média = Amarelo, Baixa = Verde)
+  const estiloCardPrioridade = (p: string) => {
     switch (p) {
-      case 'Crítica': return 'bg-rose-500/20 text-rose-400 border-rose-500/30';
-      case 'Alta': return 'bg-amber-500/20 text-amber-400 border-amber-500/30';
-      case 'Média': return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
-      default: return 'bg-zinc-800 text-zinc-400 border-zinc-700';
+      case 'Crítica':
+      case 'Alta': 
+        return 'bg-rose-950/40 border-rose-600/50 text-zinc-100';
+      case 'Média': 
+        return 'bg-amber-400 border-amber-500 text-zinc-950'; // Card inteiro amarelo forte
+      case 'Baixa': 
+      default: 
+        return 'bg-emerald-950/40 border-emerald-600/50 text-zinc-100';
+    }
+  };
+
+  const badgePrioridade = (p: string) => {
+    switch (p) {
+      case 'Crítica':
+      case 'Alta': 
+        return 'bg-rose-600 text-white border-rose-700';
+      case 'Média': 
+        return 'bg-zinc-950 text-amber-400 border-zinc-800';
+      case 'Baixa': 
+      default: 
+        return 'bg-emerald-600 text-white border-emerald-700';
     }
   };
 
@@ -637,7 +649,7 @@ Regras estritas:
               </form>
             )}
 
-            {/* MODO MANUAL (COM SUPORTE A COLE/UPLOAD DE IMAGEM) */}
+            {/* MODO MANUAL */}
             {modoPreenchimento === 'manual' && (
               <form onSubmit={handleSalvarBancoManual} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -812,35 +824,35 @@ Regras estritas:
                   const enunciadoFormatado = formatarTextoQuestao(q.enunciado);
 
                   return (
-                    <div key={q.id} className="bg-zinc-950 border border-zinc-800 rounded-2xl p-5 sm:p-6 space-y-4 shadow-md hover:border-zinc-700 transition-all">
+                    <div key={q.id} className={`border rounded-2xl p-5 sm:p-6 space-y-4 shadow-md transition-all ${estiloCardPrioridade(q.prioridade)}`}>
                       
                       {/* Cabeçalho do Card */}
-                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-zinc-900 pb-3">
+                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-black/10 pb-3">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-amber-400">
+                          <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded border ${q.prioridade === 'Média' ? 'bg-zinc-950 text-amber-400 border-zinc-900' : 'bg-black/30 text-white border-black/20'}`}>
                             {q.materia}
                           </span>
                           {q.assunto && (
-                            <span className="text-[10px] font-semibold text-zinc-300 bg-zinc-900 border border-zinc-800 px-2.5 py-0.5 rounded">
+                            <span className={`text-[10px] font-semibold px-2.5 py-0.5 rounded border ${q.prioridade === 'Média' ? 'bg-zinc-900/50 text-zinc-900 border-amber-600/30' : 'bg-black/30 text-zinc-200 border-black/20'}`}>
                               {q.assunto}
                             </span>
                           )}
                         </div>
 
                         <div className="flex items-center gap-2">
-                          <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${corPrioridade(q.prioridade)}`}>
+                          <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${badgePrioridade(q.prioridade)}`}>
                             Prioridade: {q.prioridade}
                           </span>
                           <button
                             onClick={() => abrirEdicao(q)}
-                            className="p-1.5 text-zinc-400 hover:text-amber-400 bg-zinc-900 rounded-lg transition cursor-pointer"
+                            className={`p-1.5 rounded-lg transition cursor-pointer ${q.prioridade === 'Média' ? 'bg-zinc-950 text-amber-400 hover:bg-zinc-900' : 'bg-black/40 text-zinc-300 hover:text-amber-400'}`}
                             title="Editar Questão"
                           >
                             <Pencil className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={() => handleDeletar(q.id)}
-                            className="p-1.5 text-zinc-400 hover:text-rose-400 bg-zinc-900 rounded-lg transition cursor-pointer"
+                            className={`p-1.5 rounded-lg transition cursor-pointer ${q.prioridade === 'Média' ? 'bg-zinc-950 text-amber-400 hover:bg-zinc-900' : 'bg-black/40 text-zinc-300 hover:text-rose-400'}`}
                             title="Excluir Questão"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -850,13 +862,13 @@ Regras estritas:
 
                       {/* Imagem do Enunciado (se houver) */}
                       {q.imagem_url && (
-                        <div className="rounded-xl overflow-hidden border border-zinc-800 bg-zinc-900/40 p-2 max-w-xl">
+                        <div className="rounded-xl overflow-hidden border border-black/20 bg-black/20 p-2 max-w-xl">
                           <img src={q.imagem_url} alt="Questão Anexo" className="rounded-lg max-h-80 w-auto object-contain" />
                         </div>
                       )}
 
                       {/* Enunciado */}
-                      <div className="text-xs sm:text-sm text-zinc-200 leading-relaxed font-medium whitespace-pre-line">
+                      <div className={`text-xs sm:text-sm leading-relaxed font-medium whitespace-pre-line ${q.prioridade === 'Média' ? 'text-zinc-950' : 'text-zinc-100'}`}>
                         {enunciadoFormatado}
                       </div>
 
@@ -864,7 +876,7 @@ Regras estritas:
                       <div className="pt-2 flex flex-wrap items-center gap-2">
                         <button
                           onClick={() => toggleResolucao(q.id)}
-                          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-amber-400 text-xs font-bold transition-all cursor-pointer shadow-sm"
+                          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm ${q.prioridade === 'Média' ? 'bg-zinc-950 text-amber-400 hover:bg-zinc-900' : 'bg-black/40 text-zinc-100 hover:bg-black/60 border border-black/20'}`}
                         >
                           {respostaAberta ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                           <span>{respostaAberta ? 'Ocultar Resposta Comentada' : 'Ver Resposta Comentada'}</span>
@@ -873,7 +885,7 @@ Regras estritas:
                         {q.observacao && (
                           <button
                             onClick={() => toggleObservacao(q.id)}
-                            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-blue-400 text-xs font-bold transition-all cursor-pointer shadow-sm"
+                            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm ${q.prioridade === 'Média' ? 'bg-zinc-950 text-amber-400 hover:bg-zinc-900' : 'bg-black/40 text-blue-300 hover:bg-black/60 border border-black/20'}`}
                           >
                             {observacaoAberta ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                             <span>{observacaoAberta ? 'Ocultar Observação Pessoal' : 'Ver Observação Pessoal'}</span>
@@ -883,11 +895,11 @@ Regras estritas:
 
                       {/* Observação Pessoal */}
                       {observacaoAberta && q.observacao && (
-                        <div className="bg-blue-950/20 border-l-2 border-blue-400 p-4 rounded-r-xl space-y-1.5 animate-fadeIn">
-                          <span className="text-[10px] font-black uppercase tracking-wider text-blue-400 flex items-center gap-1">
+                        <div className={`p-4 rounded-r-xl space-y-1.5 border-l-2 ${q.prioridade === 'Média' ? 'bg-black/10 border-zinc-950 text-zinc-950' : 'bg-blue-950/20 border-blue-400 text-zinc-300'}`}>
+                          <span className="text-[10px] font-black uppercase tracking-wider flex items-center gap-1">
                             <MessageSquare className="w-3 h-3" /> Observação Pessoal:
                           </span>
-                          <div className="text-xs text-zinc-300 leading-relaxed whitespace-pre-line">
+                          <div className="text-xs leading-relaxed whitespace-pre-line">
                             {q.observacao}
                           </div>
                         </div>
@@ -895,11 +907,11 @@ Regras estritas:
 
                       {/* Resolução Comentada */}
                       {respostaAberta && q.resolucao && (
-                        <div className="bg-amber-400/5 border-l-2 border-amber-400 p-4 rounded-r-xl space-y-1.5 animate-fadeIn">
-                          <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 block">
+                        <div className={`p-4 rounded-r-xl space-y-1.5 border-l-2 ${q.prioridade === 'Média' ? 'bg-black/10 border-zinc-950 text-zinc-950' : 'bg-black/30 border-amber-400 text-zinc-200'}`}>
+                          <span className="text-[10px] font-black uppercase tracking-wider block">
                             Resolução Comentada / Gabarito:
                           </span>
-                          <div className="text-xs text-zinc-200 leading-relaxed whitespace-pre-line font-mono">
+                          <div className="text-xs leading-relaxed whitespace-pre-line font-mono">
                             {q.resolucao}
                           </div>
                         </div>

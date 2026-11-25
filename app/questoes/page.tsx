@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Navbar from '../components/Navbar';
 import { supabase } from '@/lib/supabase';
-import { BookOpen, CheckCircle, AlertCircle, AlertTriangle, Copy, Check, Trash2, Pencil, Sparkles, Filter, Eye, EyeOff } from 'lucide-react';
+import { BookOpen, CheckCircle, AlertCircle, AlertTriangle, Copy, Check, Trash2, Pencil, Sparkles, Filter, Eye, EyeOff, MessageSquare } from 'lucide-react';
 
 const MATERIAS_TJSP = [
   'Língua Portuguesa',
@@ -27,6 +27,7 @@ interface QuestaoConcurso {
   assunto: string;
   enunciado: string;
   resolucao: string;
+  observacao?: string;
   prioridade: 'Baixa' | 'Média' | 'Alta' | 'Crítica';
   created_at: string;
 }
@@ -53,6 +54,7 @@ export default function QuestoesPage() {
   const [assuntoBanco, setAssuntoBanco] = useState('');
   const [enunciadoBanco, setEnunciadoBanco] = useState('');
   const [resolucaoBanco, setResolucaoBanco] = useState('');
+  const [observacaoBanco, setObservacaoBanco] = useState('');
   const [prioridadeBanco, setPrioridadeBanco] = useState<'Baixa' | 'Média' | 'Alta' | 'Crítica'>('Média');
 
   const [modoPreenchimento, setModoPreenchimento] = useState<'manual' | 'json'>('json');
@@ -75,6 +77,7 @@ export default function QuestoesPage() {
   const [editAssunto, setEditAssunto] = useState('');
   const [editEnunciado, setEditEnunciado] = useState('');
   const [editResolucao, setEditResolucao] = useState('');
+  const [editObservacao, setEditObservacao] = useState('');
   const [editPrioridade, setEditPrioridade] = useState<'Baixa' | 'Média' | 'Alta' | 'Crítica'>('Média');
 
   useEffect(() => {
@@ -109,7 +112,6 @@ export default function QuestoesPage() {
     }
   }
 
-  // Formata automaticamente o enunciado para separar alternativas (A, B, C, D, E) em linhas distintas
   function formatarTextoQuestao(texto: string) {
     if (!texto) return '';
     return texto
@@ -118,7 +120,6 @@ export default function QuestoesPage() {
       .trim();
   }
 
-  // Lógica do Registo Numérico Original
   const handleTotalChange = (val: string) => {
     const num = val === '' ? '' : Number(val);
     setTotalFeitas(num);
@@ -182,7 +183,6 @@ export default function QuestoesPage() {
     }
   }
 
-  // Prompt Mestre Ajustado com Quebras de Linha nas Alternativas
   const promptMestreJson = `Atue como meu assistente de estudos para o concurso do TJSP (Banca VUNESP). 
 A partir das questões ou comentários que eu colar aqui, formate a saída EXCLUSIVAMENTE em um código JSON puro (sem markdown extra, sem texto antes ou depois) seguindo exatamente esta estrutura de array:
 
@@ -209,7 +209,6 @@ Regras estritas:
     setTimeout(() => setCopiadoPrompt(false), 2500);
   };
 
-  // Importar JSON
   async function handleImportarJson(e: React.FormEvent) {
     e.preventDefault();
     if (!userId) return;
@@ -235,6 +234,7 @@ Regras estritas:
         assunto: item.assunto || 'Geral',
         enunciado: formatarTextoQuestao(item.enunciado || 'Enunciado não informado'),
         resolucao: item.resolucao || '',
+        observacao: null, // Observação fica livre para preencher fora do JSON
         prioridade: ['Baixa', 'Média', 'Alta', 'Crítica'].includes(item.prioridade) ? item.prioridade : 'Média'
       }));
 
@@ -252,7 +252,6 @@ Regras estritas:
     }
   }
 
-  // Salvar Banco Manual
   async function handleSalvarBancoManual(e: React.FormEvent) {
     e.preventDefault();
     if (!userId || !enunciadoBanco.trim()) return;
@@ -266,6 +265,7 @@ Regras estritas:
           assunto: assuntoBanco.trim() || null,
           enunciado: formatarTextoQuestao(enunciadoBanco.trim()),
           resolucao: resolucaoBanco.trim(),
+          observacao: observacaoBanco.trim() || null,
           prioridade: prioridadeBanco
         }
       ]);
@@ -276,6 +276,7 @@ Regras estritas:
       setAssuntoBanco('');
       setEnunciadoBanco('');
       setResolucaoBanco('');
+      setObservacaoBanco('');
       carregarQuestoes(userId);
       setTimeout(() => setSucessoBanco(false), 3000);
     } catch (err: any) {
@@ -285,7 +286,6 @@ Regras estritas:
     }
   }
 
-  // Deletar Questão do Banco
   async function handleDeletar(id: string) {
     if (!confirm('Deseja realmente apagar esta questão do seu banco?')) return;
     try {
@@ -297,18 +297,17 @@ Regras estritas:
     }
   }
 
-  // Abrir Modal de Edição
   function abrirEdicao(q: QuestaoConcurso) {
     setEditId(q.id);
     setEditMateria(q.materia);
     setEditAssunto(q.assunto || '');
     setEditEnunciado(formatarTextoQuestao(q.enunciado));
     setEditResolucao(q.resolucao || '');
+    setEditObservacao(q.observacao || '');
     setEditPrioridade(q.prioridade);
     setModalEditOpen(true);
   }
 
-  // Salvar Edição
   async function handleSalvarEdicao(e: React.FormEvent) {
     e.preventDefault();
     if (!editId) return;
@@ -321,6 +320,7 @@ Regras estritas:
           assunto: editAssunto,
           enunciado: formatarTextoQuestao(editEnunciado),
           resolucao: editResolucao,
+          observacao: editObservacao.trim() || null,
           prioridade: editPrioridade
         })
         .eq('id', editId);
@@ -347,7 +347,6 @@ Regras estritas:
     }
   };
 
-  // Filtragem
   const questoesFiltradas = questoesList.filter(q => {
     const matchMateria = filtroMateria === 'todos' || q.materia === filtroMateria;
     const matchAssunto = filtroAssunto === 'todos' || q.assunto === filtroAssunto;
@@ -637,6 +636,19 @@ Regras estritas:
                   />
                 </div>
 
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold uppercase tracking-wider text-blue-400 flex items-center gap-1.5">
+                    <MessageSquare className="w-3.5 h-3.5" /> Observação / Comentário Pessoal (Opcional)
+                  </label>
+                  <textarea
+                    rows={2}
+                    placeholder="Adicione anotações extras, lembretes ou observações particulares..."
+                    value={observacaoBanco}
+                    onChange={(e) => setObservacaoBanco(e.target.value)}
+                    className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-xs text-zinc-100 whitespace-pre-line"
+                  />
+                </div>
+
                 <button
                   type="submit"
                   disabled={salvandoBanco}
@@ -740,6 +752,18 @@ Regras estritas:
                         {enunciadoFormatado}
                       </div>
 
+                      {/* Campo de Observação Pessoal (Exibido no card se houver conteúdo) */}
+                      {q.observacao && (
+                        <div className="bg-blue-950/20 border-l-2 border-blue-400 p-3 rounded-r-xl space-y-1">
+                          <span className="text-[10px] font-black uppercase tracking-wider text-blue-400 flex items-center gap-1">
+                            <MessageSquare className="w-3 h-3" /> Observação Pessoal:
+                          </span>
+                          <div className="text-xs text-zinc-300 leading-relaxed whitespace-pre-line">
+                            {q.observacao}
+                          </div>
+                        </div>
+                      )}
+
                       {/* Botão de Ver Resposta */}
                       <div className="pt-2 flex justify-start">
                         <button
@@ -825,7 +849,7 @@ Regras estritas:
                 <div>
                   <label className="block text-[11px] font-semibold text-zinc-400 mb-1">Enunciado e Alternativas</label>
                   <textarea
-                    rows={5}
+                    rows={4}
                     value={editEnunciado}
                     onChange={(e) => setEditEnunciado(e.target.value)}
                     className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-2.5 text-xs text-white whitespace-pre-line"
@@ -835,9 +859,19 @@ Regras estritas:
                 <div>
                   <label className="block text-[11px] font-semibold text-zinc-400 mb-1">Resolução Comentada</label>
                   <textarea
-                    rows={4}
+                    rows={3}
                     value={editResolucao}
                     onChange={(e) => setEditResolucao(e.target.value)}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-2.5 text-xs text-white whitespace-pre-line"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-blue-400 mb-1">Observação / Comentário Pessoal</label>
+                  <textarea
+                    rows={2}
+                    value={editObservacao}
+                    onChange={(e) => setEditObservacao(e.target.value)}
                     className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-2.5 text-xs text-white whitespace-pre-line"
                   />
                 </div>

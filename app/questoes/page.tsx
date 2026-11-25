@@ -63,8 +63,9 @@ export default function QuestoesPage() {
   const [salvandoBanco, setSalvandoBanco] = useState(false);
   const [sucessoBanco, setSucessoBanco] = useState(false);
 
-  // Estados de Controle de Visibilidade das Respostas (Card por Card)
+  // Estados de Controle de Visibilidade (Resoluções e Observações por Card)
   const [resolucoesVisiveis, setResolucoesVisiveis] = useState<{ [key: string]: boolean }>({});
+  const [observacoesVisiveis, setObservacoesVisiveis] = useState<{ [key: string]: boolean }>({});
 
   // Estados de Filtro Duplo (Matéria e Assunto)
   const [filtroMateria, setFiltroMateria] = useState('todos');
@@ -234,7 +235,7 @@ Regras estritas:
         assunto: item.assunto || 'Geral',
         enunciado: formatarTextoQuestao(item.enunciado || 'Enunciado não informado'),
         resolucao: item.resolucao || '',
-        observacao: null, // Observação fica livre para preencher fora do JSON
+        observacao: null,
         prioridade: ['Baixa', 'Média', 'Alta', 'Crítica'].includes(item.prioridade) ? item.prioridade : 'Média'
       }));
 
@@ -336,6 +337,10 @@ Regras estritas:
 
   const toggleResolucao = (id: string) => {
     setResolucoesVisiveis(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const toggleObservacao = (id: string) => {
+    setObservacoesVisiveis(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
   const corPrioridade = (p: string) => {
@@ -708,6 +713,7 @@ Regras estritas:
               <div className="space-y-4">
                 {questoesFiltradas.map((q) => {
                   const respostaAberta = resolucoesVisiveis[q.id];
+                  const observacaoAberta = observacoesVisiveis[q.id];
                   const enunciadoFormatado = formatarTextoQuestao(q.enunciado);
 
                   return (
@@ -752,9 +758,30 @@ Regras estritas:
                         {enunciadoFormatado}
                       </div>
 
-                      {/* Campo de Observação Pessoal (Exibido no card se houver conteúdo) */}
-                      {q.observacao && (
-                        <div className="bg-blue-950/20 border-l-2 border-blue-400 p-3 rounded-r-xl space-y-1">
+                      {/* Botões de Ação (Ver Resposta & Ver Observação) */}
+                      <div className="pt-2 flex flex-wrap items-center gap-2">
+                        <button
+                          onClick={() => toggleResolucao(q.id)}
+                          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-amber-400 text-xs font-bold transition-all cursor-pointer shadow-sm"
+                        >
+                          {respostaAberta ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          <span>{respostaAberta ? 'Ocultar Resposta Comentada' : 'Ver Resposta Comentada'}</span>
+                        </button>
+
+                        {q.observacao && (
+                          <button
+                            onClick={() => toggleObservacao(q.id)}
+                            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-blue-400 text-xs font-bold transition-all cursor-pointer shadow-sm"
+                          >
+                            {observacaoAberta ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                            <span>{observacaoAberta ? 'Ocultar Observação Pessoal' : 'Ver Observação Pessoal'}</span>
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Observação Pessoal (Oculta até clicar no botão) */}
+                      {observacaoAberta && q.observacao && (
+                        <div className="bg-blue-950/20 border-l-2 border-blue-400 p-4 rounded-r-xl space-y-1.5 animate-fadeIn">
                           <span className="text-[10px] font-black uppercase tracking-wider text-blue-400 flex items-center gap-1">
                             <MessageSquare className="w-3 h-3" /> Observação Pessoal:
                           </span>
@@ -763,17 +790,6 @@ Regras estritas:
                           </div>
                         </div>
                       )}
-
-                      {/* Botão de Ver Resposta */}
-                      <div className="pt-2 flex justify-start">
-                        <button
-                          onClick={() => toggleResolucao(q.id)}
-                          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-amber-400 text-xs font-bold transition-all cursor-pointer shadow-sm"
-                        >
-                          {respostaAberta ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                          <span>{respostaAberta ? 'Ocultar Resposta Comentada' : 'Ver Resposta Comentada'}</span>
-                        </button>
-                      </div>
 
                       {/* Resolução Comentada (Oculta até clicar no botão) */}
                       {respostaAberta && q.resolucao && (
